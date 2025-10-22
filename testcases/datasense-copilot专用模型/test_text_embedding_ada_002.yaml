@@ -1,0 +1,28 @@
+config:
+  name: text-embedding-ada-002 测试
+  base_url: ${ENV(DGI_BASE_URL)}
+  tags: [ai-model, datasense-copilot, embedding]
+  variables:
+    api_key: sk-${ENV(KEY)}
+    model_name: text-embedding-ada-002
+
+steps:
+  - name: 获取 hello 文本的 Embedding - text-embedding-ada-002
+    request:
+      method: POST
+      url: /v1/embeddings
+      headers:
+        Authorization: Bearer $api_key
+        Content-Type: application/json
+      body:
+        model: $model_name
+        input: hello
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.object, "list"]
+      - gt: [$.usage.total_tokens, 0]
+      - eq: ["$.data[0].object", "embedding"]
+      - gt: ["len($.data[0].embedding)", 0]
+    extract:
+      embedding_dimension: "len($.data[0].embedding)"
+      prompt_tokens: $.usage.prompt_tokens

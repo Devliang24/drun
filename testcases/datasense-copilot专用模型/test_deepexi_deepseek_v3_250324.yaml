@@ -1,0 +1,29 @@
+config:
+  name: deepexi-deepseek-v3-250324 测试
+  base_url: ${ENV(DGI_BASE_URL)}
+  tags: [ai-model, datasense-copilot, chat]
+  variables:
+    api_key: sk-${ENV(KEY)}
+    model_name: deepexi-deepseek-v3-250324
+
+steps:
+  - name: 发送 Hello 消息到 deepexi-deepseek-v3-250324
+    request:
+      method: POST
+      url: /v1/chat/completions
+      headers:
+        Authorization: Bearer $api_key
+        Content-Type: application/json
+      body:
+        model: $model_name
+        messages:
+          - role: user
+            content: hello
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.object, "chat.completion"]
+      - gt: [$.usage.total_tokens, 0]
+    extract:
+      response_content: $.choices[0].message.content
+      completion_tokens: $.usage.completion_tokens
+      prompt_tokens: $.usage.prompt_tokens

@@ -322,6 +322,11 @@ class Runner:
                 ctx.push(rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {}))
                 variables = ctx.get_merged(global_vars)
 
+                # Render step name to support variable interpolation (e.g., $model_name in parametrized tests)
+                rendered_step_name = self._render(step.name, variables, funcs, envmap)
+                if not isinstance(rendered_step_name, str):
+                    rendered_step_name = str(step.name)
+
                 # render request
                 req_dict = self._request_dict(step)
                 req_rendered = self._render(req_dict, variables, funcs, envmap)
@@ -354,7 +359,7 @@ class Runner:
                     status = "failed"
                     if self.log:
                         self.log.error(f"[HOOK] setup error: {e}")
-                    steps_results.append(StepResult(name=step.name, status="failed", error=f"setup hook error: {e}"))
+                    steps_results.append(StepResult(name=rendered_step_name, status="failed", error=f"setup hook error: {e}"))
                     if self.failfast:
                         break
                     ctx.pop()
@@ -377,7 +382,7 @@ class Runner:
                         req_rendered["headers"] = hdrs
 
                 if self.log:
-                    self.log.info(f"[STEP] Start: {step.name}")
+                    self.log.info(f"[STEP] Start: {rendered_step_name}")
                     # brief request line
                     self.log.info(f"[REQUEST] {req_rendered.get('method','GET')} {req_rendered.get('url')}")
                     if req_rendered.get("params") is not None:
@@ -445,7 +450,7 @@ class Runner:
 
                     steps_results.append(
                         StepResult(
-                            name=step.name,
+                            name=rendered_step_name,
                             status="failed",
                             request=req_summary,
                             response={"error": f"Request error: {last_error}"},
@@ -641,7 +646,7 @@ class Runner:
                     self.log.debug("cURL: %s", curl)
 
                 sr = StepResult(
-                    name=step.name,
+                    name=rendered_step_name,
                     status="failed" if step_failed else "passed",
                     request={
                         k: v for k, v in req_rendered.items() if k in ("method", "url", "params", "headers", "body", "data")
@@ -659,13 +664,13 @@ class Runner:
                 if step_failed:
                     status = "failed"
                     if self.log:
-                        self.log.error(f"[STEP] Result: {step.name} | FAILED")
+                        self.log.error(f"[STEP] Result: {rendered_step_name} | FAILED")
                     if self.failfast:
                         ctx.pop()
                         break
                 else:
                     if self.log:
-                        self.log.info(f"[STEP] Result: {step.name} | PASSED")
+                        self.log.info(f"[STEP] Result: {rendered_step_name} | PASSED")
                 ctx.pop()
 
         finally:

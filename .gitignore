@@ -62,6 +62,7 @@ Thumbs.db
 # Claude Code
 CLAUDE.md
 spec/postman/HC-UDI.postman.json
+.claude/
 
 # Temporary files
 image.png
