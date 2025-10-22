@@ -1439,8 +1439,202 @@ def fix(
     else:
         typer.echo("No changes needed.")
 
-if __name__ == "__main__":
-    app()
+@app.command("init")
+def init_project(
+    name: Optional[str] = typer.Argument(None, help="项目名称（默认为当前目录）"),
+    force: bool = typer.Option(False, "--force", help="强制覆盖已存在的文件"),
+) -> None:
+    """初始化 ARun 测试项目脚手架
+
+    生成完整的项目目录结构，包含：
+    - testcases/: 测试用例示例
+    - testsuites/: 测试套件示例
+    - converts/: 格式转换源文件目录
+    - reports/: 报告输出目录
+    - logs/: 日志输出目录
+    - .env: 环境配置
+    - arun_hooks.py: Hooks 函数
+    - README.md: 快速上手文档
+
+    示例:
+        arun init                    # 在当前目录初始化
+        arun init my-api-test        # 创建新项目目录
+        arun init --force            # 强制覆盖已存在文件
+    """
+    from arun import scaffolds
+
+    # 确定目标目录
+    if name:
+        target_dir = Path(name)
+        if target_dir.exists() and not target_dir.is_dir():
+            typer.echo(f"[ERROR] '{name}' exists but is not a directory.")
+            raise typer.Exit(code=2)
+    else:
+        target_dir = Path.cwd()
+
+    # 检查是否已存在关键文件
+    key_files = ["testcases", ".env", "arun_hooks.py", ".gitignore", "README.md"]
+    existing_files = [f for f in key_files if (target_dir / f).exists()]
+
+    if existing_files and not force:
+        typer.echo(f"[WARNING] Directory already contains ARun project files: {', '.join(existing_files)}")
+        typer.echo("Use --force to overwrite existing files. Existing files will be kept otherwise.")
+        if not typer.confirm("Continue without overwriting existing files?", default=False):
+            raise typer.Exit(code=0)
+
+    # 开始创建项目
+    if name:
+        typer.echo(f"\nCreating ARun project: {target_dir}/\n")
+    else:
+        typer.echo(f"\nInitializing ARun project in current directory\n")
+
+    # 创建目录结构
+    dirs_to_create = {
+        "testcases": "测试用例目录",
+        "testsuites": "测试套件目录",
+        "converts": "格式转换源文件目录",
+        "reports": "报告输出目录",
+        "logs": "日志输出目录",
+    }
+
+    for dir_name, desc in dirs_to_create.items():
+        dir_path = target_dir / dir_name
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+    # 创建 converts/ 子目录
+    convert_subdirs = ["curl", "postman", "har", "openapi"]
+    for subdir in convert_subdirs:
+        (target_dir / "converts" / subdir).mkdir(parents=True, exist_ok=True)
+
+    # 在 reports 和 logs 目录放置 .gitkeep
+    for empty_dir in ["reports", "logs"]:
+        gitkeep_path = target_dir / empty_dir / ".gitkeep"
+        gitkeep_path.write_text(scaffolds.GITKEEP_CONTENT, encoding="utf-8")
+
+    # 写入文件
+    skipped_files: List[str] = []
+    overwritten_files: List[str] = []
+
+    def _write_template(rel_path: str, content: str) -> None:
+        file_path = target_dir / rel_path
+        existed_before = file_path.exists()
+        if existed_before and not force:
+            skipped_files.append(rel_path)
+            typer.echo(f"[SKIP] {rel_path} 已存在，使用 --force 可覆盖。")
+            return
+        file_path.write_text(content, encoding="utf-8")
+        if existed_before and force:
+            overwritten_files.append(rel_path)
+
+    # testcases/test_demo.yaml
+    _write_template("testcases/test_demo.yaml", scaffolds.DEMO_TESTCASE)
+
+    # testcases/test_api_health.yaml
+    _write_template("testcases/test_api_health.yaml", scaffolds.HEALTH_TESTCASE)
+
+    # testsuites/testsuite_smoke.yaml
+    _write_template("testsuites/testsuite_smoke.yaml", scaffolds.DEMO_TESTSUITE)
+
+    # converts/README.md
+    _write_template("converts/README.md", scaffolds.CONVERTS_README)
+
+    # converts/curl/sample.curl
+    _write_template("converts/curl/sample.curl", scaffolds.SAMPLE_CURL)
+
+    # converts/postman/sample_collection.json
+    _write_template("converts/postman/sample_collection.json", scaffolds.SAMPLE_POSTMAN_COLLECTION)
+
+    # converts/postman/sample_environment.json
+    _write_template("converts/postman/sample_environment.json", scaffolds.SAMPLE_POSTMAN_ENVIRONMENT)
+
+    # converts/har/sample_recording.har
+    _write_template("converts/har/sample_recording.har", scaffolds.SAMPLE_HAR)
+
+    # converts/openapi/sample_openapi.json
+    _write_template("converts/openapi/sample_openapi.json", scaffolds.SAMPLE_OPENAPI)
+
+    # .env
+    _write_template(".env", scaffolds.ENV_TEMPLATE)
+
+    # arun_hooks.py
+    _write_template("arun_hooks.py", scaffolds.HOOKS_TEMPLATE)
+
+    # .gitignore
+    _write_template(".gitignore", scaffolds.GITIGNORE_TEMPLATE)
+
+    # README.md
+    _write_template("README.md", scaffolds.README_TEMPLATE)
+
+    # 输出创建的文件列表
+    typer.echo("✓ Created testcases/")
+    typer.echo("  ├── test_demo.yaml          (完整认证流程示例)")
+    typer.echo("  └── test_api_health.yaml    (健康检查示例)")
+    typer.echo("")
+    typer.echo("✓ Created testsuites/")
+    typer.echo("  └── testsuite_smoke.yaml    (冒烟测试套件)")
+    typer.echo("")
+    typer.echo("✓ Created converts/")
+    typer.echo("  ├── README.md                              (格式转换完整指南)")
+    typer.echo("  ├── curl/sample.curl                       (cURL 命令示例)")
+    typer.echo("  ├── postman/")
+    typer.echo("  │   ├── sample_collection.json             (Postman Collection)")
+    typer.echo("  │   └── sample_environment.json            (Postman 环境变量)")
+    typer.echo("  ├── har/sample_recording.har               (HAR 录屏示例)")
+    typer.echo("  └── openapi/sample_openapi.json            (OpenAPI 规范)")
+    typer.echo("")
+    typer.echo("✓ Created reports/ (报告输出目录)")
+    typer.echo("✓ Created logs/ (日志输出目录)")
+    typer.echo("✓ Created .env (环境配置)")
+    typer.echo("✓ Created arun_hooks.py (Hooks 函数)")
+    typer.echo("✓ Created .gitignore (Git 配置)")
+    typer.echo("✓ Created README.md (项目文档)")
+
+    if skipped_files:
+        typer.echo("")
+        typer.echo("保留已有文件（未覆盖）:")
+        for rel_path in skipped_files:
+            typer.echo(f"  - {rel_path}")
+
+    if overwritten_files:
+        typer.echo("")
+        typer.echo("已覆盖文件 (--force):")
+        for rel_path in overwritten_files:
+            typer.echo(f"  - {rel_path}")
+
+    typer.echo("")
+    typer.echo("项目初始化成功! 🎉")
+    typer.echo("")
+    typer.echo("快速开始:")
+    if name:
+        typer.echo(f"  1. cd {name}")
+        typer.echo("  2. 编辑 .env 配置你的 API 地址:")
+    else:
+        typer.echo("  1. 编辑 .env 配置你的 API 地址:")
+    typer.echo("     BASE_URL=http://localhost:8000")
+    if name:
+        typer.echo("  3. 运行测试:")
+    else:
+        typer.echo("  2. 运行测试:")
+    typer.echo("     arun run testcases/test_api_health.yaml --env-file .env")
+    if name:
+        typer.echo("  4. 查看报告:")
+    else:
+        typer.echo("  3. 查看报告:")
+    typer.echo("     reports/report-<timestamp>.html")
+    typer.echo("")
+    typer.echo("格式转换 (查看 converts/README.md 获取详细说明):")
+    typer.echo("  - cURL 转用例:")
+    typer.echo("    arun convert converts/curl/sample.curl --outfile testcases/new_test.yaml")
+    typer.echo("  - Postman 转用例:")
+    typer.echo("    arun convert converts/postman/sample_collection.json --split-output --suite-out testsuites/new_suite.yaml")
+    typer.echo("  - HAR 转用例:")
+    typer.echo("    arun convert converts/har/sample_recording.har --exclude-static --only-2xx --outfile testcases/from_har.yaml")
+    typer.echo("  - OpenAPI 转用例:")
+    typer.echo("    arun convert-openapi converts/openapi/sample_openapi.json --split-output --outfile testcases/from_openapi.yaml")
+    typer.echo("")
+    typer.echo("文档: https://github.com/Devliang24/arun")
+
+
 @app.command("convert-openapi")
 def convert_openapi(
     spec: str = typer.Argument(..., help="OpenAPI 3.x spec file (.json or .yaml)"),
@@ -1469,3 +1663,7 @@ def convert_openapi(
         split_output=split_output,
         source_path=spec,
     )
+
+
+if __name__ == "__main__":
+    app()
