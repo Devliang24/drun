@@ -146,9 +146,9 @@ config:
   tags: [auth, params]
   parameters:
     - username-password-expected_status-expected_message:
-        - ["alice", "pass123", 200, "登录成功"]        # 正常登录
-        - ["bob", "wrong_pwd", 401, "登录失败"]        # 密码错误
-        - ["unknown_user", "any", 401, "登录失败"]     # 用户不存在
+        - [alice, pass123, 200, 登录成功]        # 正常登录
+        - [bob, wrong_pwd, 401, 登录失败]        # 密码错误
+        - [unknown_user, any, 401, 登录失败]     # 用户不存在
     # 生成 3 个测试实例，每组 4 个参数成对使用
 
 steps:
@@ -193,7 +193,7 @@ steps:
       url: ${full_url}/health
     validate:
       - eq: [status_code, 200]
-      - eq: [$.status, "healthy"]
+      - eq: [$.status, healthy]
       - contains: [$.data.region, $region]
 ```
 

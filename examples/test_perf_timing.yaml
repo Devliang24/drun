@@ -9,5 +9,5 @@ steps:
       url: /
     validate:
       - eq: [status_code, 200]
-      - gt: ["$elapsed_ms", 0]
-      - lt: ["$elapsed_ms", 2000]
+      - gt: [$elapsed_ms, 0]
+      - lt: [$elapsed_ms, 2000]

@@ -19,10 +19,10 @@ steps:
         input: hello
     validate:
       - eq: [status_code, 200]
-      - eq: [$.object, "list"]
+      - eq: [$.object, list]
       - gt: [$.usage.total_tokens, 0]
-      - eq: ["$.data[0].object", "embedding"]
-      - gt: ["len($.data[0].embedding)", 0]
+      - eq: [$.data[0].object, embedding]
+      - gt: [len($.data[0].embedding), 0]
     extract:
-      embedding_dimension: "len($.data[0].embedding)"
+      embedding_dimension: len($.data[0].embedding)
       prompt_tokens: $.usage.prompt_tokens

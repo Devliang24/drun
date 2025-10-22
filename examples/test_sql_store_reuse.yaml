@@ -49,4 +49,4 @@ steps:
       method: GET
       url: /
     validate:
-      - contains: ["$session_variables", "db_status"]
+      - contains: [$session_variables, db_status]

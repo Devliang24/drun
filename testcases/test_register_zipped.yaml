@@ -4,9 +4,9 @@ config:
   tags: [auth, register, params]
   parameters:
     - username-email-full_name-password-shipping_address:
-        - ["alice_${short_uid(6)}", "alice_${short_uid(6)}@example.com", "Alice_${short_uid(6)}", "Pwd_Alice_${short_uid(6)}", "Addr_Alice_${short_uid(6)}"]
-        - ["bob_${short_uid(6)}", "bob_${short_uid(6)}@example.com", "Bob_${short_uid(6)}", "Pwd_Bob_${short_uid(6)}", "Addr_Bob_${short_uid(6)}"]
-        - ["charlie_${short_uid(6)}", "charlie_${short_uid(6)}@example.com", "Charlie_${short_uid(6)}", "Pwd_Charlie_${short_uid(6)}", "Addr_Charlie_${short_uid(6)}"]
+        - [alice_${short_uid(6)}, alice_${short_uid(6)}@example.com, Alice_${short_uid(6)}, Pwd_Alice_${short_uid(6)}, Addr_Alice_${short_uid(6)}]
+        - [bob_${short_uid(6)}, bob_${short_uid(6)}@example.com, Bob_${short_uid(6)}, Pwd_Bob_${short_uid(6)}, Addr_Bob_${short_uid(6)}]
+        - [charlie_${short_uid(6)}, charlie_${short_uid(6)}@example.com, Charlie_${short_uid(6)}, Pwd_Charlie_${short_uid(6)}, Addr_Charlie_${short_uid(6)}]
 
 steps:
   - name: 注册

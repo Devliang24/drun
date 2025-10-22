@@ -3,12 +3,12 @@ config:
   base_url: ${ENV(BASE_URL)}
   parameters:
     - username-password:
-        - ["alice", "pass123"]
-        - ["bob", "secret456"]
-        - ["charlie", "pwd789"]
+        - [alice, pass123]
+        - [bob, secret456]
+        - [charlie, pwd789]
     - env:
-        - "dev"
-        - "staging"
+        - dev
+        - staging
 
 steps:
   - name: 压缩参数

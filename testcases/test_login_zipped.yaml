@@ -4,8 +4,8 @@ config:
   tags: [auth, login, params]
   parameters:
     - username-password-expected_status-expected_success-expected_message:
-        - ["${ENV(USER_USERNAME)}", "${ENV(USER_PASSWORD)}", 401, false, "用户名或密码错误"]
-        - ["invalid_${short_uid(6)}", "invalid_${short_uid(6)}", 401, false, "用户名或密码错误"]
+        - [${ENV(USER_USERNAME)}, ${ENV(USER_PASSWORD)}, 401, false, 用户名或密码错误]
+        - [invalid_${short_uid(6)}, invalid_${short_uid(6)}, 401, false, 用户名或密码错误]
 
 steps:
   - name: 尝试登录

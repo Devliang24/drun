@@ -11,11 +11,11 @@ steps:
       first_id: $.data.items[0].id
     validate:
       - eq: [status_code, 200]
-      - contains: [headers.Content-Type, "application/json"]
+      - contains: [headers.Content-Type, application/json]
       - eq: [$.success, true]
-      - contains: ["$.data.items[0]", "name"]
-      - gt: ["$.data.items[0].price", 0.0]
-      - regex: [$.message, "产品|列表|成功"]
+      - contains: [$.data.items[0], name]
+      - gt: [$.data.items[0].price, 0.0]
+      - regex: [$.message, 产品|列表|成功]
 
   - name: 获取产品详情
     request:
