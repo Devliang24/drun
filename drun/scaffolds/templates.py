@@ -1182,23 +1182,25 @@ USER_PASSWORD=test_pass123
 
 ```bash
 # 运行单个测试用例
-drun run testcases/test_api_health.yaml --env-file .env
+drun run testcases/test_api_health.yaml
 
 # 运行整个测试目录
-drun run testcases --env-file .env
+drun run testcases
 
 # 运行测试套件
-drun run testsuites/testsuite_smoke.yaml --env-file .env
+drun run testsuites/testsuite_smoke.yaml
 
 # 使用标签过滤
-drun run testcases -k "smoke and not slow" --env-file .env
+drun run testcases -k "smoke and not slow"
 
 # 生成 HTML 报告
-drun run testcases --html reports/report.html --env-file .env
+drun run testcases --html reports/report.html
 
 # 启用详细日志
-drun run testcases --log-level debug --env-file .env
+drun run testcases --log-level debug
 ```
+
+> 提示：未显式指定 `--env-file` 时会自动读取当前目录的 `.env`。如果需要加载其他文件，可运行如 `drun run testcases --env-file configs/staging.env`。
 
 ### 4. 查看报告
 

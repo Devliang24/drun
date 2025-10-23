@@ -1638,12 +1638,13 @@ def init_project(
         typer.echo("  3. 运行测试:")
     else:
         typer.echo("  2. 运行测试:")
-    typer.echo("     drun run testcases/test_api_health.yaml --env-file .env")
+    typer.echo("     drun run testcases/test_api_health.yaml")
     if name:
         typer.echo("  4. 查看报告:")
     else:
         typer.echo("  3. 查看报告:")
     typer.echo("     reports/report-<timestamp>.html")
+    typer.echo("     # 未指定 --env-file 时会自动读取当前目录的 .env")
     typer.echo("")
     typer.echo("格式转换 (查看 converts/README.md 获取详细说明):")
     typer.echo("  - cURL 转用例:")

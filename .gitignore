@@ -68,3 +68,4 @@ spec/postman/HC-UDI.postman.json
 image.png
 *.png
 .env
+!examples/example-project/.env

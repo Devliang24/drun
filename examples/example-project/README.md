@@ -31,13 +31,7 @@ pip install drun
 
 ### 2. 配置环境变量
 
-复制项目根目录的 `.env` 文件到此目录（可选）：
-
-```bash
-cp ../.env .
-```
-
-或者设置环境变量：
+此目录已附带一份示例 `.env`，可根据实际接口地址和凭证直接修改；也可以删除后自行创建或通过环境变量配置：
 
 ```bash
 export BASE_URL=http://localhost:8000
@@ -136,4 +130,3 @@ start reports/report-*.html  # Windows
 ## 📄 许可证
 
 本项目采用与 Drun 相同的许可证。
-

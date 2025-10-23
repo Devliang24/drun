@@ -111,7 +111,7 @@ drun run examples/basic-examples --env-file .env
 
 # 运行完整项目示例
 cd examples/example-project
-drun run testcases/ --env-file ../../.env
+drun run testcases/ --env-file .env
 ```
 
 ---
