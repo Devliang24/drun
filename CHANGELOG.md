@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.7] - 2025-10-24
+
+### Improved
+- **CLI notifications**: Auto-enable notification channels (Feishu/DingTalk/Email) when their environment variables are present
+  - Automatically detects and enables channels based on `FEISHU_WEBHOOK`, `DINGTALK_WEBHOOK`, `EMAIL_*` environment variables
+  - Eliminates the need for explicit `--notify` or `--notify-only` flags when environment is configured
+  - Enhanced user experience with seamless notification integration
+
+### Fixed
+- **CLI notifications**: Properly honor `DRUN_NOTIFY_ONLY` environment variable when not set via command line
+  - Fixed issue where environment variable was ignored if CLI flag was not explicitly provided
+  - Ensures consistent behavior between environment variables and CLI flags
+
 ## [0.3.6] - 2025-10-23
 
 ### Improved
