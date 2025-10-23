@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.4] - 2025-10-23
+
+### Improved
+- **`drun init` output**: Enhanced project initialization output with tree-style layout
+  - Use standard tree command characters (├──, │, └──) for better visual hierarchy
+  - Right-aligned descriptions in a unified column for cleaner appearance
+  - Added directory/file count summary (6 directories, 12 files)
+  - Simplified quick start guide (removed redundant --env-file .env)
+
 ## [0.3.3] - 2025-10-23
 
 ### Changed

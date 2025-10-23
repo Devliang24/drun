@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "drun"
-version = "0.3.3"
+version = "0.3.4"
 description = "Minimal HTTP API test runner (MVP)"
 requires-python = ">=3.10"
 authors = [{ name = "Drun Team" }]
