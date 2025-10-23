@@ -84,9 +84,11 @@ steps:
   - name: 检查服务状态
     request:
       method: GET
-      url: /status/200
+      url: /get
     validate:
       - eq: [status_code, 200]
+      - contains: [headers.Content-Type, application/json]
+      - eq: [$.url, https://httpbin.org/get]
 """
 
 # 测试套件模板
