@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.5] - 2025-10-23
+
+### Fixed
+- **`drun init` output**: Perfect alignment for all descriptions
+  - All descriptions now start at column 46 for consistent visual appearance
+  - Fixed alignment for cURL, Postman, HAR, OpenAPI, and Git descriptions
+
 ## [0.3.4] - 2025-10-23
 
 ### Improved
