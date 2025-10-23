@@ -1,8 +1,8 @@
 # 🔄 格式转换攻略（Convert & Export）
 
-本页整理 `arun convert` / `arun export` 的常用场景与参数组合，帮助你把 cURL / Postman / HAR / OpenAPI 等资产快速迁移为 YAML 测试，或从 YAML 导出命令复现实验结果。
+本页整理 `drun convert` / `drun export` 的常用场景与参数组合，帮助你把 cURL / Postman / HAR / OpenAPI 等资产快速迁移为 YAML 测试，或从 YAML 导出命令复现实验结果。
 
-注意：使用 `arun convert` 时，必须“文件在前，选项在后”，且不支持无选项转换（至少提供一个选项，如 `--outfile`/`--split-output`/`--redact`/`--placeholders`）。
+注意：使用 `drun convert` 时，必须“文件在前，选项在后”，且不支持无选项转换（至少提供一个选项，如 `--outfile`/`--split-output`/`--redact`/`--placeholders`）。
 
 > 温馨提示：命令详尽参数说明见 `docs/CLI.md` 的相关章节；此处聚焦高频组合、最佳实践与排查思路，文档风格参考 `docs/CI_CD.md`。
 
@@ -10,13 +10,13 @@
 
 ```bash
 # cURL → Case：脱敏 + 变量占位
-arun convert requests.curl \
+drun convert requests.curl \
   --outfile testcases/from_curl.yaml \
   --redact Authorization,Cookie \
   --placeholders
 
 # Postman → 多文件 + Testsuite
-arun convert api_collection.json \
+drun convert api_collection.json \
   --split-output \
   --suite-out testsuites/testsuite_postman.yaml \
   --postman-env postman_env.json \
@@ -24,13 +24,13 @@ arun convert api_collection.json \
   --placeholders
 
 # HAR → 过滤静态资源 + 仅保留 2xx
-arun convert recording.har \
+drun convert recording.har \
   --exclude-static \
   --only-2xx \
   --outfile testcases/from_har.yaml
 
 # OpenAPI → 按 tag 拆分 Case
-arun convert-openapi spec/openapi/ecommerce_api.json \
+drun convert-openapi spec/openapi/ecommerce_api.json \
   --tags users,orders \
   --split-output \
   --outfile testcases/from_openapi.yaml \
@@ -38,7 +38,7 @@ arun convert-openapi spec/openapi/ecommerce_api.json \
   --placeholders
 
 # YAML → cURL（脱敏/选步/一行输出）
-arun export curl testcases/test_auth.yaml \
+drun export curl testcases/test_auth.yaml \
   --steps "1,2" \
   --redact Authorization \
   --with-comments
@@ -84,7 +84,7 @@ arun export curl testcases/test_auth.yaml \
 |------|------|-----------|
 | `--redact Authorization,Cookie` | 输出中将指定 header 值替换为 `***` | 资产存档、分享示例 |
 | `--placeholders` | 将敏感 header 提升到 `config.variables` 并写成 `$var` | 多环境配置、CI/CD |
-| `--postman-env xxx.json` | 将 Postman 环境变量写入 `config.variables` | Postman → ARun |
+| `--postman-env xxx.json` | 将 Postman 环境变量写入 `config.variables` | Postman → Drun |
 
 > 如果 `--redact` 与 `--placeholders` 同时使用，优先占位写入变量，再由生成的 YAML 自动引用。
 
@@ -92,7 +92,7 @@ arun export curl testcases/test_auth.yaml \
 
 | 场景 | 命令 | 说明 |
 |------|------|------|
-| 调试单步 | `arun export curl testcases/test.yaml --steps 2` | 仅导出第 2 步，便于复现问题 |
+| 调试单步 | `drun export curl testcases/test.yaml --steps 2` | 仅导出第 2 步，便于复现问题 |
 | 分享命令 | `--with-comments --multiline` | 注释标明 Case/Step，易读多行格式 |
 | Shell 兼容 | `--shell ps` | 为 PowerShell 使用 `` ` `` 续行 |
 | 脱敏查看 | `--redact Authorization` | 分享给他人时隐藏敏感头 |
@@ -107,7 +107,7 @@ arun export curl testcases/test_auth.yaml \
 
 ## 补充资料
 
-- CLI 参数总览：`docs/CLI.md`（`arun convert` / `arun export` 章节）
+- CLI 参数总览：`docs/CLI.md`（`drun convert` / `drun export` 章节）
 - 实战示例：`docs/EXAMPLES.md`（格式转换与导出工作流）、`examples/` 目录
 - 组合示例：`spec/openapi/ecommerce_api.json`（OpenAPI → YAML）
 

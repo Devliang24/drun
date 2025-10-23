@@ -1,6 +1,6 @@
 # 🔗 CI/CD 集成
 
-本文档汇总了常见平台的最小可用示例，帮助你将 ARun 接入流水线。
+本文档汇总了常见平台的最小可用示例，帮助你将 Drun 接入流水线。
 
 提示：建议将敏感配置（如 `BASE_URL`、账号密码、API Key）放入平台的 Secret/变量管理，并通过 `.env` 或环境变量方式传入。
 
@@ -31,7 +31,7 @@ jobs:
           USER_USERNAME: ${{ secrets.TEST_USERNAME }}
           USER_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
-          arun run testcases \
+          drun run testcases \
             --html reports/report.html \
             --report reports/run.json \
             --mask-secrets \
@@ -58,7 +58,7 @@ api-tests:
     - pip install -e .
   script:
     - |
-      arun run testcases \
+      drun run testcases \
         --html reports/report.html \
         --report reports/run.json \
         --mask-secrets \
@@ -91,7 +91,7 @@ pipeline {
     }
     stage('Run') {
       steps {
-        sh 'arun run testcases --html reports/report.html --report reports/run.json --mask-secrets'
+        sh 'drun run testcases --html reports/report.html --report reports/run.json --mask-secrets'
       }
     }
   }

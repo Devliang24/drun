@@ -5,8 +5,8 @@ from typing import List, Dict, Optional, Iterable, Tuple, Set, Any, Mapping
 import re
 from urllib.parse import urljoin, urlencode
 
-from arun.models.case import Case
-from arun.templating.engine import TemplateEngine
+from drun.models.case import Case
+from drun.templating.engine import TemplateEngine
 
 
 _TEMPLATER = TemplateEngine()

@@ -1,4 +1,4 @@
-name: ARun Convert + Run
+name: Drun Convert + Run
 
 on:
   workflow_dispatch:
@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install ARun
+      - name: Install Drun
         run: |
           pip install -U pip
           pip install -e .
@@ -32,7 +32,7 @@ jobs:
           mkdir -p testcases testsuites reports logs
           # cURL → 追加至单一用例文件，导入期脱敏与占位
           if [ -f assets/requests.curl ]; then
-            arun convert assets/requests.curl \
+            drun convert assets/requests.curl \
               --into testcases/imported.yaml \
               --redact Authorization,Cookie \
               --placeholders
@@ -41,7 +41,7 @@ jobs:
           if [ -f assets/postman.json ]; then
             ENV_ARG=""
             if [ -f assets/postman_env.json ]; then ENV_ARG="--postman-env assets/postman_env.json"; fi
-            arun convert assets/postman.json $ENV_ARG \
+            drun convert assets/postman.json $ENV_ARG \
               --split-output \
               --suite-out testsuites/testsuite_postman.yaml \
               --redact Authorization \
@@ -49,13 +49,13 @@ jobs:
           fi
           # HAR → 过滤静态/仅 2xx/正则排除，写入单文件
           if [ -f assets/recording.har ]; then
-            arun convert assets/recording.har \
+            drun convert assets/recording.har \
               --exclude-static --only-2xx --exclude-pattern '(\\.png$|/cdn/)' \
               --outfile testcases/from_har.yaml
           fi
           # OpenAPI → 多文件输出（如果存在）
           if [ -f spec/openapi/ecommerce_api.json ]; then
-            arun convert openapi spec/openapi/ecommerce_api.json \
+            drun convert openapi spec/openapi/ecommerce_api.json \
               --tags users,orders \
               --split-output \
               --outfile testcases/from_openapi.yaml \
@@ -69,7 +69,7 @@ jobs:
           SUITE=testsuites/testsuite_regression.yaml
           if [ -f testsuites/testsuite_postman.yaml ]; then SUITE=testsuites/testsuite_postman.yaml; fi
           mkdir -p reports logs
-          arun run "$SUITE" \
+          drun run "$SUITE" \
             --env-file .env \
             --html reports/report.html \
             --report reports/run.json \
@@ -79,7 +79,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: arun-reports-convert-run
+          name: drun-reports-convert-run
           path: |
             reports/report.html
             reports/run.json

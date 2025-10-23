@@ -10,24 +10,24 @@ import typer
 from importlib import metadata as _im
 import yaml
 
-from arun.loader.collector import discover, match_tags
-from arun.loader.yaml_loader import expand_parameters, load_yaml_file
-from arun.loader.hooks import get_functions_for
-from arun.loader.env import load_environment
-from arun.models.case import Case
-from arun.models.config import Config
-from arun.models.request import StepRequest
-from arun.models.step import Step
-from arun.models.validators import Validator
-from arun.models.report import RunReport
-from arun.reporter.json_reporter import write_json
-from arun.runner.runner import Runner
-from arun.templating.engine import TemplateEngine
-from arun.utils.logging import setup_logging, get_logger
+from drun.loader.collector import discover, match_tags
+from drun.loader.yaml_loader import expand_parameters, load_yaml_file
+from drun.loader.hooks import get_functions_for
+from drun.loader.env import load_environment
+from drun.models.case import Case
+from drun.models.config import Config
+from drun.models.request import StepRequest
+from drun.models.step import Step
+from drun.models.validators import Validator
+from drun.models.report import RunReport
+from drun.reporter.json_reporter import write_json
+from drun.runner.runner import Runner
+from drun.templating.engine import TemplateEngine
+from drun.utils.logging import setup_logging, get_logger
 import time
 
 
-from arun.utils.errors import LoadError
+from drun.utils.errors import LoadError
 class _FlowSeq(list):
     """Sequence rendered in flow-style YAML (e.g., [a, b])."""
 
@@ -46,18 +46,18 @@ def _flow_seq_representer(dumper: yaml.Dumper, value: _FlowSeq):
 _YamlDumper.add_representer(_FlowSeq, _flow_seq_representer)
 
 
-def _get_arun_version() -> str:
+def _get_drun_version() -> str:
     """Best-effort version detection for help banner.
 
     Priority:
     1) Installed package metadata (importlib.metadata)
     2) pyproject.toml under a project root (if available when running from source)
-    3) arun.__version__ attribute
+    3) drun.__version__ attribute
     4) "unknown"
     """
     # 1) package metadata (installed/installed in editable)
     try:
-        return _im.version("arun")
+        return _im.version("drun")
     except Exception:
         pass
 
@@ -88,7 +88,7 @@ def _get_arun_version() -> str:
 
     # 3) module attribute
     try:
-        from arun import __version__ as _v  # type: ignore
+        from drun import __version__ as _v  # type: ignore
         if _v:
             return str(_v)
     except Exception:
@@ -98,7 +98,7 @@ def _get_arun_version() -> str:
     return "unknown"
 
 
-_APP_HELP = f"ARun v{_get_arun_version()} · Zero-code HTTP API test framework"
+_APP_HELP = f"drun v{_get_drun_version()} · Zero-code HTTP API test framework"
 
 app = typer.Typer(add_completion=False, help=_APP_HELP, rich_markup_mode=None)
 export_app = typer.Typer()
@@ -161,7 +161,7 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
                 cfg.pop(field, None)
 
     steps = d.get("steps") or []
-    from arun.models.step import Step as _Step
+    from drun.models.step import Step as _Step
 
     default_retry = _Step.model_fields.get("retry").default if "retry" in _Step.model_fields else None
     default_backoff = _Step.model_fields.get("retry_backoff").default if "retry_backoff" in _Step.model_fields else None
@@ -537,7 +537,7 @@ def convert_auto(
                 pos = i
                 break
         if pos is not None and any(t.startswith("-") for t in tail[:pos]):
-            typer.echo("[CONVERT] Options must follow INFILE. Example:\n  arun convert file.curl --outfile out.yaml")
+            typer.echo("[CONVERT] Options must follow INFILE. Example:\n  drun convert file.curl --outfile out.yaml")
             raise typer.Exit(code=2)
     # Enforce: no bare conversion without any options
     any_option = any([
@@ -550,7 +550,7 @@ def convert_auto(
         placeholders,
     ])
     if not any_option:
-        typer.echo("[CONVERT] No options provided. Bare conversion is not supported. Place options after INFILE, e.g.:\n  arun convert my.curl --outfile testcases/from_curl.yaml")
+        typer.echo("[CONVERT] No options provided. Bare conversion is not supported. Place options after INFILE, e.g.:\n  drun convert my.curl --outfile testcases/from_curl.yaml")
         raise typer.Exit(code=2)
 
     if infile == "-":
@@ -637,7 +637,7 @@ def convert_curl(
         help="Generate one YAML file per curl command when the source has multiple commands",
     ),
 ) -> None:
-    from arun.importers.curl import parse_curl_text
+    from drun.importers.curl import parse_curl_text
 
     # Read input
     if infile == "-":
@@ -689,7 +689,7 @@ def convert_postman(
         help="Generate one YAML file per request when the collection has multiple items",
     ),
 ) -> None:
-    from arun.importers.postman import parse_postman
+    from drun.importers.postman import parse_postman
 
     text = Path(collection).read_text(encoding="utf-8")
     env_text = None
@@ -749,7 +749,7 @@ def convert_har(
         help="Generate one YAML file per HAR entry when the source has multiple requests",
     ),
 ) -> None:
-    from arun.importers.har import parse_har
+    from drun.importers.har import parse_har
 
     text = Path(infile).read_text(encoding="utf-8")
     icase = parse_har(
@@ -788,16 +788,16 @@ def export_curl(
     with_comments: bool = typer.Option(False, "--with-comments/--no-comments", help="Prepend '# Case/Step' comments to each curl"),
     outfile: Optional[str] = typer.Option(None, "--outfile", help="Write output to file (must end with .curl when provided)"),
 ) -> None:
-    from arun.exporters.curl import step_to_curl, step_placeholders
+    from drun.exporters.curl import step_to_curl, step_placeholders
     out_lines: List[str] = []
 
-    env_name = os.environ.get("ARUN_ENV")
+    env_name = os.environ.get("DRUN_ENV")
     env_store = load_environment(env_name, ".env")
 
     files: List[str] = []
     p = Path(path)
     if p.is_dir():
-        from arun.loader.collector import discover
+        from drun.loader.collector import discover
         files = discover([path])
     else:
         files = [path]
@@ -887,7 +887,7 @@ def list_tags(
                 for ext in (".yaml", ".yml"):
                     cand = pth.with_suffix(ext)
                     if cand.exists():
-                        hints.append(f"Did you mean: arun run {cand}")
+                        hints.append(f"Did you mean: drun run {cand}")
                         break
         else:
             if pth.is_file():
@@ -896,15 +896,15 @@ def list_tags(
                     for ext in (".yaml", ".yml"):
                         cand = pth.with_suffix(ext)
                         if cand.exists():
-                            hints.append(f"Try: arun run {cand}")
+                            hints.append(f"Try: drun run {cand}")
                             break
             elif pth.is_dir():
                 hints.append("Provide a YAML file or a directory containing YAML tests under testcases/ or testsuites/.")
         # Always provide examples
         hints.append("Examples:")
-        hints.append("  arun run testcases")
-        hints.append("  arun run testcases/test_hello.yaml")
-        hints.append("  arun run testsuites/testsuite_smoke.yaml")
+        hints.append("  drun run testcases")
+        hints.append("  drun run testcases/test_hello.yaml")
+        hints.append("  drun run testsuites/testsuite_smoke.yaml")
         for h in hints:
             typer.echo(h)
         raise typer.Exit(code=2)
@@ -971,7 +971,7 @@ def run(
     ts = time.strftime("%Y%m%d-%H%M%S")
     default_log = log_file or f"logs/run-{ts}.log"
     setup_logging(log_level, log_file=default_log)
-    log = get_logger("arun.cli")
+    log = get_logger("drun.cli")
     # unify httpx logs: default suppress, unless enabled
     import logging as _logging
     _httpx_logger = _logging.getLogger("httpx")
@@ -985,7 +985,7 @@ def run(
 
     # Global variables from env file and CLI overrides
     # Unified env loading: --env <name> YAML + --env-file (kv or yaml) + OS ENV
-    env_name: Optional[str] = os.environ.get("ARUN_ENV")  # optional default via env var
+    env_name: Optional[str] = os.environ.get("DRUN_ENV")  # optional default via env var
     env_store = load_environment(env_name, env_file)
     # Sync env_store to os.environ for notification and other integrations
     for env_key, env_val in env_store.items():
@@ -1028,7 +1028,7 @@ def run(
                 for ext in (".yaml", ".yml"):
                     cand = pth.with_suffix(ext)
                     if cand.exists():
-                        hints.append(f"Did you mean: arun run {cand}")
+                        hints.append(f"Did you mean: drun run {cand}")
                         break
         else:
             if pth.is_file():
@@ -1037,14 +1037,14 @@ def run(
                     for ext in (".yaml", ".yml"):
                         cand = pth.with_suffix(ext)
                         if cand.exists():
-                            hints.append(f"Try: arun run {cand}")
+                            hints.append(f"Try: drun run {cand}")
                             break
             elif pth.is_dir():
                 hints.append("Provide a YAML file or a directory containing YAML tests under testcases/ or testsuites/.")
         hints.append("Examples:")
-        hints.append("  arun run testcases")
-        hints.append("  arun run testcases/test_hello.yaml")
-        hints.append("  arun run testsuites/testsuite_smoke.yaml")
+        hints.append("  drun run testcases")
+        hints.append("  drun run testcases/test_hello.yaml")
+        hints.append("  drun run testsuites/testsuite_smoke.yaml")
         for h in hints:
             typer.echo(h)
         raise typer.Exit(code=2)
@@ -1153,22 +1153,22 @@ def run(
     if report:
         write_json(report_obj, report)
         log.info("[CASE] JSON report written to %s", report)
-    from arun.reporter.html_reporter import write_html
+    from drun.reporter.html_reporter import write_html
     write_html(report_obj, html_target)
     log.info("[CASE] HTML report written to %s", html_target)
 
     if allure_results:
         try:
-            from arun.reporter.allure_reporter import write_allure_results
+            from drun.reporter.allure_reporter import write_allure_results
             write_allure_results(report_obj, allure_results)
             log.info("[CASE] Allure results written to %s", allure_results)
         except Exception as e:
-            log = get_logger("arun.cli")
+            log = get_logger("drun.cli")
             log.error(f"Failed to write Allure results: {e}")
 
     # Notifications (best-effort)
     try:
-        from arun.notifier import (
+        from drun.notifier import (
             NotifyContext,
             FeishuNotifier,
             EmailNotifier,
@@ -1176,8 +1176,8 @@ def run(
             build_summary_text,
         )
 
-        channels = [c.strip().lower() for c in (notify or os.environ.get("ARUN_NOTIFY", "")).split(",") if c.strip()]
-        policy = (notify_only or os.environ.get("ARUN_NOTIFY_ONLY", "failed")).strip().lower()
+        channels = [c.strip().lower() for c in (notify or os.environ.get("DRUN_NOTIFY", "")).split(",") if c.strip()]
+        policy = (notify_only or os.environ.get("DRUN_NOTIFY_ONLY", "failed")).strip().lower()
         topn = int(os.environ.get("NOTIFY_TOPN", "5") or "5")
 
         log.info("[NOTIFY] channels=%s policy=%s", channels, policy)
@@ -1444,7 +1444,7 @@ def init_project(
     name: Optional[str] = typer.Argument(None, help="项目名称（默认为当前目录）"),
     force: bool = typer.Option(False, "--force", help="强制覆盖已存在的文件"),
 ) -> None:
-    """初始化 ARun 测试项目脚手架
+    """初始化 Drun 测试项目脚手架
 
     生成完整的项目目录结构，包含：
     - testcases/: 测试用例示例
@@ -1453,15 +1453,15 @@ def init_project(
     - reports/: 报告输出目录
     - logs/: 日志输出目录
     - .env: 环境配置
-    - arun_hooks.py: Hooks 函数
+    - drun_hooks.py: Hooks 函数
     - README.md: 快速上手文档
 
     示例:
-        arun init                    # 在当前目录初始化
-        arun init my-api-test        # 创建新项目目录
-        arun init --force            # 强制覆盖已存在文件
+        drun init                    # 在当前目录初始化
+        drun init my-api-test        # 创建新项目目录
+        drun init --force            # 强制覆盖已存在文件
     """
-    from arun import scaffolds
+    from drun import scaffolds
 
     # 确定目标目录
     if name:
@@ -1473,20 +1473,20 @@ def init_project(
         target_dir = Path.cwd()
 
     # 检查是否已存在关键文件
-    key_files = ["testcases", ".env", "arun_hooks.py", ".gitignore", "README.md"]
+    key_files = ["testcases", ".env", "drun_hooks.py", ".gitignore", "README.md"]
     existing_files = [f for f in key_files if (target_dir / f).exists()]
 
     if existing_files and not force:
-        typer.echo(f"[WARNING] Directory already contains ARun project files: {', '.join(existing_files)}")
+        typer.echo(f"[WARNING] Directory already contains Drun project files: {', '.join(existing_files)}")
         typer.echo("Use --force to overwrite existing files. Existing files will be kept otherwise.")
         if not typer.confirm("Continue without overwriting existing files?", default=False):
             raise typer.Exit(code=0)
 
     # 开始创建项目
     if name:
-        typer.echo(f"\nCreating ARun project: {target_dir}/\n")
+        typer.echo(f"\nCreating Drun project: {target_dir}/\n")
     else:
-        typer.echo(f"\nInitializing ARun project in current directory\n")
+        typer.echo(f"\nInitializing Drun project in current directory\n")
 
     # 创建目录结构
     dirs_to_create = {
@@ -1556,8 +1556,8 @@ def init_project(
     # .env
     _write_template(".env", scaffolds.ENV_TEMPLATE)
 
-    # arun_hooks.py
-    _write_template("arun_hooks.py", scaffolds.HOOKS_TEMPLATE)
+    # drun_hooks.py
+    _write_template("drun_hooks.py", scaffolds.HOOKS_TEMPLATE)
 
     # .gitignore
     _write_template(".gitignore", scaffolds.GITIGNORE_TEMPLATE)
@@ -1585,7 +1585,7 @@ def init_project(
     typer.echo("✓ Created reports/ (报告输出目录)")
     typer.echo("✓ Created logs/ (日志输出目录)")
     typer.echo("✓ Created .env (环境配置)")
-    typer.echo("✓ Created arun_hooks.py (Hooks 函数)")
+    typer.echo("✓ Created drun_hooks.py (Hooks 函数)")
     typer.echo("✓ Created .gitignore (Git 配置)")
     typer.echo("✓ Created README.md (项目文档)")
 
@@ -1615,7 +1615,7 @@ def init_project(
         typer.echo("  3. 运行测试:")
     else:
         typer.echo("  2. 运行测试:")
-    typer.echo("     arun run testcases/test_api_health.yaml --env-file .env")
+    typer.echo("     drun run testcases/test_api_health.yaml --env-file .env")
     if name:
         typer.echo("  4. 查看报告:")
     else:
@@ -1624,15 +1624,15 @@ def init_project(
     typer.echo("")
     typer.echo("格式转换 (查看 converts/README.md 获取详细说明):")
     typer.echo("  - cURL 转用例:")
-    typer.echo("    arun convert converts/curl/sample.curl --outfile testcases/new_test.yaml")
+    typer.echo("    drun convert converts/curl/sample.curl --outfile testcases/new_test.yaml")
     typer.echo("  - Postman 转用例:")
-    typer.echo("    arun convert converts/postman/sample_collection.json --split-output --suite-out testsuites/new_suite.yaml")
+    typer.echo("    drun convert converts/postman/sample_collection.json --split-output --suite-out testsuites/new_suite.yaml")
     typer.echo("  - HAR 转用例:")
-    typer.echo("    arun convert converts/har/sample_recording.har --exclude-static --only-2xx --outfile testcases/from_har.yaml")
+    typer.echo("    drun convert converts/har/sample_recording.har --exclude-static --only-2xx --outfile testcases/from_har.yaml")
     typer.echo("  - OpenAPI 转用例:")
-    typer.echo("    arun convert-openapi converts/openapi/sample_openapi.json --split-output --outfile testcases/from_openapi.yaml")
+    typer.echo("    drun convert-openapi converts/openapi/sample_openapi.json --split-output --outfile testcases/from_openapi.yaml")
     typer.echo("")
-    typer.echo("文档: https://github.com/Devliang24/arun")
+    typer.echo("文档: https://github.com/Devliang24/drun")
 
 
 @app.command("convert-openapi")
@@ -1646,7 +1646,7 @@ def convert_openapi(
     redact: Optional[str] = typer.Option(None, "--redact", help="Comma-separated header names to mask or placeholder, e.g., Authorization,Cookie"),
     placeholders: bool = typer.Option(False, "--placeholders/--no-placeholders", help="Replace sensitive headers with $vars and store values in config.variables"),
 ) -> None:
-    from arun.importers.openapi import parse_openapi
+    from drun.importers.openapi import parse_openapi
     text = Path(spec).read_text(encoding="utf-8")
     tag_list = [t.strip() for t in (tags or '').split(',') if t.strip()]
     icase = parse_openapi(text, case_name=case_name, base_url=base_url, tags=tag_list or None)

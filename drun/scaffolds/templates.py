@@ -1,6 +1,6 @@
 """
-ARun 项目脚手架模板内容
-用于 arun init 命令生成项目结构
+Drun 项目脚手架模板内容
+用于 drun init 命令生成项目结构
 """
 
 # 测试用例模板：HTTP 功能演示
@@ -10,7 +10,7 @@ DEMO_TESTCASE = """config:
   tags: [demo, smoke]
   variables:
     test_data: test_value_${short_uid(6)}
-    user_agent: ARun-Test-Client
+    user_agent: Drun-Test-Client
 
 steps:
   - name: GET 请求 - 查询参数
@@ -23,7 +23,7 @@ steps:
       - eq: [status_code, 200]
       - eq: [$.args.page, 1]
       - eq: [$.args.limit, 10]
-      - contains: [$.headers.User-Agent, ARun-Test-Client]
+      - contains: [$.headers.User-Agent, Drun-Test-Client]
 
   - name: POST 请求 - 提交 JSON 数据
     request:
@@ -122,15 +122,15 @@ curl -X GET 'https://api.example.com/api/v1/users/me' \\
   -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
 
 # 转换命令示例:
-# arun convert converts/curl/sample.curl --outfile testcases/from_curl.yaml --redact Authorization --placeholders
+# drun convert converts/curl/sample.curl --outfile testcases/from_curl.yaml --redact Authorization --placeholders
 """
 
 # Postman Collection 示例模板
 SAMPLE_POSTMAN_COLLECTION = """{
   "info": {
-    "name": "ARun Sample API Collection",
+    "name": "Drun Sample API Collection",
     "_postman_id": "12345678-1234-1234-1234-123456789012",
-    "description": "ARun 格式转换示例 - Postman Collection v2.1\\n\\n转换命令:\\narun convert converts/postman/sample_collection.json --split-output --suite-out testsuites/from_postman.yaml --postman-env converts/postman/sample_environment.json --placeholders",
+    "description": "Drun 格式转换示例 - Postman Collection v2.1\\n\\n转换命令:\\ndrun convert converts/postman/sample_collection.json --split-output --suite-out testsuites/from_postman.yaml --postman-env converts/postman/sample_environment.json --placeholders",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -252,7 +252,7 @@ SAMPLE_HAR = """{
   "log": {
     "version": "1.2",
     "creator": {
-      "name": "ARun Sample HAR",
+      "name": "Drun Sample HAR",
       "version": "1.0"
     },
     "entries": [
@@ -425,8 +425,8 @@ SAMPLE_HAR = """{
 SAMPLE_OPENAPI = """{
   "openapi": "3.0.3",
   "info": {
-    "title": "ARun Sample API",
-    "description": "ARun 格式转换示例 - OpenAPI 3.0 规范\\n\\n转换命令:\\narun convert-openapi converts/openapi/sample_openapi.json --tags users --split-output --outfile testcases/from_openapi.yaml --placeholders",
+    "title": "Drun Sample API",
+    "description": "Drun 格式转换示例 - OpenAPI 3.0 规范\\n\\n转换命令:\\ndrun convert-openapi converts/openapi/sample_openapi.json --tags users --split-output --outfile testcases/from_openapi.yaml --placeholders",
     "version": "1.0.0"
   },
   "servers": [
@@ -594,7 +594,7 @@ SAMPLE_OPENAPI = """{
 # converts 目录说明文档
 CONVERTS_README = """# 格式转换目录
 
-本目录包含 ARun 支持的所有格式转换示例文件，帮助你快速将现有 API 资产迁移为 ARun 测试用例。
+本目录包含 Drun 支持的所有格式转换示例文件，帮助你快速将现有 API 资产迁移为 Drun 测试用例。
 
 ## 📁 文件清单
 
@@ -621,16 +621,16 @@ converts/
 
 ```bash
 # 单文件转换
-arun convert converts/curl/sample.curl --outfile testcases/from_curl.yaml
+drun convert converts/curl/sample.curl --outfile testcases/from_curl.yaml
 
 # 脱敏并使用变量占位符
-arun convert converts/curl/sample.curl \\
+drun convert converts/curl/sample.curl \\
   --outfile testcases/from_curl.yaml \\
   --redact Authorization,Cookie \\
   --placeholders
 
 # 分割为多个文件（每个 cURL 命令生成一个文件）
-arun convert converts/curl/sample.curl \\
+drun convert converts/curl/sample.curl \\
   --split-output \\
   --outfile testcases/from_curl.yaml
 ```
@@ -656,18 +656,18 @@ arun convert converts/curl/sample.curl \\
 
 ```bash
 # 转换为单个用例文件
-arun convert converts/postman/sample_collection.json \\
+drun convert converts/postman/sample_collection.json \\
   --outfile testcases/from_postman.yaml
 
 # 分割输出并生成测试套件（推荐）
-arun convert converts/postman/sample_collection.json \\
+drun convert converts/postman/sample_collection.json \\
   --split-output \\
   --suite-out testsuites/from_postman.yaml \\
   --redact Authorization \\
   --placeholders
 
 # 导入环境变量
-arun convert converts/postman/sample_collection.json \\
+drun convert converts/postman/sample_collection.json \\
   --postman-env converts/postman/sample_environment.json \\
   --outfile testcases/from_postman.yaml \\
   --placeholders
@@ -700,22 +700,22 @@ arun convert converts/postman/sample_collection.json \\
 
 ```bash
 # 基础转换（自动过滤静态资源）
-arun convert converts/har/sample_recording.har \\
+drun convert converts/har/sample_recording.har \\
   --outfile testcases/from_har.yaml
 
 # 仅保留成功响应（2xx 状态码）
-arun convert converts/har/sample_recording.har \\
+drun convert converts/har/sample_recording.har \\
   --exclude-static \\
   --only-2xx \\
   --outfile testcases/from_har.yaml
 
 # 使用正则排除特定 URL
-arun convert converts/har/sample_recording.har \\
+drun convert converts/har/sample_recording.har \\
   --exclude-pattern '(\\.png$|\\.css$|/cdn/)' \\
   --outfile testcases/from_har.yaml
 
 # 分割输出
-arun convert converts/har/sample_recording.har \\
+drun convert converts/har/sample_recording.har \\
   --exclude-static \\
   --split-output \\
   --outfile testcases/from_har.yaml
@@ -741,23 +741,23 @@ arun convert converts/har/sample_recording.har \\
 
 ```bash
 # 转换全部接口
-arun convert-openapi converts/openapi/sample_openapi.json \\
+drun convert-openapi converts/openapi/sample_openapi.json \\
   --outfile testcases/from_openapi.yaml
 
 # 按 tag 过滤
-arun convert-openapi converts/openapi/sample_openapi.json \\
+drun convert-openapi converts/openapi/sample_openapi.json \\
   --tags users,orders \\
   --outfile testcases/from_openapi.yaml
 
 # 分割输出（推荐）
-arun convert-openapi converts/openapi/sample_openapi.json \\
+drun convert-openapi converts/openapi/sample_openapi.json \\
   --split-output \\
   --outfile testcases/from_openapi.yaml \\
   --redact Authorization \\
   --placeholders
 
 # 指定 base_url
-arun convert-openapi converts/openapi/sample_openapi.json \\
+drun convert-openapi converts/openapi/sample_openapi.json \\
   --base-url http://localhost:8000 \\
   --outfile testcases/from_openapi.yaml
 ```
@@ -803,10 +803,10 @@ arun convert-openapi converts/openapi/sample_openapi.json \\
 
 | 格式 | 命令 | 推荐选项 |
 |------|------|----------|
-| cURL | `arun convert <file>.curl` | `--placeholders --split-output` |
-| Postman | `arun convert <file>.json` | `--split-output --suite-out --postman-env` |
-| HAR | `arun convert <file>.har` | `--exclude-static --only-2xx --split-output` |
-| OpenAPI | `arun convert-openapi <file>.json` | `--tags --split-output --placeholders` |
+| cURL | `drun convert <file>.curl` | `--placeholders --split-output` |
+| Postman | `drun convert <file>.json` | `--split-output --suite-out --postman-env` |
+| HAR | `drun convert <file>.har` | `--exclude-static --only-2xx --split-output` |
+| OpenAPI | `drun convert-openapi <file>.json` | `--tags --split-output --placeholders` |
 
 ## 更多文档
 
@@ -817,7 +817,7 @@ arun convert-openapi converts/openapi/sample_openapi.json \\
 ## 需要帮助？
 
 - 查看示例文件了解格式结构
-- 运行 `arun convert --help` 查看完整选项
+- 运行 `drun convert --help` 查看完整选项
 - 参考 `docs/FORMAT_CONVERSION.md` 获取详细说明
 """
 
@@ -849,8 +849,8 @@ USER_PASSWORD=test_password
 SYSTEM_NAME=我的测试系统
 
 # ==================== 通知配置 ====================
-# 启用通知渠道：arun run --notify feishu,email,dingtalk
-# 通知策略（环境变量）：ARUN_NOTIFY_ONLY=failed|always（默认 failed）
+# 启用通知渠道：drun run --notify feishu,email,dingtalk
+# 通知策略（环境变量）：DRUN_NOTIFY_ONLY=failed|always（默认 failed）
 
 # ---- 飞书通知 ----
 # FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxxxx
@@ -865,7 +865,7 @@ SYSTEM_NAME=我的测试系统
 # DINGTALK_AT_MOBILES=13800138000,13900139000            # 可选，@指定手机号（逗号分隔）
 # DINGTALK_AT_ALL=false                                  # 可选，@所有人（true/false）
 # DINGTALK_STYLE=markdown                                # 消息样式：text 或 markdown（推荐，支持加粗、链接等）
-# DINGTALK_TITLE=ARun 测试结果                            # 可选，markdown 模式的标题
+# DINGTALK_TITLE=Drun 测试结果                            # 可选，markdown 模式的标题
 
 # ---- 邮件通知 ----
 # SMTP_HOST=smtp.example.com                             # SMTP 服务器地址
@@ -876,9 +876,9 @@ SYSTEM_NAME=我的测试系统
 # MAIL_TO=qa@example.com,dev@example.com                 # 收件人（逗号分隔多个）
 """
 
-# arun_hooks.py 模板（基于当前项目的实际文件）
+# drun_hooks.py 模板（基于当前项目的实际文件）
 HOOKS_TEMPLATE = '''"""
-ARun Hooks 示例文件
+Drun Hooks 示例文件
 
 此文件包含可在测试用例中使用的自定义函数：
 1. 模板辅助函数：在 ${} 表达式中调用，用于生成数据
@@ -1135,9 +1135,9 @@ MANIFEST
 """
 
 # README.md 项目文档模板
-README_TEMPLATE = """# ARun API 测试项目
+README_TEMPLATE = """# Drun API 测试项目
 
-本项目使用 [ARun](https://github.com/Devliang24/arun) 框架进行 HTTP API 自动化测试。
+本项目使用 [Drun](https://github.com/Devliang24/drun) 框架进行 HTTP API 自动化测试。
 
 ## 📁 项目结构
 
@@ -1154,18 +1154,18 @@ README_TEMPLATE = """# ARun API 测试项目
 ├── reports/                # HTML/JSON 报告输出
 ├── logs/                   # 日志文件输出
 ├── .env                    # 环境变量配置
-├── arun_hooks.py          # 自定义 Hooks 函数
+├── drun_hooks.py          # 自定义 Hooks 函数
 └── README.md              # 本文档
 ```
 
 ## 🚀 快速开始
 
-### 1. 安装 ARun
+### 1. 安装 Drun
 
 ```bash
-pip install -e /path/to/arun
+pip install -e /path/to/drun
 # 或者从 GitHub 安装（如果已发布）
-# pip install arun
+# pip install drun
 ```
 
 ### 2. 配置环境变量
@@ -1182,22 +1182,22 @@ USER_PASSWORD=test_pass123
 
 ```bash
 # 运行单个测试用例
-arun run testcases/test_api_health.yaml --env-file .env
+drun run testcases/test_api_health.yaml --env-file .env
 
 # 运行整个测试目录
-arun run testcases --env-file .env
+drun run testcases --env-file .env
 
 # 运行测试套件
-arun run testsuites/testsuite_smoke.yaml --env-file .env
+drun run testsuites/testsuite_smoke.yaml --env-file .env
 
 # 使用标签过滤
-arun run testcases -k "smoke and not slow" --env-file .env
+drun run testcases -k "smoke and not slow" --env-file .env
 
 # 生成 HTML 报告
-arun run testcases --html reports/report.html --env-file .env
+drun run testcases --html reports/report.html --env-file .env
 
 # 启用详细日志
-arun run testcases --log-level debug --env-file .env
+drun run testcases --log-level debug --env-file .env
 ```
 
 ### 4. 查看报告
@@ -1274,12 +1274,12 @@ steps:
 
 ## 🔄 格式转换
 
-将现有的 API 请求转换为 ARun 测试用例：
+将现有的 API 请求转换为 Drun 测试用例：
 
 ### cURL 转 YAML
 
 ```bash
-arun convert converts/curl/sample.curl \\
+drun convert converts/curl/sample.curl \\
   --outfile testcases/from_curl.yaml \\
   --redact Authorization \\
   --placeholders
@@ -1288,7 +1288,7 @@ arun convert converts/curl/sample.curl \\
 ### Postman Collection 转 YAML
 
 ```bash
-arun convert your_collection.json \\
+drun convert your_collection.json \\
   --split-output \\
   --suite-out testsuites/from_postman.yaml \\
   --redact Authorization \\
@@ -1298,7 +1298,7 @@ arun convert your_collection.json \\
 ### HAR 文件转 YAML
 
 ```bash
-arun convert recording.har \\
+drun convert recording.har \\
   --exclude-static \\
   --only-2xx \\
   --outfile testcases/from_har.yaml
@@ -1311,20 +1311,20 @@ arun convert recording.har \\
 查看项目中使用的所有标签：
 
 ```bash
-arun tags testcases
+drun tags testcases
 ```
 
 使用标签过滤测试：
 
 ```bash
 # 运行 smoke 测试
-arun run testcases -k "smoke"
+drun run testcases -k "smoke"
 
 # 排除 slow 测试
-arun run testcases -k "not slow"
+drun run testcases -k "not slow"
 
 # 组合条件
-arun run testcases -k "(smoke or regression) and not flaky"
+drun run testcases -k "(smoke or regression) and not flaky"
 ```
 
 ## 🔍 验证和检查
@@ -1332,13 +1332,13 @@ arun run testcases -k "(smoke or regression) and not flaky"
 验证 YAML 文件语法：
 
 ```bash
-arun check testcases
+drun check testcases
 ```
 
 自动修复格式问题：
 
 ```bash
-arun fix testcases
+drun fix testcases
 ```
 
 ## 📊 CI/CD 集成
@@ -1359,8 +1359,8 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install ARun
-        run: pip install -e /path/to/arun
+      - name: Install Drun
+        run: pip install -e /path/to/drun
 
       - name: Run Tests
         env:
@@ -1368,7 +1368,7 @@ jobs:
           USER_USERNAME: ${{ secrets.TEST_USERNAME }}
           USER_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
-          arun run testcases \\
+          drun run testcases \\
             --html reports/report.html \\
             --report reports/run.json
 
@@ -1382,10 +1382,10 @@ jobs:
 
 ## 📚 更多资源
 
-- [ARun 官方文档](https://github.com/Devliang24/arun)
-- [完整参考文档](https://github.com/Devliang24/arun/blob/main/docs/REFERENCE.md)
-- [格式转换指南](https://github.com/Devliang24/arun/blob/main/docs/FORMAT_CONVERSION.md)
-- [CI/CD 集成示例](https://github.com/Devliang24/arun/blob/main/docs/CI_CD.md)
+- [Drun 官方文档](https://github.com/Devliang24/drun)
+- [完整参考文档](https://github.com/Devliang24/drun/blob/main/docs/REFERENCE.md)
+- [格式转换指南](https://github.com/Devliang24/drun/blob/main/docs/FORMAT_CONVERSION.md)
+- [CI/CD 集成示例](https://github.com/Devliang24/drun/blob/main/docs/CI_CD.md)
 
 ## 🐛 问题排查
 
@@ -1406,7 +1406,7 @@ jobs:
 ### 启用调试日志
 
 ```bash
-arun run testcases --log-level debug --httpx-logs --env-file .env
+drun run testcases --log-level debug --httpx-logs --env-file .env
 ```
 
 ## 📄 许可证

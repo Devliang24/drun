@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from arun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult
+from drun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult
 
 
 def _now_ms() -> int:
@@ -152,7 +152,7 @@ def write_allure_results(report: RunReport, out_dir: str | Path) -> None:
             except Exception:
                 suite_label = str(case.source)
         if not suite_label:
-            suite_label = "ARun"
+            suite_label = "Drun"
 
         full_name = f"{suite_label}::{case.name}" if suite_label else case.name
         history_id = _md5(full_name)
@@ -172,7 +172,7 @@ def write_allure_results(report: RunReport, out_dir: str | Path) -> None:
 
         labels = [
             {"name": "language", "value": "python"},
-            {"name": "framework", "value": "arun"},
+            {"name": "framework", "value": "drun"},
             {"name": "suite", "value": suite_label},
         ]
 

@@ -11,7 +11,7 @@ import httpx
 
 from .base import Notifier, NotifyContext
 from .format import build_summary_text, build_text_message
-from arun.models.report import RunReport
+from drun.models.report import RunReport
 
 
 class FeishuNotifier(Notifier):
@@ -61,7 +61,7 @@ class FeishuNotifier(Notifier):
                 ],
             })
         # 从环境变量读取系统名称，支持 SYSTEM_NAME 或 PROJECT_NAME
-        system_name = os.environ.get("SYSTEM_NAME", os.environ.get("PROJECT_NAME", "ARun 测试结果"))
+        system_name = os.environ.get("SYSTEM_NAME", os.environ.get("PROJECT_NAME", "Drun 测试结果"))
         card = {
             "config": {"wide_screen_mode": True},
             "header": {"template": "blue", "title": {"tag": "plain_text", "content": system_name}},

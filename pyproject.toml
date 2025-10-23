@@ -3,11 +3,11 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "arun"
+name = "drun"
 version = "0.3.0"
 description = "Minimal HTTP API test runner (MVP)"
 requires-python = ">=3.10"
-authors = [{ name = "ARun Team" }]
+authors = [{ name = "Drun Team" }]
 readme = "README.md"
 dependencies = [
   "httpx>=0.27",
@@ -19,8 +19,8 @@ dependencies = [
 ]
 
 [project.scripts]
-arun = "arun.cli:app"
+drun = "drun.cli:app"
 
 [tool.setuptools.packages.find]
-include = ["arun*"]
+include = ["drun*"]
 exclude = ["spec*", "testcases*", "testsuites*"]

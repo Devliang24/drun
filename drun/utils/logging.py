@@ -138,4 +138,4 @@ def setup_logging(level: str = "INFO", *, log_file: Optional[str] = None) -> Non
 
 
 def get_logger(name: Optional[str] = None) -> logging.Logger:
-    return logging.getLogger(name or "arun")
+    return logging.getLogger(name or "drun")

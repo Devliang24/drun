@@ -1,4 +1,4 @@
-# ARun
+# Drun
 
 <div align="center">
 
@@ -6,9 +6,9 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.0-orange)]()
+[![Version](https://img.shields.io/badge/version-0.3.0-orange)]()
 
-[快速开始](#-快速开始-5-分钟) • [核心特性](#-核心特性) • [核心概念](#-核心概念) • [示例](#-实战示例) • [格式转换](docs/FORMAT_CONVERSION.md) • [CLI](docs/CLI.md) • [Reference](docs/REFERENCE.md) • [CI/CD](docs/CI_CD.md)
+[快速开始](#-快速开始-5-分钟) • [核心特性](#-核心特性) • [核心概念](#-核心概念) • [示例](#-实战示例) • [格式转换](docs/FORMAT_CONVERSION.md) • [CLI](docs/CLI.md) • [Reference](docs/REFERENCE.md) • [命名规范](docs/NAMING_CONVENTION.md) • [CI/CD](docs/CI_CD.md)
 
 </div>
 
@@ -16,7 +16,7 @@
 
 ## 📖 项目简介
 
-ARun 是一个**极简、强大、生产就绪**的 HTTP API 测试框架。使用清晰的 YAML 语法编写测试用例，无需编写代码，5 分钟即可完成第一个测试。
+Drun 是一个**极简、强大、生产就绪**的 HTTP API 测试框架。使用清晰的 YAML 语法编写测试用例，无需编写代码，5 分钟即可完成第一个测试。
 
 ```yaml
 # 就是这么简单！
@@ -38,9 +38,9 @@ steps:
 
  
 
-### 💡 为什么选择 ARun？
+### 💡 为什么选择 Drun？
 
-| 特性 | ARun | 其他工具 |
+| 特性 | Drun | 其他工具 |
 |------|-----------|----------|
 | **零代码** | ✅ 纯 YAML，无需编程 | ❌ 需要 Python/JavaScript 代码 |
 | **学习曲线** | ✅ 5 分钟上手 | ⚠️ 需要学习测试框架 |
@@ -64,11 +64,11 @@ steps:
 
 ### 🔥 开箱即用
 
-- **零配置启动**：`pip install -e . && arun run testcases`
+- **零配置启动**：`pip install -e . && drun run testcases`
 - **YAML DSL**：声明式测试用例（Case），人类可读
 - **智能变量管理**：6 层作用域，自动 token 注入
 - **JMESPath 提取**：强大的 JSON 数据提取能力
-- **智能格式转换**：统一的 `arun convert` 命令，根据文件后缀自动识别 cURL/Postman/HAR 格式，支持双向转换与 `--split-output` 单步导出
+- **智能格式转换**：统一的 `drun convert` 命令，根据文件后缀自动识别 cURL/Postman/HAR 格式，支持双向转换与 `--split-output` 单步导出
 
 ### 🚀 高级功能
 
@@ -99,14 +99,14 @@ steps:
 
 ```bash
 # 克隆项目
-git clone https://github.com/Devliang24/arun.git
-cd arun
+git clone https://github.com/Devliang24/drun.git
+cd drun
 
 # 安装（开发模式）
 pip install -e .
 
 # 验证安装
-arun --help
+drun --help
 ```
 
 ### 2. 配置环境
@@ -147,13 +147,13 @@ steps:
 
 ```bash
 # 运行测试
-arun run testcases/test_hello.yaml --env-file .env
+drun run testcases/test_hello.yaml --env-file .env
 
 # 生成 HTML 报告
-arun run testcases --html reports/report.html --env-file .env
+drun run testcases --html reports/report.html --env-file .env
 
 # 使用标签过滤
-arun run testcases -k "smoke" --env-file .env
+drun run testcases -k "smoke" --env-file .env
 ```
 
 ### 5. 查看结果
@@ -173,30 +173,30 @@ HTML report written to reports/report.html
 
 如果你已有 cURL 命令、Postman Collection 或浏览器 HAR 记录，可以快速转换为 YAML：
 
-注意：`arun convert` 要求“文件在前，选项在后”，且不支持无选项转换（需至少提供一个选项，如 `--outfile`/`--split-output`/`--redact`/`--placeholders`）。
+注意：`drun convert` 要求“文件在前，选项在后”，且不支持无选项转换（需至少提供一个选项，如 `--outfile`/`--split-output`/`--redact`/`--placeholders`）。
 
-- 正确：`arun convert requests.curl --outfile testcases/from_curl.yaml`
-- 错误：`arun convert --outfile testcases/from_curl.yaml requests.curl`
+- 正确：`drun convert requests.curl --outfile testcases/from_curl.yaml`
+- 错误：`drun convert --outfile testcases/from_curl.yaml requests.curl`
 
 ```bash
 # cURL → 用例（脱敏 + 变量占位）
-arun convert requests.curl --outfile testcases/from_curl.yaml --redact Authorization,Cookie --placeholders
+drun convert requests.curl --outfile testcases/from_curl.yaml --redact Authorization,Cookie --placeholders
 
 # Postman → 用例（如有环境文件，可加 --postman-env postman_env.json；否则可省略）
-arun convert api_collection.json \
+drun convert api_collection.json \
   --split-output \
   --suite-out testsuites/testsuite_postman.yaml \
   --redact Authorization \
   --placeholders
 
 # HAR → 用例（过滤静态/仅保留 2xx/正则排除）
-arun convert recording.har --exclude-static --only-2xx --exclude-pattern '(\.png$|/cdn/)' --outfile testcases/from_har.yaml
+drun convert recording.har --exclude-static --only-2xx --exclude-pattern '(\.png$|/cdn/)' --outfile testcases/from_har.yaml
 
 # OpenAPI → 用例（按 tag 过滤，多文件输出）
-arun convert-openapi spec/openapi/ecommerce_api.json --tags users,orders --split-output --outfile testcases/from_openapi.yaml --redact Authorization --placeholders
+drun convert-openapi spec/openapi/ecommerce_api.json --tags users,orders --split-output --outfile testcases/from_openapi.yaml --redact Authorization --placeholders
 ```
 
-**提示**：更多“转换实战”示例见下方「arun convert - 智能格式转换」一节。
+**提示**：更多“转换实战”示例见下方「drun convert - 智能格式转换」一节。
 
 ---
 
@@ -225,7 +225,7 @@ steps:                               # 测试步骤（Step）列表
 
 ### Dollar 模板语法
 
-ARun 使用简洁的 **Dollar 表达式** `${...}` 进行变量插值和函数调用：
+Drun 使用简洁的 **Dollar 表达式** `${...}` 进行变量插值和函数调用：
 
 ```yaml
 # 1. 简单变量引用
@@ -233,7 +233,7 @@ url: /users/$user_id                 # 等同于 /users/123
 
 # 2. 函数调用（花括号）
 headers:
-  X-Timestamp: ${ts()}               # 调用自定义函数（需在 arun_hooks.py 中定义）
+  X-Timestamp: ${ts()}               # 调用自定义函数（需在 drun_hooks.py 中定义）
   X-Signature: ${md5($api_key)}      # 函数嵌套、参数可以是变量
 
 # 3. 环境变量读取
@@ -400,19 +400,19 @@ steps:
 
 ```bash
 # 运行 smoke 测试
-arun run testcases -k "smoke"
+drun run testcases -k "smoke"
 
 # 同时包含两个标签
-arun run testcases -k "smoke and regression"
+drun run testcases -k "smoke and regression"
 
 # 任一标签匹配
-arun run testcases -k "smoke or p0"
+drun run testcases -k "smoke or p0"
 
 # 排除慢速测试
-arun run testcases -k "not slow"
+drun run testcases -k "not slow"
 
 # 复杂表达式
-arun run testcases -k "(smoke or regression) and not slow and not flaky"
+drun run testcases -k "(smoke or regression) and not slow and not flaky"
 ```
 
 **标签定义**：
@@ -426,8 +426,8 @@ config:
 想快速查看项目中已有的标签，可使用 CLI：
 
 ```bash
-arun tags              # 扫描默认的 testcases 目录
-arun tags testsuites   # 指定其它目录
+drun tags              # 扫描默认的 testcases 目录
+drun tags testsuites   # 指定其它目录
 ```
 
 **输出格式**：
@@ -464,7 +464,13 @@ Tag Summary:
 
 Hooks 允许在测试生命周期的不同阶段执行自定义 Python 函数。
 
-> **提示**：项目根目录已提供 `arun_hooks.py` 示例文件，包含常用的模板辅助函数（如 `ts()`、`md5()`、`uid()`）和生命周期 Hooks（如 `setup_hook_sign_request`），可直接使用。
+> **提示**：项目根目录已提供 `drun_hooks.py` 示例文件，包含常用的模板辅助函数（如 `ts()`、`md5()`、`uid()`）和生命周期 Hooks（如 `setup_hook_sign_request`），可直接使用。
+>
+> **迁移提醒（0.2.x → 0.3.x）**：
+> - 如果你的项目仍使用旧文件名 `arun_hooks.py`，请改名为 `drun_hooks.py`。
+> - 若之前通过 `ARUN_HOOKS_FILE=/path/to/arun_hooks.py` 指定自定义路径，请改成 `DRUN_HOOKS_FILE=/path/to/drun_hooks.py`（路径可保持不变）。
+> - 更新完毕后重新运行 `drun run ...`，确认 `${hook(...)}`
+>   调用按预期触发。
 
 **函数分类**：
 - **模板辅助函数**：在 `${}` 表达式中调用，用于数据生成、格式化等（如 `${ts()}`、`${md5($key)}`）
@@ -498,7 +504,7 @@ steps:
 
 #### 自定义 Hooks
 
-在项目根目录创建 `arun_hooks.py`：
+在项目根目录创建 `drun_hooks.py`：
 
 ```python
 import time
@@ -564,7 +570,7 @@ steps:
 
 ### 参数化测试
 
-ARun 支持**压缩（zipped）参数化**，让你使用不同参数组合多次运行同一测试。参数定义在 `config.parameters` 中，支持单变量列表和多变量绑定两种用法。
+Drun 支持**压缩（zipped）参数化**，让你使用不同参数组合多次运行同一测试。参数定义在 `config.parameters` 中，支持单变量列表和多变量绑定两种用法。
 
 #### 用法 1：单变量列表
 
@@ -624,7 +630,7 @@ steps:
 
 #### 用法 3：多组笛卡尔积（高级）
 
-定义多个压缩组时，ARun 会自动生成笛卡尔积组合，适合跨环境、跨区域的组合测试。
+定义多个压缩组时，Drun 会自动生成笛卡尔积组合，适合跨环境、跨区域的组合测试。
 
 ```yaml
 config:
@@ -750,14 +756,14 @@ steps:
 生成交互式 HTML 报告：
 
 ```bash
-arun run testcases --html reports/report.html
+drun run testcases --html reports/report.html
 ```
 
 截图预览（统一浅色风格）
 
 ```bash
 # 生成并预览（示例使用引用型测试套件（Testsuite））
-python -m arun.cli run testsuites/testsuite_smoke.yaml \
+python -m drun.cli run testsuites/testsuite_smoke.yaml \
   --env-file .env \
   --html reports/report.html
 
@@ -784,7 +790,7 @@ python -m arun.cli run testsuites/testsuite_smoke.yaml \
 生成结构化 JSON 报告：
 
 ```bash
-arun run testcases --report reports/run.json
+drun run testcases --report reports/run.json
 ```
 
 **格式**：
@@ -816,7 +822,7 @@ arun run testcases --report reports/run.json
 
 ```bash
 # 生成 Allure 结果
-arun run testcases --allure-results allure-results
+drun run testcases --allure-results allure-results
 
 # 使用 Allure CLI 生成与打开报告（本地需安装 allure 命令）
 allure generate allure-results -o allure-report --clean
@@ -846,7 +852,7 @@ allure --version
 #### 特性说明
 
 - **附件丰富**：为每个步骤生成请求/响应/cURL/断言/提取变量等附件（遵循 `--mask-secrets` 脱敏策略）
-- **测试套件分组**：默认按用例来源文件名归类（若可用），否则归为 "ARun"
+- **测试套件分组**：默认按用例来源文件名归类（若可用），否则归为 "Drun"
 - **趋势分析**：多次运行后可查看历史趋势（需保留 `allure-report/history` 目录）
 - **CI/CD 集成**：可配合 Jenkins/GitLab CI 的 Allure 插件自动生成并展示报告
 
@@ -860,14 +866,14 @@ export FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 export FEISHU_SECRET=your-secret      # 可选，签名验证
 export FEISHU_STYLE=card              # card 或 text（默认）
 export SYSTEM_NAME=我的测试系统       # 可选，自定义卡片标题（支持 SYSTEM_NAME 或 PROJECT_NAME）
-export ARUN_NOTIFY_ONLY=failed        # failed 或 always
+export DRUN_NOTIFY_ONLY=failed        # failed 或 always
 
 # 运行并通知
-arun run testcases --notify feishu --env-file .env
+drun run testcases --notify feishu --env-file .env
 ```
 
 **飞书卡片示例**（`FEISHU_STYLE=card`）：
-- 🏷️ **自定义标题**：显示系统名称（来自 `SYSTEM_NAME`，默认 "ARun 测试结果"）
+- 🏷️ **自定义标题**：显示系统名称（来自 `SYSTEM_NAME`，默认 "Drun 测试结果"）
 - 📊 **用例统计**：总数、通过、失败、跳过、耗时
 - 🔢 **步骤统计**：总步骤数、通过步骤数、失败步骤数
 - 🚨 **失败步骤详情**：步骤名称、错误消息、耗时（前 5 个）
@@ -887,7 +893,7 @@ export MAIL_FROM=noreply@example.com
 export MAIL_TO=qa@example.com,dev@example.com
 
 # 运行并通知（附带 HTML 报告）
-arun run testcases --notify email --notify-attach-html --env-file .env
+drun run testcases --notify email --notify-attach-html --env-file .env
 ```
 
 **邮件内容**：
@@ -908,10 +914,10 @@ export DINGTALK_AT_ALL=false
 export DINGTALK_STYLE=text
 
 # 运行并通知（失败才发）
-arun run testcases --notify dingtalk --notify-only failed --env-file .env
+drun run testcases --notify dingtalk --notify-only failed --env-file .env
 
 # 也可多渠道同时发
-arun run testcases --notify feishu,dingtalk --notify-only always --env-file .env
+drun run testcases --notify feishu,dingtalk --notify-only always --env-file .env
 ```
 
 说明：
@@ -960,7 +966,7 @@ USER_PASSWORD=test_pass
 EOF
 
 # 方式 2：通过 CLI 传递
-arun run testcases --vars base_url=http://localhost:8000
+drun run testcases --vars base_url=http://localhost:8000
 
 # 方式 3：导出环境变量
 export BASE_URL=http://localhost:8000
@@ -981,7 +987,7 @@ No YAML test files found.
 #### 3. 模块导入错误
 
 ```
-ModuleNotFoundError: No module named 'arun'
+ModuleNotFoundError: No module named 'drun'
 ```
 
 **解决方案**：
@@ -1027,19 +1033,24 @@ pip install pymysql
 
 #### 6. Hooks 未加载
 
-**原因**：`arun_hooks.py` 文件位置不正确，或文件名拼写错误。
+**原因**：`drun_hooks.py` 文件位置不正确，或文件名拼写错误。
 
 **解决方案**：
 
-> **注意**：本项目根目录已提供 `arun_hooks.py` 示例文件，包含常用函数。
+> **注意**：0.3.0 起仅加载 `drun_hooks.py`（可通过 `DRUN_HOOKS_FILE` 指定其他路径），旧的 `arun_hooks.py`/`ARUN_HOOKS_FILE` 不再生效。
 
-1. 确认 `arun_hooks.py` 在项目根目录
-2. 检查文件名拼写（不是 `hooks.py`）
-3. 或使用环境变量指定自定义路径：
+1. 旧项目请将 `arun_hooks.py` 重命名为 `drun_hooks.py`
+2. 如果使用环境变量，改用 `DRUN_HOOKS_FILE=/path/to/drun_hooks.py`
+3. 确认文件位于项目根目录或由 `DRUN_HOOKS_FILE` 指向的路径
+4. 重新运行命令，确保 `${hook(...)}`
+   已恢复
+
+例如：
 
 ```bash
-export ARUN_HOOKS_FILE=/path/to/custom_hooks.py
-arun run testcases
+mv arun_hooks.py drun_hooks.py
+export DRUN_HOOKS_FILE=/absolute/path/to/drun_hooks.py
+drun run testcases
 ```
 
 ### 调试技巧
@@ -1047,13 +1058,13 @@ arun run testcases
 #### 1. 启用详细日志
 
 ```bash
-arun run testcases --log-level debug --log-file debug.log
+drun run testcases --log-level debug --log-file debug.log
 ```
 
 #### 2. 显示 httpx 请求日志
 
 ```bash
-arun run testcases --httpx-logs
+drun run testcases --httpx-logs
 ```
 
 #### 3. 查看 cURL 命令
@@ -1076,7 +1087,7 @@ arun run testcases --httpx-logs
 #### 4. 验证 YAML 语法
 
 ```bash
-arun check testcases
+drun check testcases
 ```
 
 ---
@@ -1107,8 +1118,8 @@ arun check testcases
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Devliang24/arun.git
-cd arun
+git clone https://github.com/Devliang24/drun.git
+cd drun
 
 # 创建虚拟环境
 python -m venv venv
@@ -1118,17 +1129,17 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -e .
 
 # 运行测试
-arun run testcases --env-file .env
+drun run testcases --env-file .env
 
 # 验证代码风格
-# black arun/
-# ruff check arun/
+# black drun/
+# ruff check drun/
 ```
 
 ### 社区资源
 
 - **示例集合**：[examples/](examples/)
-- **问题追踪**：[GitHub Issues](https://github.com/Devliang24/arun/issues)
+- **问题追踪**：[GitHub Issues](https://github.com/Devliang24/drun/issues)
 - **变更日志**：查看提交历史
 
 ---
@@ -1141,7 +1152,7 @@ arun run testcases --env-file .env
 
 ## 🙏 致谢
 
-ARun 基于优秀的开源项目构建：
+Drun 基于优秀的开源项目构建：
 
 - [httpx](https://www.python-httpx.org/) - 现代 HTTP 客户端
 - [pydantic](https://docs.pydantic.dev/) - 数据验证
@@ -1155,8 +1166,8 @@ ARun 基于优秀的开源项目构建：
 
 <div align="center">
 
-**由 ARun 团队用 ❤️ 构建**
+**由 Drun 团队用 ❤️ 构建**
 
-[⬆ 回到顶部](#arun)
+[⬆ 回到顶部](#drun)
 
 </div>

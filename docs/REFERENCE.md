@@ -17,11 +17,11 @@
 | `base64_encode(s)` | Base64 编码字符串或字节 | `${base64_encode('hello')}` |
 | `hmac_sha256(key, msg)` | HMAC-SHA256 哈希（十六进制） | `${hmac_sha256($secret, $data)}` |
 
-> 说明：以上函数由框架内置提供（`arun/templating/builtins.py`）。`ENV()` 用于读取操作系统环境变量。
+> 说明：以上函数由框架内置提供（`drun/templating/builtins.py`）。`ENV()` 用于读取操作系统环境变量。
 
 ## 项目自带辅助函数与 Hooks
 
-根目录 `README.md`/`arun_hooks.py` 中包含示例，可直接使用或按需修改。
+根目录 `README.md`/`drun_hooks.py` 中包含示例，可直接使用或按需修改。
 
 模板辅助函数（在 `${}` 中调用）：
 
@@ -50,10 +50,10 @@
 
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
-| `ARUN_ENV` | 环境名称 | - |
-| `ARUN_HOOKS_FILE` | 自定义 hooks 文件路径 | `arun_hooks.py` |
-| `ARUN_NOTIFY` | 默认通知渠道 | - |
-| `ARUN_NOTIFY_ONLY` | 通知策略 | `failed` |
+| `DRUN_ENV` | 环境名称 | - |
+| `DRUN_HOOKS_FILE` | 自定义 hooks 文件路径 | `drun_hooks.py` |
+| `DRUN_NOTIFY` | 默认通知渠道 | - |
+| `DRUN_NOTIFY_ONLY` | 通知策略 | `failed` |
 | `NOTIFY_TOPN` | 通知失败用例数量 | `5` |
 | `FEISHU_WEBHOOK` | 飞书 Webhook URL | - |
 | `FEISHU_SECRET` | 飞书签名密钥 | - |
@@ -77,3 +77,9 @@
 | `MYSQL_USER` | MySQL 用户 | - |
 | `MYSQL_PASSWORD` | MySQL 密码 | - |
 | `MYSQL_DB` | MySQL 数据库 | - |
+
+> 提示：自 0.3.0 起，Hooks 文件统一使用 `drun_hooks.py`（可通过 `DRUN_HOOKS_FILE` 覆盖）。旧版的 `arun_hooks.py`/`ARUN_HOOKS_FILE` 不再加载，请按以下步骤迁移：
+> 1. 将旧文件 `arun_hooks.py` 改名为 `drun_hooks.py`。
+> 2. 如果脚本或 CI 中设置了 `ARUN_HOOKS_FILE=/path/to/arun_hooks.py`，改成 `DRUN_HOOKS_FILE=/path/to/drun_hooks.py`。
+> 3. 重新运行 `drun run ...`，确保 `${hook(...)}`
+>    调用恢复正常。

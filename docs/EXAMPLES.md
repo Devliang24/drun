@@ -39,7 +39,7 @@ steps:
 
 ### 示例 2：E2E 购物流程
 
-> 说明：此示例使用了项目自带的 `uid()` 和 `short_uid()` 辅助函数（定义在根目录 `arun_hooks.py`），用于生成唯一的测试数据。
+> 说明：此示例使用了项目自带的 `uid()` 和 `short_uid()` 辅助函数（定义在根目录 `drun_hooks.py`），用于生成唯一的测试数据。
 
 ```yaml
 config:
@@ -110,7 +110,7 @@ steps:
 
 ### 示例 3：参数化测试（压缩模式）
 
-ARun 支持压缩（zipped）参数化，提供单变量列表和多变量绑定两种用法。以下从简单到复杂展示参数化的典型应用场景。
+Drun 支持压缩（zipped）参数化，提供单变量列表和多变量绑定两种用法。以下从简单到复杂展示参数化的典型应用场景。
 
 #### 3.1 单变量列表（技术演示）
 
@@ -173,7 +173,7 @@ steps:
 
 #### 3.3 多组笛卡尔积（高级：多环境测试）
 
-定义多个压缩组时，ARun 会自动生成笛卡尔积组合，适合跨环境、跨区域的全面测试。
+定义多个压缩组时，Drun 会自动生成笛卡尔积组合，适合跨环境、跨区域的全面测试。
 
 ```yaml
 config:
@@ -223,7 +223,7 @@ steps:
 
 ### 示例 4：请求签名 Hooks
 
-arun_hooks.py：
+drun_hooks.py：
 
 ```python
 import time
@@ -268,9 +268,9 @@ steps:
 
 ### 示例 5：格式转换与导出工作流
 
-演示从浏览器/Postman 到 ARun YAML 的完整转换流程。
+演示从浏览器/Postman 到 Drun YAML 的完整转换流程。
 
-注意：`arun convert` 要求“文件在前，选项在后”，且不支持无选项转换（至少提供 `--outfile`/`--split-output`/`--redact`/`--placeholders` 等其一）。
+注意：`drun convert` 要求“文件在前，选项在后”，且不支持无选项转换（至少提供 `--outfile`/`--split-output`/`--redact`/`--placeholders` 等其一）。
 
 #### 场景 1：从浏览器 HAR 快速生成测试
 
@@ -281,7 +281,7 @@ steps:
 #    - 右键 → Save all as HAR with content
 
 # 2. 导入为测试用例（Case，每个请求一个文件）
-arun convert recording.har --split-output \
+drun convert recording.har --split-output \
   --case-name "浏览器录制" \
   --base-url https://api.example.com
 
@@ -291,10 +291,10 @@ arun convert recording.har --split-output \
 # ...
 
 # 3. 运行测试验证
-arun run recording_step1.yaml --env-file .env
+drun run recording_step1.yaml --env-file .env
 
 # 4. 导出为 cURL 命令调试
-arun export curl recording_step1.yaml --with-comments
+drun export curl recording_step1.yaml --with-comments
 ```
 
 #### 场景 2：Postman Collection 迁移
@@ -303,15 +303,15 @@ arun export curl recording_step1.yaml --with-comments
 # 1. 从 Postman 导出 Collection（JSON 格式）
 
 # 2. 转换为 YAML（合并为一个测试套件）
-arun convert api_collection.json \
+drun convert api_collection.json \
   --outfile testcases/test_api_suite.yaml \
   --case-name "API 完整测试"
 
 # 3. 编辑 YAML 添加断言和提取逻辑
-# （此时可以利用 ARun 的变量提取、参数化等高级特性）
+# （此时可以利用 Drun 的变量提取、参数化等高级特性）
 
 # 4. 运行测试
-arun run testcases/test_api_suite.yaml --env-file .env --html reports/report.html
+drun run testcases/test_api_suite.yaml --env-file .env --html reports/report.html
 ```
 
 #### 场景 3：cURL 命令转测试用例（Case）
@@ -332,7 +332,7 @@ curl 'https://api.example.com/users/me' \
 EOF
 
 # 3. 转换为 YAML
-arun convert api_requests.curl \
+drun convert api_requests.curl \
   --outfile testcases/test_auth_flow.yaml \
   --case-name "认证流程测试"
 
@@ -341,7 +341,7 @@ arun convert api_requests.curl \
 # steps[1].request.headers: { Authorization: "Bearer $token" }
 
 # 5. 运行测试
-arun run testcases/test_auth_flow.yaml --env-file .env
+drun run testcases/test_auth_flow.yaml --env-file .env
 ```
 
 #### 场景 4：测试用例分享与调试
@@ -365,7 +365,7 @@ steps:
 EOF
 
 # 导出为 cURL 命令分享给团队成员 B
-arun export curl testcases/test_new_feature.yaml \
+drun export curl testcases/test_new_feature.yaml \
   --outfile share.curl \
   --with-comments
 
@@ -374,7 +374,7 @@ arun export curl testcases/test_new_feature.yaml \
 bash share.curl
 
 # 方式 2：导入为自己的测试用例（Case）
-arun convert share.curl --outfile my_tests/imported.yaml
+drun convert share.curl --outfile my_tests/imported.yaml
 ```
 
 工作流优势：
@@ -422,8 +422,8 @@ testcases:
 运行：
 
 ```bash
-arun run testsuites --env-file .env
-arun run testsuites -k "smoke" --env-file .env
+drun run testsuites --env-file .env
+drun run testsuites -k "smoke" --env-file .env
 ```
 
 说明：

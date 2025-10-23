@@ -8,11 +8,11 @@ from typing import Any, Dict, List, Tuple
 import yaml
 from pydantic import ValidationError
 
-from arun.models.case import Case, Suite
-from arun.models.config import Config
-from arun.models.step import Step
-from arun.models.validators import normalize_validators
-from arun.utils.errors import LoadError
+from drun.models.case import Case, Suite
+from drun.models.config import Config
+from drun.models.step import Step
+from drun.models.validators import normalize_validators
+from drun.utils.errors import LoadError
 
 
 def _is_suite(doc: Dict[str, Any]) -> bool:

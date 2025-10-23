@@ -9,7 +9,7 @@ from typing import Optional
 
 from .base import Notifier, NotifyContext
 from .format import build_summary_text, build_text_message
-from arun.models.report import RunReport
+from drun.models.report import RunReport
 
 
 class EmailNotifier(Notifier):
@@ -42,7 +42,7 @@ class EmailNotifier(Notifier):
         if not (self.smtp_host and self.mail_from and self.mail_to):
             return
         s = report.summary or {}
-        subject = f"[ARun] 测试结果: {s.get('failed',0)}/{s.get('total',0)} 失败"
+        subject = f"[Drun] 测试结果: {s.get('failed',0)}/{s.get('total',0)} 失败"
         body = build_text_message(report, html_path=ctx.html_path, log_path=ctx.log_path, topn=ctx.topn)
 
         msg = EmailMessage()
@@ -67,7 +67,7 @@ class EmailNotifier(Notifier):
                 fails.append(f"<li><b>{_esc(name)}</b>: {_esc(step)} → {_esc(str(msg_txt))}</li>")
             html_lines = [
                 "<html><body>",
-                "<h3>ARun 测试结果</h3>",
+                "<h3>Drun 测试结果</h3>",
                 f"<p>总 {total} | 通过 {passed} | 失败 {failed} | 跳过 {skipped} | {dur}</p>",
                 "<ul>" + ("".join(fails) or "<li>无失败</li>") + "</ul>",
             ]

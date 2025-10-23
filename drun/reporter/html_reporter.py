@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any, List
 
-from arun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult
+from drun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult
 
 
 def _json(obj: Any) -> str:
@@ -249,7 +249,7 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
     head_parts = []
     head_parts.append("""
 <!doctype html><html lang='zh-CN'><head><meta charset='utf-8' /><meta name='viewport' content='width=device-width, initial-scale=1' />
-<title>ARun 测试报告</title>
+<title>Drun 测试报告</title>
 <style>
   :root { --bg:#ffffff; --fg:#24292f; --muted:#57606a; --ok:#1a7f37; --fail:#cf222e; --skip:#6e7781; --card:#f6f8fa; --accent:#0969da; --border:#d0d7de; --panel-head-bg:#f6f8fa; --step-head-bg:#f6f8fa; --chip-bg:#f6f8fa; --btn-bg:#ffffff; --input-bg:#ffffff; --code-key:#0550ae; --code-str:#0a3069; --code-num:#953800; --code-bool:#1a7f37; --code-null:#6e7781; --code-punct:#57606a; }
   html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font: 14px/1.45 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
@@ -437,9 +437,9 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
       }
     }catch(e){ /* ignore */ }
   };
-  window.applyFilters = function(){ var selEl=document.querySelector("input[name='status-filter']:checked"); var sel=(selEl && selEl.value) || 'all'; try{localStorage.setItem('arun_report_status', sel);}catch(e){} document.querySelectorAll('.case').forEach(function(c){ var st=(c.dataset && c.dataset.status)||''; c.style.display=(sel==='all'||st===sel)?'':''; }); };
+  window.applyFilters = function(){ var selEl=document.querySelector("input[name='status-filter']:checked"); var sel=(selEl && selEl.value) || 'all'; try{localStorage.setItem('drun_report_status', sel);}catch(e){} document.querySelectorAll('.case').forEach(function(c){ var st=(c.dataset && c.dataset.status)||''; c.style.display=(sel==='all'||st===sel)?'':''; }); };
   document.addEventListener('DOMContentLoaded', function(){
-    try{ var saved=localStorage.getItem('arun_report_status')||'all'; var el=document.querySelector("input[name='status-filter'][value='"+saved+"']"); if(el) el.checked=true; }catch(e){}
+    try{ var saved=localStorage.getItem('drun_report_status')||'all'; var el=document.querySelector("input[name='status-filter'][value='"+saved+"']"); if(el) el.checked=true; }catch(e){}
     document.querySelectorAll("input[name='status-filter']").forEach(function(el){ el.addEventListener('change', window.applyFilters); });
     // JSON highlight (preserve original indentation)
     document.querySelectorAll('.panel pre code').forEach(function(code){
@@ -453,7 +453,7 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
 })();</script>
 """)
     # style tag already closed in the header string above
-    head_parts.append("</head><body>\n<div class='wrap'>\n  <div class='header-sticky'>\n    <div class='headbar'>\n      <h1>ARun 测试报告</h1>\n      <div class='meta'>生成时间：" + _escape_html(gen_time) + "</div>\n    </div>\n")
+    head_parts.append("</head><body>\n<div class='wrap'>\n  <div class='header-sticky'>\n    <div class='headbar'>\n      <h1>Drun 测试报告</h1>\n      <div class='meta'>生成时间：" + _escape_html(gen_time) + "</div>\n    </div>\n")
     # Summary badges
     total = str(s.get('total', 0))
     passed = str(s.get('passed', 0))
@@ -475,7 +475,7 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
         body_cases.append(_build_case(c))
 
     tail = """
-  <div class='footer'>由 ARun 生成</div>
+  <div class='footer'>由 Drun 生成</div>
 </div>
 </body></html>
 """

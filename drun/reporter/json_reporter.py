@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from arun.models.report import RunReport
+from drun.models.report import RunReport
 
 
 def write_json(report: RunReport, outfile: str | Path) -> None:

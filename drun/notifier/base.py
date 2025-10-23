@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-from arun.models.report import RunReport
+from drun.models.report import RunReport
 
 
 @dataclass

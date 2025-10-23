@@ -1,7 +1,7 @@
 """
-ARun 项目脚手架模板集合。
+Drun 项目脚手架模板集合。
 
-提供 `arun init` 命令需要的所有示例和模板内容。
+提供 `drun init` 命令需要的所有示例和模板内容。
 """
 
 from .templates import (

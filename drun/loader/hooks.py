@@ -11,20 +11,20 @@ from typing import Any, Dict, Optional, Sequence
 
 def _module_name_for(path: Path) -> str:
     h = hashlib.sha1(str(path).encode()).hexdigest()[:10]
-    return f"arun_hooks_{h}"
+    return f"drun_hooks_{h}"
 
 
 def _candidate_filenames() -> Sequence[str]:
     # Allow override via env; support comma-separated list
-    env_val = os.environ.get("ARUN_HOOKS_FILE")
+    env_val = os.environ.get("DRUN_HOOKS_FILE")
     if env_val:
         return [x.strip() for x in env_val.split(",") if x.strip()]
-    return ["arun_hooks.py", "hooks.py"]
+    return ["drun_hooks.py", "hooks.py"]
 
 
 def find_hooks(start: Path) -> Optional[Path]:
     """Search upwards from start directory for a hooks file.
-    Default names: arun_hooks.py, hooks.py (configurable via ARUN_HOOKS_FILE)
+    Default names: drun_hooks.py, hooks.py (configurable via DRUN_HOOKS_FILE)
     """
     d = start if start.is_dir() else start.parent
     root = Path(d.anchor)
@@ -66,4 +66,3 @@ def get_functions_for(start: Path) -> Dict[str, Any]:
         return {}
     mod = _import_module_from_path(path)
     return _collect_callables(mod)
-
