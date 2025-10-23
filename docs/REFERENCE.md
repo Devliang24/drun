@@ -78,6 +78,8 @@
 | `MYSQL_PASSWORD` | MySQL 密码 | - |
 | `MYSQL_DB` | MySQL 数据库 | - |
 
+> 提示：未配置 `DRUN_NOTIFY` 时，若环境中存在 `FEISHU_WEBHOOK`、`DINGTALK_WEBHOOK` 或 `SMTP_HOST`/`MAIL_TO`，会自动启用飞书、钉钉或邮件通知渠道。
+
 > 提示：自 0.3.0 起，Hooks 文件统一使用 `drun_hooks.py`（可通过 `DRUN_HOOKS_FILE` 覆盖）。旧版的 `arun_hooks.py`/`ARUN_HOOKS_FILE` 不再加载，请按以下步骤迁移：
 > 1. 将旧文件 `arun_hooks.py` 改名为 `drun_hooks.py`。
 > 2. 如果脚本或 CI 中设置了 `ARUN_HOOKS_FILE=/path/to/arun_hooks.py`，改成 `DRUN_HOOKS_FILE=/path/to/drun_hooks.py`。

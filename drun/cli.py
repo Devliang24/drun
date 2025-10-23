@@ -1204,7 +1204,22 @@ def run(
             build_summary_text,
         )
 
-        channels = [c.strip().lower() for c in (notify or os.environ.get("DRUN_NOTIFY", "")).split(",") if c.strip()]
+        channels_spec = notify if notify is not None else os.environ.get("DRUN_NOTIFY", "")
+        channels = [c.strip().lower() for c in channels_spec.split(",") if c.strip()]
+        if not channels:
+            auto_channels: List[str] = []
+            if os.environ.get("FEISHU_WEBHOOK"):
+                auto_channels.append("feishu")
+            if os.environ.get("DINGTALK_WEBHOOK"):
+                auto_channels.append("dingtalk")
+            if os.environ.get("SMTP_HOST") or os.environ.get("MAIL_TO"):
+                auto_channels.append("email")
+            if auto_channels:
+                log.info("[NOTIFY] Auto-enabling channels from environment: %s", ", ".join(auto_channels))
+            channels = auto_channels
+        # deduplicate while preserving order
+        seen = set()
+        channels = [c for c in channels if not (c in seen or seen.add(c))]
         policy = (notify_only or os.environ.get("DRUN_NOTIFY_ONLY", "failed")).strip().lower()
         topn = int(os.environ.get("NOTIFY_TOPN", "5") or "5")
 

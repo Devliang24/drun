@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
   - Changed from `/status/200` to `/get` endpoint for better demonstration
   - Added response body validation (Content-Type header, url field)
   - Better showcase of API testing capabilities with actual response data
+- **CLI notifications**: `drun run` now honours `DRUN_NOTIFY_ONLY` and auto-enables Feishu/DingTalk/Email channels when their environment variables are present, eliminating the need for explicit `--notify`/`--notify-only`
 
 ## [0.3.5] - 2025-10-23
 

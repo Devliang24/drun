@@ -858,6 +858,10 @@ allure --version
 
 ### 通知集成
 
+> 提示：未显式传入 `--notify`/`--notify-only` 时，Drun 会根据环境变量自动启用对应渠道：
+> 配置了 `FEISHU_WEBHOOK`、`DINGTALK_WEBHOOK` 或 `SMTP_HOST`/`MAIL_TO` 将分别触发飞书、钉钉、邮件通知；
+> 策略默认读取 `DRUN_NOTIFY_ONLY`（fallback 为 `failed`）。
+
 #### 飞书通知
 
 ```bash
@@ -868,7 +872,9 @@ export FEISHU_STYLE=card              # card 或 text（默认）
 export SYSTEM_NAME=我的测试系统       # 可选，自定义卡片标题（支持 SYSTEM_NAME 或 PROJECT_NAME）
 export DRUN_NOTIFY_ONLY=failed        # failed 或 always
 
-# 运行并通知
+# 运行并通知（已配置 FEISHU_WEBHOOK 时可直接运行）
+drun run testcases --env-file .env
+# 如需明确指定渠道，可额外加 --notify feishu
 drun run testcases --notify feishu --env-file .env
 ```
 
@@ -892,7 +898,9 @@ export SMTP_PASS=app-password
 export MAIL_FROM=noreply@example.com
 export MAIL_TO=qa@example.com,dev@example.com
 
-# 运行并通知（附带 HTML 报告）
+# 运行并通知（附带 HTML 报告；已配置 SMTP/MAIL_TO 时可直接运行）
+drun run testcases --notify-attach-html --env-file .env
+# 如需明确指定渠道，可额外加 --notify email
 drun run testcases --notify email --notify-attach-html --env-file .env
 ```
 
@@ -913,7 +921,9 @@ export DINGTALK_AT_ALL=false
 # 可选：消息样式 text/markdown（默认 text）
 export DINGTALK_STYLE=text
 
-# 运行并通知（失败才发）
+# 运行并通知（失败才发；已配置 DINGTALK_WEBHOOK 时可直接运行）
+drun run testcases --notify-only failed --env-file .env
+# 如需明确指定渠道，可额外加 --notify dingtalk
 drun run testcases --notify dingtalk --notify-only failed --env-file .env
 
 # 也可多渠道同时发

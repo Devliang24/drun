@@ -26,8 +26,8 @@ drun run <path> [options]
 --reveal-secrets              # 显示敏感数据明文（默认）
 --response-headers            # 打印响应头（默认关闭，需要时显式开启）
 --mask-secrets                # 脱敏敏感数据（CI/CD 推荐）
---notify feishu,email,dingtalk# 通知渠道
---notify-only failed          # 通知策略（failed/always，默认 failed）
+--notify feishu,email,dingtalk# 明确指定通知渠道（未设置时将根据环境自动检测）
+--notify-only failed          # 通知策略（failed/always，默认读取 $DRUN_NOTIFY_ONLY 或 failed）
 --notify-attach-html          # 邮件附加 HTML 报告
 ```
 
