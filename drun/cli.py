@@ -1590,39 +1590,29 @@ def init_project(
 
     # 输出创建的文件列表（tree 风格）
     project_name = name if name else "."
-
-    def _tree_line(body: str, desc: str = "", pad: int = 46) -> None:
-        if not desc:
-            typer.echo(body)
-            return
-        spacer_width = pad - len(body)
-        if spacer_width < 1:
-            spacer_width = 1
-        typer.echo(f"{body}{' ' * spacer_width}{desc}")
-
-    _tree_line(f"{project_name}")
-    _tree_line("├── testcases/")
-    _tree_line("│   ├── test_demo.yaml", "完整认证流程示例")
-    _tree_line("│   └── test_api_health.yaml", "健康检查示例")
-    _tree_line("├── testsuites/")
-    _tree_line("│   └── testsuite_smoke.yaml", "冒烟测试套件")
-    _tree_line("├── converts/")
-    _tree_line("│   ├── README.md", "格式转换完整指南")
-    _tree_line("│   ├── curl/")
-    _tree_line("│   │   └── sample.curl", "cURL 命令示例")
-    _tree_line("│   ├── postman/")
-    _tree_line("│   │   ├── sample_collection.json", "Postman Collection")
-    _tree_line("│   │   └── sample_environment.json", "Postman 环境变量")
-    _tree_line("│   ├── har/")
-    _tree_line("│   │   └── sample_recording.har", "HAR 录屏示例")
-    _tree_line("│   └── openapi/")
-    _tree_line("│       └── sample_openapi.json", "OpenAPI 规范")
-    _tree_line("├── reports/", "测试报告输出目录")
-    _tree_line("├── logs/", "运行日志输出目录")
-    _tree_line("├── .env", "环境变量配置")
-    _tree_line("├── drun_hooks.py", "自定义 Hooks 函数")
-    _tree_line("├── .gitignore", "Git 忽略规则")
-    _tree_line("└── README.md", "项目文档")
+    typer.echo(f"{project_name}")
+    typer.echo("├── testcases/")
+    typer.echo("│   ├── test_demo.yaml                       完整认证流程示例")
+    typer.echo("│   └── test_api_health.yaml                 健康检查示例")
+    typer.echo("├── testsuites/")
+    typer.echo("│   └── testsuite_smoke.yaml                 冒烟测试套件")
+    typer.echo("├── converts/")
+    typer.echo("│   ├── README.md                            格式转换完整指南")
+    typer.echo("│   ├── curl/")
+    typer.echo("│   │   └── sample.curl                      cURL 命令示例")
+    typer.echo("│   ├── postman/")
+    typer.echo("│   │   ├── sample_collection.json           Postman Collection")
+    typer.echo("│   │   └── sample_environment.json          Postman 环境变量")
+    typer.echo("│   ├── har/")
+    typer.echo("│   │   └── sample_recording.har             HAR 录屏示例")
+    typer.echo("│   └── openapi/")
+    typer.echo("│       └── sample_openapi.json              OpenAPI 规范")
+    typer.echo("├── reports/                                  测试报告输出目录")
+    typer.echo("├── logs/                                     运行日志输出目录")
+    typer.echo("├── .env                                      环境变量配置")
+    typer.echo("├── drun_hooks.py                             自定义 Hooks 函数")
+    typer.echo("├── .gitignore                                Git 忽略规则")
+    typer.echo("└── README.md                                 项目文档")
     typer.echo("")
     typer.echo("6 directories, 12 files")
 
