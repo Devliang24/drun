@@ -100,9 +100,32 @@ def _get_drun_version() -> str:
 
 _APP_HELP = f"drun v{_get_drun_version()} · Zero-code HTTP API test framework"
 
+
+def _version_callback(value: bool):
+    """Display version and exit."""
+    if value:
+        typer.echo(f"drun version {_get_drun_version()}")
+        raise typer.Exit()
+
+
 app = typer.Typer(add_completion=False, help=_APP_HELP, rich_markup_mode=None)
 export_app = typer.Typer()
 app.add_typer(export_app, name="export")
+
+
+@app.callback()
+def main(
+    version: Optional[bool] = typer.Option(
+        None,
+        "--version",
+        "-v",
+        help="Show version and exit",
+        callback=_version_callback,
+        is_eager=True,
+    )
+):
+    """drun - Zero-code HTTP API test framework"""
+    pass
 
 # Importers / exporters (lazy optional imports inside functions where needed)
 
