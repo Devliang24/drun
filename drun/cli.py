@@ -987,7 +987,12 @@ def run(
         show_default=False,
     ),
     notify: Optional[str] = typer.Option(None, "--notify", help="Notify channels, comma-separated: feishu,email,dingtalk"),
-    notify_only: str = typer.Option("failed", "--notify-only", help="Notify policy: failed|always"),
+    notify_only: Optional[str] = typer.Option(
+        None,
+        "--notify-only",
+        help="Notify policy: failed|always (defaults to $DRUN_NOTIFY_ONLY or 'failed')",
+        show_default=False,
+    ),
     notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="Attach HTML report in email (if email enabled)", show_default=False),
 ):
     # default log file path
