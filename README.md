@@ -666,6 +666,37 @@ steps:
 
 **更多示例：** 参见 `examples/test_params_zipped.yaml` 和 `testcases/test_register_zipped.yaml`
 
+#### 用法 4：CSV 数据驱动
+
+当测试数据较多或已经维护在表格中时，可以直接引入 CSV 文件。`path` 支持相对路径（相对于用例文件），Drun 会把每一行转换为参数字典，再与其它参数组做笛卡尔积。
+
+```yaml
+config:
+  name: 登录校验（CSV）
+  base_url: ${ENV(BASE_URL)}
+  parameters:
+    - csv:
+        path: data/login_users.csv   # 相对于当前 YAML 的路径
+        strip: true                  # 可选：自动 trim 每个单元格
+
+steps:
+  - name: 尝试登录
+    request:
+      method: GET
+      url: /login?username=$username&password=$password&env=$env
+    validate:
+      - eq: [status_code, 200]
+```
+
+可选字段：
+
+- `columns`: CSV 没有表头时指定列名（示例：`[username, password, env]`）。
+- `header`: 是否读取首行为表头，默认 `true`。
+- `delimiter`: 分隔符，默认逗号。
+- `encoding`: 文件编码，默认 `utf-8`。
+
+**实际示例：** `examples/basic-examples/test_params_csv.yaml`
+
 ### SQL 验证
 
 对数据库状态进行断言，确保 API 操作正确写入数据库。

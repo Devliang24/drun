@@ -202,6 +202,38 @@ steps:
 - (staging, us), (staging, eu), (staging, asia)
 - (prod, us), (prod, eu), (prod, asia)
 
+#### 3.4 CSV 数据驱动（批量账号/配置）
+
+当测试数据来源于表格或已有账号清单时，可以使用 CSV 文件作为参数源。Drun 会自动解析文件，每一行生成一个参数字典。
+
+```yaml
+config:
+  name: 登录测试（CSV）
+  base_url: ${ENV(BASE_URL)}
+  parameters:
+    - csv:
+        path: data/login_users.csv   # 相对于当前 YAML 的路径
+        strip: true
+
+steps:
+  - name: 尝试登录
+    request:
+      method: GET
+      url: /login?username=$username&password=$password&env=$env
+    validate:
+      - eq: [status_code, 200]
+```
+
+CSV 默认首行为表头，可通过如下配置做定制：
+
+- `columns`: 当文件没有表头时指定列名（示例：`[username, password, env]`）。
+- `header`: 显式控制是否读取表头，默认 `true`。
+- `delimiter`: 分隔符，默认 `,`。
+- `encoding`: 文件编码，默认 `utf-8`。
+- `strip`: 是否自动裁剪每个单元格的首尾空白，默认 `false`。
+
+**示例文件：** `examples/basic-examples/data/login_users.csv`
+
 **适用场景：**
 - 跨环境 × 跨区域的全面覆盖
 - 配置矩阵测试（数据库类型 × 操作系统版本）

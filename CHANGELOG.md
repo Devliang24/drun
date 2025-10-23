@@ -71,3 +71,6 @@ All notable changes to this project will be documented in this file.
 - Fixed login test case expected results
 
 ## Unreleased
+
+### Added
+- CSV parameterization: new `- csv: { path: ... }` blocks under `config.parameters` load rows from CSV files (relative to the case), enabling data-driven tests without rewriting zipped arrays

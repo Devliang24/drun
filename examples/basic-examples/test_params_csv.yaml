@@ -1,0 +1,15 @@
+config:
+  name: "参数化：CSV"
+  base_url: ${ENV(BASE_URL)}
+  parameters:
+    - csv:
+        path: data/login_users.csv
+        strip: true
+
+steps:
+  - name: CSV 参数示例
+    request:
+      method: GET
+      url: /login?username=$username&password=$password&env=$env
+    validate:
+      - eq: [status_code, 200]

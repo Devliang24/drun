@@ -73,6 +73,9 @@ examples/
 - **压缩参数**：`basic-examples/test_params_zipped.yaml`
   - 展示 `config.parameters` 的压缩写法
   - 运行：`drun run examples/basic-examples/test_params_zipped.yaml --env-file .env`
+- **CSV 参数化**：`basic-examples/test_params_csv.yaml`
+  - 展示 `config.parameters` 中的 CSV 引入
+  - 运行：`drun run examples/basic-examples/test_params_csv.yaml --env-file .env`
 
 #### 🗄️ SQL 校验
 - **SQL 校验**：`basic-examples/test_sql_validate.yaml`

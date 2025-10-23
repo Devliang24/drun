@@ -1127,7 +1127,7 @@ def run(
 
     for c, meta in items:
         funcs = get_functions_for(Path(meta.get("file", path)).resolve())
-        param_sets = expand_parameters(c.parameters)
+        param_sets = expand_parameters(c.parameters, source_path=meta.get("file"))
         for ps in param_sets:
             # Promote BASE_URL to base_url if not set
             if (not c.config.base_url) and (base := global_vars.get("BASE_URL") or global_vars.get("base_url") or env_store.get("BASE_URL") or env_store.get("base_url")):
