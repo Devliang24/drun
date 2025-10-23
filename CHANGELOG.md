@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+## [0.3.8] - 2025-10-24
+
+### Added
+- CSV parameterization: new `- csv: { path: ... }` blocks under `config.parameters` load rows from CSV files (relative to the case), enabling data-driven tests without rewriting zipped arrays
+
 ## [0.3.7] - 2025-10-24
 
 ### Improved
@@ -69,8 +76,3 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Ensure `config.variables` is always a dictionary during conversion (avoid `None` ValidationError)
 - Fixed login test case expected results
-
-## Unreleased
-
-### Added
-- CSV parameterization: new `- csv: { path: ... }` blocks under `config.parameters` load rows from CSV files (relative to the case), enabling data-driven tests without rewriting zipped arrays
