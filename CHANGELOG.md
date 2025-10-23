@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.3] - 2025-10-23
+
+### Changed
+- `drun init` quickstart instructions now rely on the default `.env` lookup instead of repeating `--env-file .env`
+- Bundled example project co-locates its sample `.env` within `examples/example-project/` and documentation reflects the new layout
+
 ## [0.3.0] - 2025-01-23
 
 ### Added
