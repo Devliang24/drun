@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.6] - 2025-10-23
+
+### Improved
+- **`test_api_health.yaml` template**: Enhanced health check example with response validation
+  - Changed from `/status/200` to `/get` endpoint for better demonstration
+  - Added response body validation (Content-Type header, url field)
+  - Better showcase of API testing capabilities with actual response data
+
 ## [0.3.5] - 2025-10-23
 
 ### Fixed
