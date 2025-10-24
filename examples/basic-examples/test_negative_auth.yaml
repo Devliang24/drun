@@ -6,7 +6,7 @@ steps:
   - name: 未携带 Token 访问购物车
     request:
       method: GET
-      url: /api/v1/cart/
+      path: /api/v1/cart/
     validate:
       - in: [status_code, [401, 403]]
       - contains: [$.message, Not authenticated]

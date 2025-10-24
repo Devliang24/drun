@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 class ImportedStep:
     name: str
     method: str
-    url: str  # absolute or path
+    path: str  # absolute or path
     params: Dict[str, Any] | None = None
     headers: Dict[str, str] | None = None
     body: Any | None = None

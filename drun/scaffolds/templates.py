@@ -16,7 +16,7 @@ steps:
   - name: GET 请求 - 查询参数
     request:
       method: GET
-      url: /get?page=1&limit=10
+      path: /get?page=1&limit=10
       headers:
         User-Agent: $user_agent
     validate:
@@ -28,7 +28,7 @@ steps:
   - name: POST 请求 - 提交 JSON 数据
     request:
       method: POST
-      url: /post
+      path: /post
       headers:
         Content-Type: application/json
       body:
@@ -47,7 +47,7 @@ steps:
   - name: Basic 认证请求
     request:
       method: GET
-      url: /basic-auth/${ENV(USER_USERNAME)}/${ENV(USER_PASSWORD)}
+      path: /basic-auth/${ENV(USER_USERNAME)}/${ENV(USER_PASSWORD)}
       auth:
         type: basic
         username: ${ENV(USER_USERNAME)}
@@ -60,7 +60,7 @@ steps:
   - name: 响应延迟测试
     request:
       method: GET
-      url: /delay/1
+      path: /delay/1
     validate:
       - eq: [status_code, 200]
       - lt: [$elapsed_ms, 2000]
@@ -69,7 +69,7 @@ steps:
   - name: 不同状态码测试
     request:
       method: GET
-      url: /status/201
+      path: /status/201
     validate:
       - eq: [status_code, 201]
 """
@@ -84,7 +84,7 @@ steps:
   - name: 检查服务状态
     request:
       method: GET
-      url: /get
+      path: /get
     extract:
       response_url: $.url
     validate:
@@ -127,7 +127,7 @@ steps:
   - name: 提交注册请求
     request:
       method: POST
-      url: /anything/register
+      path: /anything/register
       headers:
         Content-Type: application/json
       body:
@@ -149,7 +149,7 @@ steps:
   - name: 校验回显头部
     request:
       method: GET
-      url: /anything/verify
+      path: /anything/verify
       headers:
         X-Demo-User: $echoed_username
         X-User-Role: $role
@@ -173,7 +173,7 @@ steps:
       - ${setup_hook_assert_sql($user_id)}
     request:
       method: GET
-      url: /api/users/${user_id}
+      path: /api/users/${user_id}
     extract:
       api_user_id: $.data.id
       api_status: $.data.status
@@ -1056,7 +1056,7 @@ def setup_hook_sign_request(request: dict, variables: dict = None, env: dict = N
               - ${setup_hook_sign_request($request)}
             request:
               method: POST
-              url: /api/secure/endpoint
+              path: /api/secure/endpoint
 
     参数:
         request: 当前请求对象（方法、URL、headers 等）
@@ -1448,7 +1448,7 @@ steps:
   - name: 步骤名称
     request:
       method: GET
-      url: /api/endpoint
+      path: /api/endpoint
     validate:
       - eq: [status_code, 200]
       - eq: [$.data.status, success]
@@ -1461,7 +1461,7 @@ steps:
   - name: 登录
     request:
       method: POST
-      url: /api/auth/login
+      path: /api/auth/login
       body:
         username: ${ENV(USER_USERNAME)}
         password: ${ENV(USER_PASSWORD)}
@@ -1473,7 +1473,7 @@ steps:
   - name: 访问受保护资源
     request:
       method: GET
-      url: /api/users/me
+      path: /api/users/me
       headers:
         Authorization: Bearer $token  # 使用提取的 token
     validate:
@@ -1489,7 +1489,7 @@ steps:
       - ${setup_hook_sign_request($request)}
     request:
       method: POST
-      url: /api/secure/endpoint
+      path: /api/secure/endpoint
     validate:
       - eq: [status_code, 200]
 ```

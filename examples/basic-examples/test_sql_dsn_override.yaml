@@ -9,7 +9,7 @@ steps:
     skip: ${not $mysql_dsn}
     request:
       method: POST
-      url: /api/v1/orders/
+      path: /api/v1/orders/
       body:
         shipping_address: "No.3 Demo Road"
     extract:
@@ -19,7 +19,7 @@ steps:
     skip: ${not $mysql_dsn}
     request:
       method: GET
-      url: /
+      path: /
     sql_validate:
       - query: "SELECT COUNT(*) AS cnt FROM order_items WHERE order_id='$order_id'"
         dsn: $mysql_dsn

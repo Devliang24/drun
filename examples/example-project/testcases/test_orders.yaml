@@ -17,7 +17,7 @@ steps:
   - name: 注册用户（下单流程）
     request:
       method: POST
-      url: /api/v1/auth/register
+      path: /api/v1/auth/register
       headers:
         Accept: application/json
         Content-Type: application/json
@@ -37,7 +37,7 @@ steps:
   - name: 登录
     request:
       method: POST
-      url: /api/v1/auth/login
+      path: /api/v1/auth/login
       headers:
         Accept: application/json
         Content-Type: application/json
@@ -55,7 +55,7 @@ steps:
   - name: 获取产品列表
     request:
       method: GET
-      url: /api/v1/products/
+      path: /api/v1/products/
       headers:
         Accept: application/json
     teardown_hooks:
@@ -72,7 +72,7 @@ steps:
   - name: 加入购物车
     request:
       method: POST
-      url: /api/v1/cart/items
+      path: /api/v1/cart/items
       headers:
         Accept: application/json
         Content-Type: application/json
@@ -94,7 +94,7 @@ steps:
   - name: 下单
     request:
       method: POST
-      url: /api/v1/orders/
+      path: /api/v1/orders/
       headers:
         Accept: application/json
         Content-Type: application/json
@@ -115,7 +115,7 @@ steps:
   - name: 获取订单详情
     request:
       method: GET
-      url: /api/v1/orders/$order_id
+      path: /api/v1/orders/$order_id
       headers:
         Accept: application/json
         Authorization: Bearer $token

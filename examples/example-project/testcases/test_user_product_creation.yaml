@@ -13,7 +13,7 @@ steps:
   - name: 注册用户
     request:
       method: POST
-      url: /api/v1/auth/register
+      path: /api/v1/auth/register
       body:
         username: $username
         email: $email
@@ -30,7 +30,7 @@ steps:
   - name: 登录
     request:
       method: POST
-      url: /api/v1/auth/login
+      path: /api/v1/auth/login
       body:
         username: $username
         password: $password
@@ -45,7 +45,7 @@ steps:
   - name: 创建商品
     request:
       method: POST
-      url: /api/v1/products
+      path: /api/v1/products
       headers:
         Authorization: Bearer $token
       body:

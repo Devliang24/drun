@@ -9,7 +9,7 @@ steps:
   - name: POST /api_v2/channel
     request:
       method: POST
-      url: /api_v2/channel
+      path: /api_v2/channel
       headers:
         Accept: application/json, text/plain, */*
         Accept-Language: zh-CN

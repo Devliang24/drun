@@ -8,7 +8,7 @@ steps:
   - name: 步骤级覆盖请求头
     request:
       method: GET
-      url: /
+      path: /
       headers:
         Accept-Language: "en-US"
     validate:

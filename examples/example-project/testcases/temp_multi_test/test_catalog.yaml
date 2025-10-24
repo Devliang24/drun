@@ -7,7 +7,7 @@ steps:
   - name: 获取分类列表
     request:
       method: GET
-      url: /api/v1/categories/
+      path: /api/v1/categories/
     extract:
       any_category: $.data.items[0].id
     validate:
@@ -17,7 +17,7 @@ steps:
   - name: 获取商品列表
     request:
       method: GET
-      url: /api/v1/products/
+      path: /api/v1/products/
     validate:
       - eq: [status_code, 200]
 

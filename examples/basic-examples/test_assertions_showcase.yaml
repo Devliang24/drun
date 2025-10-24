@@ -6,7 +6,7 @@ steps:
   - name: 获取产品列表
     request:
       method: GET
-      url: /api/v1/products/
+      path: /api/v1/products/
     extract:
       first_id: $.data.items[0].id
     validate:
@@ -20,7 +20,7 @@ steps:
   - name: 获取产品详情
     request:
       method: GET
-      url: /api/v1/products/$first_id
+      path: /api/v1/products/$first_id
     validate:
       - eq: [status_code, 200]
       - eq: [$.success, true]

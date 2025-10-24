@@ -7,7 +7,7 @@ steps:
     skip: "template"
     request:
       method: POST
-      url: /api/v1/upload
+      path: /api/v1/upload
       files:
         file1: "@path/to/file.bin"
       data:

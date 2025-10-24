@@ -7,13 +7,13 @@ steps:
     skip: "maintenance"
     request:
       method: GET
-      url: /
+      path: /
 
   - name: 不稳定但重试
     retry: 2
     retry_backoff: 0.5
     request:
       method: GET
-      url: /
+      path: /
     validate:
       - eq: [status_code, 200]

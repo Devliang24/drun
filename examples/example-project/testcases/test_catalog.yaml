@@ -7,7 +7,7 @@ steps:
   - name: 获取分类列表
     request:
       method: GET
-      url: /api/v1/categories/
+      path: /api/v1/categories/
       headers:
         Accept: application/json
     validate:
@@ -22,7 +22,7 @@ steps:
   - name: 获取商品列表
     request:
       method: GET
-      url: /api/v1/products/
+      path: /api/v1/products/
       headers:
         Accept: application/json
     extract:
@@ -39,7 +39,7 @@ steps:
   - name: 获取商品详情
     request:
       method: GET
-      url: /api/v1/products/$product_id
+      path: /api/v1/products/$product_id
       headers:
         Accept: application/json
     validate:

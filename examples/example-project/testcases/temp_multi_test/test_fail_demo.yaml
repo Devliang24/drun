@@ -7,7 +7,7 @@ steps:
   - name: 404 示例
     request:
       method: GET
-      url: /__not_found_demo__
+      path: /__not_found_demo__
     validate:
       - eq: [status_code, 404]
 

@@ -7,7 +7,7 @@ steps:
     skip: ${not ENV(MYSQL_DSN)}
     request:
       method: POST
-      url: /api/v1/auth/register
+      path: /api/v1/auth/register
       body:
         username: u_${short_uid(12)}
         email: u_${uid()}@example.com
@@ -19,7 +19,7 @@ steps:
     skip: ${not ENV(MYSQL_DSN)}
     request:
       method: POST
-      url: /api/v1/auth/login
+      path: /api/v1/auth/login
       body:
         username: $new_username
         password: "P@ssw0rd123"
@@ -30,7 +30,7 @@ steps:
     skip: ${not ENV(MYSQL_DSN)}
     request:
       method: POST
-      url: /api/v1/orders/
+      path: /api/v1/orders/
       body:
         shipping_address: "No.2 Demo Road"
     extract:
@@ -47,6 +47,6 @@ steps:
     skip: ${not ENV(MYSQL_DSN)}
     request:
       method: GET
-      url: /
+      path: /
     validate:
       - contains: [$session_variables, db_status]

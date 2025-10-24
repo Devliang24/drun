@@ -7,7 +7,7 @@ steps:
   - name: 获取分类列表
     request:
       method: GET
-      url: /api/v1/categories/
+      path: /api/v1/categories/
       headers:
         Accept: application/json
     extract:
@@ -23,7 +23,7 @@ steps:
   - name: 根据ID获取分类
     request:
       method: GET
-      url: /api/v1/categories/$category_id
+      path: /api/v1/categories/$category_id
       headers:
         Accept: application/json
     validate:

@@ -58,7 +58,7 @@ def parse_openapi(
                 ex = appjson.get("example") or (appjson.get("examples", {}) or {}).get("default", {}).get("value")
                 if ex is not None:
                     body = ex
-            steps.append(ImportedStep(name=step_name, method=m, url=path, headers=headers, body=body))
+            steps.append(ImportedStep(name=step_name, method=m, path=path, headers=headers, body=body))
 
     return ImportedCase(name=name, base_url=base_url or base_guess, steps=steps)
 

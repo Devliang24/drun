@@ -9,7 +9,7 @@ steps:
   - name: 登录
     request:
       method: POST
-      url: /api/v1/auth/login
+      path: /api/v1/auth/login
       body:
         username: $username
         password: $password
@@ -23,7 +23,7 @@ steps:
   - name: 获取当前用户（自动注入鉴权）
     request:
       method: GET
-      url: /api/v1/users/me
+      path: /api/v1/users/me
     validate:
       - eq: [status_code, 200]
       - eq: [$.success, true]

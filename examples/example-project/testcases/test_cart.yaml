@@ -13,7 +13,7 @@ steps:
   - name: 注册用户
     request:
       method: POST
-      url: /api/v1/auth/register
+      path: /api/v1/auth/register
       headers:
         Accept: application/json
         Content-Type: application/json
@@ -33,7 +33,7 @@ steps:
   - name: 登录
     request:
       method: POST
-      url: /api/v1/auth/login
+      path: /api/v1/auth/login
       headers:
         Accept: application/json
         Content-Type: application/json
@@ -51,7 +51,7 @@ steps:
   - name: 获取产品列表
     request:
       method: GET
-      url: /api/v1/products/
+      path: /api/v1/products/
       headers:
         Accept: application/json
     extract:
@@ -67,7 +67,7 @@ steps:
   - name: 加入购物车
     request:
       method: POST
-      url: /api/v1/cart/items
+      path: /api/v1/cart/items
       headers:
         Accept: application/json
         Content-Type: application/json
@@ -88,7 +88,7 @@ steps:
   - name: 更新数量
     request:
       method: PUT
-      url: /api/v1/cart/items/$product_id
+      path: /api/v1/cart/items/$product_id
       headers:
         Accept: application/json
         Content-Type: application/json
@@ -106,7 +106,7 @@ steps:
   - name: 获取购物车
     request:
       method: GET
-      url: /api/v1/cart/
+      path: /api/v1/cart/
       headers:
         Accept: application/json
         Authorization: Bearer $token
@@ -121,7 +121,7 @@ steps:
   - name: 从购物车移除商品
     request:
       method: DELETE
-      url: /api/v1/cart/items/$product_id
+      path: /api/v1/cart/items/$product_id
       headers:
         Accept: application/json
         Authorization: Bearer $token

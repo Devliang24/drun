@@ -10,6 +10,6 @@ steps:
   - name: CSV 参数示例
     request:
       method: GET
-      url: /login?username=$username&password=$password&env=$env
+      path: /login?username=$username&password=$password&env=$env
     validate:
       - eq: [status_code, 200]

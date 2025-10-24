@@ -8,7 +8,7 @@ from pydantic.config import ConfigDict
 class StepRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
     method: str
-    url: str
+    path: str
     params: Optional[Dict[str, Any]] = None
     headers: Optional[Dict[str, str]] = None
     # Request body (JSON or raw), previously named 'json' in YAML

@@ -7,7 +7,7 @@ steps:
     skip: "template"
     request:
       method: POST
-      url: /api/v1/some-form-endpoint
+      path: /api/v1/some-form-endpoint
       headers:
         Content-Type: application/x-www-form-urlencoded
       data:

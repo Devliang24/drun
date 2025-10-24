@@ -6,7 +6,7 @@ steps:
   - name: 获取根路径耗时小于 2 秒
     request:
       method: GET
-      url: /
+      path: /
     validate:
       - eq: [status_code, 200]
       - gt: [$elapsed_ms, 0]

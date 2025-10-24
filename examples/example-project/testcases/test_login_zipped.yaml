@@ -11,7 +11,7 @@ steps:
   - name: 尝试登录
     request:
       method: POST
-      url: /api/v1/auth/login
+      path: /api/v1/auth/login
       headers:
         Accept: application/json
         Content-Type: application/json

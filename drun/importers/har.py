@@ -67,6 +67,6 @@ def parse_har(
                     data_raw = text
 
         name = f"{method} {path}"
-        steps.append(ImportedStep(name=name, method=method, url=path, params=params, headers=headers or None, body=body, data=data_raw))
+        steps.append(ImportedStep(name=name, method=method, path=path, params=params, headers=headers or None, body=body, data=data_raw))
 
     return ImportedCase(name=case_name or "Imported HAR", base_url=base_url or base_guess, steps=steps)

@@ -7,7 +7,7 @@ steps:
   - name: 创建订单（演示）
     request:
       method: POST
-      url: /api/v1/orders/
+      path: /api/v1/orders/
       body:
         shipping_address: "No.9 Demo Road"
     extract:

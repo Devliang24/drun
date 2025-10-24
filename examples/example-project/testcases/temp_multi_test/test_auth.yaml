@@ -11,7 +11,7 @@ steps:
   - name: 注册
     request:
       method: POST
-      url: /api/v1/auth/register
+      path: /api/v1/auth/register
       headers:
         Content-Type: application/json
       body:
@@ -28,7 +28,7 @@ steps:
   - name: 登录
     request:
       method: POST
-      url: /api/v1/auth/login
+      path: /api/v1/auth/login
       headers:
         Content-Type: application/json
       body:
@@ -43,7 +43,7 @@ steps:
   - name: 我是谁
     request:
       method: GET
-      url: /api/v1/users/me
+      path: /api/v1/users/me
       headers:
         Authorization: Bearer $token
     validate:

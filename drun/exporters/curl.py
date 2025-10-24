@@ -26,8 +26,8 @@ def _render_with_env(text: str, case: Case, envmap: Optional[Mapping[str, Any]])
     return str(rendered)
 
 
-def _full_url(case: Case, url: str, envmap: Optional[Mapping[str, Any]] = None) -> str:
-    u = (url or "").strip()
+def _full_url(case: Case, path: str, envmap: Optional[Mapping[str, Any]] = None) -> str:
+    u = (path or "").strip()
     if "${" in u or "{{" in u:
         resolved = _render_with_env(u, case, envmap)
         if resolved:
@@ -81,7 +81,7 @@ def _build_parts(
             vv = "***"
         parts += ["-H", f"{k}: {vv}"]
     # params -> query
-    url = _full_url(case, req.url or "/", envmap=envmap)
+    url = _full_url(case, req.path or "/", envmap=envmap)
     if req.params:
         qs = urlencode(req.params, doseq=True)
         sep = '&' if ('?' in url) else '?'

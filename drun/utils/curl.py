@@ -4,13 +4,13 @@ import shlex
 from typing import Any, Dict
 
 
-def to_curl(method: str, url: str, *, headers: Dict[str, str] | None = None, data: Any | None = None) -> str:
+def to_curl(method: str, path: str, *, headers: Dict[str, str] | None = None, data: Any | None = None) -> str:
     """Build a curl command string.
 
     - Uses --data-raw for request body to keep payload untouched.
     - Pretty prints JSON body with indent=2 when data is dict/list for readability.
     """
-    parts = ["curl", "-X", method.upper(), shlex.quote(url)]
+    parts = ["curl", "-X", method.upper(), shlex.quote(path)]
     # Prepare headers (case-insensitive handling)
     hdrs: Dict[str, str] = dict(headers or {})
     has_ct = any(k.lower() == "content-type" for k in hdrs.keys())

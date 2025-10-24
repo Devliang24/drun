@@ -10,6 +10,6 @@ steps:
   - name: 根路径请求
     request:
       method: GET
-      url: /
+      path: /
     validate:
       - eq: [status_code, 200]

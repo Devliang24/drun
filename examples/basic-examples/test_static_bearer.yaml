@@ -9,7 +9,7 @@ steps:
     skip: ${not $static_bearer}
     request:
       method: GET
-      url: /api/v1/users/me
+      path: /api/v1/users/me
       auth:
         type: bearer
         token: $static_bearer

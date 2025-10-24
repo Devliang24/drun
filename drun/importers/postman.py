@@ -210,7 +210,7 @@ def parse_postman(
 
             step_name = it.get("name") or f"{method} {path}"
             steps.append(
-                ImportedStep(name=step_name, method=method, url=path, params=params, headers=headers or None, body=body, data=data_raw, auth=auth_dict)
+                ImportedStep(name=step_name, method=method, path=path, params=params, headers=headers or None, body=body, data=data_raw, auth=auth_dict)
             )
 
     visit(data.get("item") or [])

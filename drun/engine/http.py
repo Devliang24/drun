@@ -17,7 +17,10 @@ class HTTPClient:
 
     def request(self, req: Dict[str, Any]) -> Dict[str, Any]:
         method = req.get("method", "GET")
-        url = req.get("url", "")
+        path = req.get("path", "")
+        # Ensure path is not None or empty when no base_url
+        if not path:
+            path = "/"
         params = req.get("params")
         headers = req.get("headers") or {}
         # 'body' holds JSON object or raw content from test step
@@ -46,7 +49,7 @@ class HTTPClient:
 
         resp = self.client.request(
             method=method,
-            url=url,
+            url=path,
             params=params,
             headers=headers,
             json=json_data,

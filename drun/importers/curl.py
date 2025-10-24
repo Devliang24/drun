@@ -64,7 +64,7 @@ def _parse_one(tokens: List[str]) -> Tuple[Optional[ImportedStep], Optional[str]
     Returns (ImportedStep, base_url_guess)
     """
     method: Optional[str] = None
-    url: Optional[str] = None
+    path_var: Optional[str] = None
     headers: Dict[str, str] = {}
     body_text: Optional[str] = None
     data_obj: Any = None
@@ -148,10 +148,10 @@ def _parse_one(tokens: List[str]) -> Tuple[Optional[ImportedStep], Optional[str]
             if force_get_params is None:
                 force_get_params = {}
         elif t.startswith("http://") or t.startswith("https://"):
-            url = t
-        elif t and not t.startswith("-") and url is None:
+            path_var = t
+        elif t and not t.startswith("-") and path_var is None:
             # positional URL
-            url = t
+            path_var = t
         i += 1
 
     # default method
@@ -160,9 +160,9 @@ def _parse_one(tokens: List[str]) -> Tuple[Optional[ImportedStep], Optional[str]
 
     base_guess: Optional[str] = None
     params: Dict[str, Any] | None = None
-    path_or_full = url or "/"
-    if url:
-        u = urlparse(url)
+    path_or_full = path_var or "/"
+    if path_var:
+        u = urlparse(path_var)
         if u.scheme and u.netloc:
             base_guess = f"{u.scheme}://{u.netloc}"
             path_or_full = u.path or "/"
@@ -199,7 +199,7 @@ def _parse_one(tokens: List[str]) -> Tuple[Optional[ImportedStep], Optional[str]
     step = ImportedStep(
         name=name,
         method=method,
-        url=path_or_full,
+        path=path_or_full,
         params=params,
         headers=headers or None,
         body=body,
