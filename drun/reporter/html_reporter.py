@@ -379,6 +379,13 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
     }, 1500);
   }
   window.toggleStepBody = function(headEl){ var step=headEl && headEl.closest ? headEl.closest('.step') : null; if(!step) return; step.classList.toggle('collapsed'); };
+  function forEachNode(list, cb){
+    if(!list || !cb) return;
+    if(typeof list.forEach === 'function'){
+      try{ list.forEach(cb); return; }catch(_){}
+    }
+    for(var i=0;i<list.length;i++){ cb(list[i], i); }
+  }
   function closestPanel(el){
     if(!el) return null;
     if(el.closest) return el.closest('.panel');
@@ -439,12 +446,24 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
       }
     }catch(e){ /* ignore */ }
   };
-  window.applyFilters = function(){ var selEl=document.querySelector("input[name='status-filter']:checked"); var sel=(selEl && selEl.value) || 'all'; try{localStorage.setItem('drun_report_status', sel);}catch(e){} document.querySelectorAll('.case').forEach(function(c){ var st=(c.dataset && c.dataset.status)||''; c.style.display=(sel==='all'||st===sel)?'':''; }); };
+  window.applyFilters = function(){
+    var selEl=document.querySelector("input[name='status-filter']:checked");
+    var sel=(selEl && selEl.value) || 'all';
+    try{localStorage.setItem('drun_report_status', sel);}catch(e){}
+    var cases=document.querySelectorAll('.case');
+    forEachNode(cases, function(c){
+      if(!c || !c.dataset) return;
+      var st=c.dataset.status || '';
+      c.style.display=(sel==='all'||st===sel)?'':'none';
+    });
+  };
   document.addEventListener('DOMContentLoaded', function(){
     try{ var saved=localStorage.getItem('drun_report_status')||'all'; var el=document.querySelector("input[name='status-filter'][value='"+saved+"']"); if(el) el.checked=true; }catch(e){}
-    document.querySelectorAll("input[name='status-filter']").forEach(function(el){ el.addEventListener('change', window.applyFilters); });
+    var radios=document.querySelectorAll("input[name='status-filter']");
+    forEachNode(radios, function(el){ if(el && el.addEventListener){ el.addEventListener('change', window.applyFilters); } });
     // JSON highlight (preserve original indentation)
-    document.querySelectorAll('.panel pre code').forEach(function(code){
+    var codes=document.querySelectorAll('.panel pre code');
+    forEachNode(codes, function(code){
       var panel= code.closest ? code.closest('.panel') : null; if(panel && panel.dataset && panel.dataset.section==='curl') return;
       var pre = code.parentElement; var raw=(pre && pre.getAttribute('data-raw')) || code.innerText || code.textContent || '';
       var html = highlightJSONSimple(raw);
