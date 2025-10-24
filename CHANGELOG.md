@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Changed
+- CLI `--env-file` now accepts shorthand environment aliases (e.g., `--env-file dev` → `.env.dev`), with warnings when no matching file is found.
+
 ## [0.3.8] - 2025-10-24
 
 ### Added

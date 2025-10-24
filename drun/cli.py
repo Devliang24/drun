@@ -28,6 +28,55 @@ import time
 
 
 from drun.utils.errors import LoadError
+
+
+def _resolve_env_file_alias(value: str) -> tuple[str, bool, List[str]]:
+    """Resolve shorthand env aliases (e.g., 'dev') to actual file paths."""
+
+    clean = (value or "").strip()
+    tried: List[str] = []
+    if not clean:
+        return clean, False, tried
+
+    direct_path = Path(clean)
+    tried.append(str(direct_path))
+    if direct_path.exists():
+        return str(direct_path), False, tried
+
+    # Only consider alias expansion when there are no path separators or suffixes
+    sep_chars = {"/", "\\", os.sep}
+    has_separator = any(ch in clean for ch in sep_chars if ch)
+    if has_separator or direct_path.suffix:
+        return str(direct_path), False, tried
+
+    templates = [
+        ".env.{name}",
+        ".env/{name}",
+        ".env/{name}.env",
+        "{name}.env",
+        "env/{name}.env",
+        "env/{name}",
+        "environments/{name}.env",
+        "environments/{name}",
+    ]
+    yaml_templates = [
+        ".env.{name}.yaml",
+        ".env.{name}.yml",
+        "{name}.yaml",
+        "{name}.yml",
+        "env/{name}.yaml",
+        "env/{name}.yml",
+        "environments/{name}.yaml",
+        "environments/{name}.yml",
+    ]
+
+    for template in templates + yaml_templates:
+        candidate = Path(template.format(name=clean))
+        tried.append(str(candidate))
+        if candidate.exists():
+            return str(candidate), True, tried
+
+    return str(direct_path), False, tried
 class _FlowSeq(list):
     """Sequence rendered in flow-style YAML (e.g., [a, b])."""
 
@@ -1007,8 +1056,20 @@ def run(
 
     # Default env file (.env) when not provided
     env_file_explicit = env_file is not None
-    env_file = env_file or ".env"
-    if not env_file_explicit:
+    env_file_input = env_file or ".env"
+    if env_file_explicit:
+        resolved_env_file, alias_used, tried_candidates = _resolve_env_file_alias(env_file_input)
+        env_file = resolved_env_file
+        if alias_used:
+            log.info(f"[ENV] Using env alias '{env_file_input}' -> '{env_file}'")
+        if not Path(env_file).exists():
+            tried_text = ", ".join(tried_candidates) if tried_candidates else env_file_input
+            raise typer.BadParameter(
+                f"Env file '{env_file_input}' not found. Tried: {tried_text}",
+                param='--env-file',
+            )
+    else:
+        env_file = env_file_input
         log.info(f"[ENV] Using default env file: {env_file}")
 
     # Global variables from env file and CLI overrides

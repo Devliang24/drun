@@ -13,7 +13,7 @@
 drun run <path> [options]
 
 # 常用选项
---env-file .env               # 环境文件路径（默认 .env）
+--env-file dev               # 环境别名（解析为 .env.dev；默认读取 .env）
 -k "smoke and not slow"       # 标签过滤表达式
 --vars key=value              # 变量覆盖（可重复）
 --failfast                    # 首次失败时停止
@@ -34,8 +34,8 @@ drun run <path> [options]
 示例：
 
 ```bash
-# 运行整个目录
-drun run testcases --env-file .env
+# 运行整个目录（自动映射到 .env.dev）
+drun run testcases --env-file dev
 
 # 使用标签过滤 + 生成报告
 drun run testcases -k "smoke" --html reports/smoke.html

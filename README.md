@@ -156,6 +156,8 @@ drun run testcases --html reports/report.html --env-file .env
 drun run testcases -k "smoke" --env-file .env
 ```
 
+> 💡 **环境别名**：传入 `--env-file dev` 会自动解析为 `.env.dev`（同理 `staging` -> `.env.staging`）。如果需要指定其他路径，仍可直接提供完整文件名。
+
 ### 5. 查看结果
 
 ```
