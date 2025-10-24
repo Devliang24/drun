@@ -1489,56 +1489,138 @@ def fix(
         if changed:
             Path(filepath).write_text("\n".join(lines) + ("\n" if text.endswith("\n") else ""), encoding="utf-8")
         return changed
+
+    def _fix_url_to_path(filepath: Path) -> bool:
+        """Replace request.url with request.path"""
+        try:
+            text = filepath.read_text(encoding="utf-8")
+        except Exception:
+            return False
+        
+        lines = text.splitlines()
+        changed = False
+        in_request = False
+        request_indent = None
+        
+        for i in range(len(lines)):
+            line = lines[i]
+            stripped = line.lstrip()
+            indent = len(line) - len(stripped)
+            
+            # Track if we're inside a request block
+            if stripped.startswith("request:"):
+                in_request = True
+                request_indent = indent
+                continue
+            
+            # Exit request block when indentation returns to same or less level (and not empty line)
+            if in_request and stripped and request_indent is not None and indent <= request_indent:
+                in_request = False
+                request_indent = None
+            
+            # Replace url: with path: inside request blocks
+            if in_request and stripped.startswith("url:"):
+                # Keep the same indentation
+                lines[i] = " " * indent + "path:" + line.split("url:", 1)[1]
+                changed = True
+        
+        if changed:
+            filepath.write_text("\n".join(lines) + ("\n" if text.endswith("\n") else ""), encoding="utf-8")
+        return changed
+
+    def _fix_invalid_dash_before_fields(filepath: Path) -> bool:
+        """Remove invalid dash before validate/extract/setup_hooks/teardown_hooks fields"""
+        try:
+            text = filepath.read_text(encoding="utf-8")
+        except Exception:
+            return False
+        
+        lines = text.splitlines()
+        changed = False
+        fields_to_fix = ("validate:", "extract:", "setup_hooks:", "teardown_hooks:", "sql_validate:")
+        
+        for i in range(len(lines)):
+            line = lines[i]
+            stripped = line.lstrip()
+            
+            # Check if line starts with "- " followed by one of our fields
+            for field in fields_to_fix:
+                if stripped.startswith("- " + field):
+                    # Remove the "- " prefix, keeping the same base indentation
+                    indent = len(line) - len(stripped)
+                    lines[i] = " " * indent + stripped[2:]  # Remove "- "
+                    changed = True
+                    break
+        
+        if changed:
+            filepath.write_text("\n".join(lines) + ("\n" if text.endswith("\n") else ""), encoding="utf-8")
+        return changed
     changed_files = []
     for f in files:
+        # First, apply text-level fixes that don't require YAML parsing
+        # These can fix syntax errors that would prevent YAML parsing
+        text_fixed = False
+        if not only_hooks:
+            if _fix_invalid_dash_before_fields(Path(f)):
+                text_fixed = True
+            if _fix_url_to_path(Path(f)):
+                text_fixed = True
+            if _fix_steps_spacing(Path(f)):
+                text_fixed = True
+        
+        if text_fixed and str(f) not in changed_files:
+            changed_files.append(str(f))
+        
+        # Then, try YAML-level fixes (hooks migration)
+        if only_spacing:
+            # Skip YAML parsing if we're only doing spacing fixes
+            continue
+            
         raw = Path(f).read_text(encoding="utf-8")
         try:
             obj = _yaml.safe_load(raw) or {}
         except Exception:
-            # skip invalid YAML
+            # skip invalid YAML - but text fixes above may have already helped
             continue
         if not isinstance(obj, dict):
             continue
         modified = False
-        if not only_spacing:
-            # Suite vs Case: move hooks
-            if "cases" in obj and isinstance(obj["cases"], list):
-                cfg = obj.get("config") or {}
-                if not isinstance(cfg, dict):
-                    cfg = {}
-                if _merge_hooks(cfg, obj, level="suite"):
-                    obj["config"] = cfg
-                    modified = True
-                new_cases = []
-                for c in obj["cases"]:
-                    if not isinstance(c, dict):
-                        new_cases.append(c)
-                        continue
-                    c_cfg = c.get("config") or {}
-                    if not isinstance(c_cfg, dict):
-                        c_cfg = {}
-                    if _merge_hooks(c_cfg, c, level="case"):
-                        c["config"] = c_cfg
-                        modified = True
+        # Suite vs Case: move hooks
+        if "cases" in obj and isinstance(obj["cases"], list):
+            cfg = obj.get("config") or {}
+            if not isinstance(cfg, dict):
+                cfg = {}
+            if _merge_hooks(cfg, obj, level="suite"):
+                obj["config"] = cfg
+                modified = True
+            new_cases = []
+            for c in obj["cases"]:
+                if not isinstance(c, dict):
                     new_cases.append(c)
-                obj["cases"] = new_cases
-            elif "steps" in obj and isinstance(obj["steps"], list):
-                cfg = obj.get("config") or {}
-                if not isinstance(cfg, dict):
-                    cfg = {}
-                if _merge_hooks(cfg, obj, level="case"):
-                    obj["config"] = cfg
+                    continue
+                c_cfg = c.get("config") or {}
+                if not isinstance(c_cfg, dict):
+                    c_cfg = {}
+                if _merge_hooks(c_cfg, c, level="case"):
+                    c["config"] = c_cfg
                     modified = True
-            else:
-                # not a recognized test file; still attempt spacing fix later
-                pass
+                new_cases.append(c)
+            obj["cases"] = new_cases
+        elif "steps" in obj and isinstance(obj["steps"], list):
+            cfg = obj.get("config") or {}
+            if not isinstance(cfg, dict):
+                cfg = {}
+            if _merge_hooks(cfg, obj, level="case"):
+                obj["config"] = cfg
+                modified = True
+        else:
+            # not a recognized test file
+            pass
 
-        if modified and not only_spacing:
+        if modified:
             Path(f).write_text(_yaml.dump(obj, Dumper=_YamlDumper, sort_keys=False, allow_unicode=True), encoding="utf-8")
-            changed_files.append(str(f))
-        # steps spacing fix unless only_hooks
-        if not only_hooks and _fix_steps_spacing(Path(f)) and str(f) not in changed_files:
-            changed_files.append(str(f))
+            if str(f) not in changed_files:
+                changed_files.append(str(f))
 
     if changed_files:
         typer.echo("Fixed files:")
