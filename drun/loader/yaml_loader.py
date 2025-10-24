@@ -263,6 +263,26 @@ def _format_case_validation_error(exc: ValidationError, obj: Dict[str, Any], pat
         loc = err.get("loc") or ()
         err_type = err.get("type")
 
+        # Friendly message for url vs path confusion
+        if (
+            err_type == "extra_forbidden"
+            and len(loc) >= 4
+            and loc[0] == "steps"
+            and isinstance(loc[1], int)
+            and loc[2] == "request"
+            and loc[3] == "url"
+        ):
+            step_label = _step_name(loc[1])
+            return (
+                f"Invalid request field 'url' in {path}: step '{step_label}'.\n"
+                f"Use 'path' instead of 'url' for the request endpoint.\n\n"
+                "Example:\n"
+                "  - name: Example Step\n"
+                "    request:\n"
+                "      method: GET\n"
+                "      path: /api/endpoint  # Use 'path', not 'url'"
+            )
+
         # Friendly message when fields (extract/validate/...) are indented under request
         if (
             err_type == "extra_forbidden"

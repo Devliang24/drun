@@ -158,7 +158,7 @@ def _version_callback(value: bool):
 
 
 app = typer.Typer(add_completion=False, help=_APP_HELP, rich_markup_mode=None)
-export_app = typer.Typer()
+export_app = typer.Typer(help="导出测试用例到其他格式")
 app.add_typer(export_app, name="export")
 
 
@@ -571,28 +571,29 @@ def _write_imported_cases(
 # Unified convert entrypoint (auto-detect by suffix)
 @app.command("convert")
 def convert_auto(
-    infile: str = typer.Argument(..., help="Source file (.curl/.har/.json) to convert"),
-    outfile: Optional[str] = typer.Option(None, "--outfile", help="Write output to file"),
-    into: Optional[str] = typer.Option(None, "--into", help="Append into existing YAML"),
-    case_name: Optional[str] = typer.Option(None, "--case-name", help="Override generated case name"),
-    base_url: Optional[str] = typer.Option(None, "--base-url", help="Override base_url in generated case"),
+    infile: str = typer.Argument(..., help="待转换的源文件 (.curl/.har/.json)"),
+    outfile: Optional[str] = typer.Option(None, "--outfile", help="输出到指定文件"),
+    into: Optional[str] = typer.Option(None, "--into", help="追加到已存在的 YAML 文件"),
+    case_name: Optional[str] = typer.Option(None, "--case-name", help="覆盖生成的用例名称"),
+    base_url: Optional[str] = typer.Option(None, "--base-url", help="覆盖生成用例的 base_url"),
     split_output: bool = typer.Option(
         False,
         "--split-output/--single-output",
-        help="Generate one YAML file per request when supported",
+        help="每个请求生成独立的 YAML 文件",
     ),
     # Pass-through options for specific converters (available at top-level for convenience)
     redact: Optional[str] = typer.Option(
         None,
         "--redact",
-        help="Comma-separated header names to mask or placeholder, e.g., Authorization,Cookie",
+        help="逗号分隔的需要脱敏的请求头名称，如 Authorization,Cookie",
     ),
     placeholders: bool = typer.Option(
         False,
         "--placeholders/--no-placeholders",
-        help="Replace sensitive headers with $vars and store values in config.variables",
+        help="将敏感请求头替换为 $变量 并保存到 config.variables",
     ),
 ) -> None:
+    """转换格式（支持 .curl/.har/.json）到 YAML 测试用例"""
     # Enforce: options must be after INFILE (no legacy compatibility)
     try:
         argv = list(sys.argv)
@@ -851,15 +852,16 @@ def convert_har(
     )
 @export_app.command("curl")
 def export_curl(
-    path: str = typer.Argument(..., help="Case/Suite YAML file or directory to export"),
-    case_name: Optional[str] = typer.Option(None, "--case-name", help="Only export a specific case name"),
-    steps: Optional[str] = typer.Option(None, "--steps", help="Step indexes, e.g., '1,3-5' (1-based)"),
-    multiline: bool = typer.Option(True, "--multiline/--one-line", help="Format curl on multiple lines with continuations"),
-    shell: str = typer.Option("sh", "--shell", help="Line continuation style: sh|ps"),
-    redact: Optional[str] = typer.Option(None, "--redact", help="Comma-separated header names to mask, e.g., Authorization,Cookie"),
-    with_comments: bool = typer.Option(False, "--with-comments/--no-comments", help="Prepend '# Case/Step' comments to each curl"),
-    outfile: Optional[str] = typer.Option(None, "--outfile", help="Write output to file (must end with .curl when provided)"),
+    path: str = typer.Argument(..., help="要导出的用例/套件 YAML 文件或目录"),
+    case_name: Optional[str] = typer.Option(None, "--case-name", help="仅导出指定名称的用例"),
+    steps: Optional[str] = typer.Option(None, "--steps", help="步骤索引，如 '1,3-5'（从 1 开始）"),
+    multiline: bool = typer.Option(True, "--multiline/--one-line", help="多行格式化 curl 命令（带续行符）"),
+    shell: str = typer.Option("sh", "--shell", help="续行符风格：sh|ps"),
+    redact: Optional[str] = typer.Option(None, "--redact", help="逗号分隔的需要脱敏的请求头名称，如 Authorization,Cookie"),
+    with_comments: bool = typer.Option(False, "--with-comments/--no-comments", help="为每个 curl 命令添加 '# Case/Step' 注释"),
+    outfile: Optional[str] = typer.Option(None, "--outfile", help="输出到文件（必须以 .curl 结尾）"),
 ) -> None:
+    """导出测试用例为 curl 命令"""
     from drun.exporters.curl import step_to_curl, step_placeholders
     out_lines: List[str] = []
 
@@ -942,9 +944,9 @@ def export_curl(
         typer.echo(output)
 @app.command("tags")
 def list_tags(
-    path: str = typer.Argument("testcases", help="File or directory to scan for YAML test cases"),
+    path: str = typer.Argument("testcases", help="要扫描的文件或目录"),
 ) -> None:
-    """List all unique tags used by the discovered test cases."""
+    """列出所有测试用例使用的标签"""
     files = discover([path])
     if not files:
         from pathlib import Path as _Path
@@ -1017,33 +1019,34 @@ def list_tags(
 
 @app.command()
 def run(
-    path: str = typer.Argument(..., help="File or directory to run"),
-    k: Optional[str] = typer.Option(None, "-k", help="Tag filter expression (and/or/not)"),
-    vars: List[str] = typer.Option([], "--vars", help="Variable overrides k=v (repeatable)"),
-    failfast: bool = typer.Option(False, "--failfast", help="Stop on first failure"),
-    report: Optional[str] = typer.Option(None, "--report", help="Write JSON report to file"),
-    html: Optional[str] = typer.Option(None, "--html", help="Write HTML report to file (default reports/report-<timestamp>.html)"),
-    allure_results: Optional[str] = typer.Option(None, "--allure-results", help="Write Allure results to directory (for allure generate)"),
-    log_level: str = typer.Option("INFO", "--log-level", help="Logging level"),
-    env_file: Optional[str] = typer.Option(None, "--env-file", help=".env file path (default .env)"),
-    log_file: Optional[str] = typer.Option(None, "--log-file", help="Write console logs to file (default logs/run-<ts>.log)"),
-    httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="Show httpx internal request logs", show_default=False),
-    reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="Show sensitive fields (password, tokens) in plaintext logs and reports", show_default=True),
+    path: str = typer.Argument(..., help="要运行的文件或目录"),
+    k: Optional[str] = typer.Option(None, "-k", help="标签过滤表达式（支持 and/or/not）"),
+    vars: List[str] = typer.Option([], "--vars", help="变量覆盖 k=v（可重复）"),
+    failfast: bool = typer.Option(False, "--failfast", help="遇到第一个失败时停止"),
+    report: Optional[str] = typer.Option(None, "--report", help="输出 JSON 报告到文件"),
+    html: Optional[str] = typer.Option(None, "--html", help="输出 HTML 报告到文件（默认 reports/report-<timestamp>.html）"),
+    allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
+    log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
+    env_file: Optional[str] = typer.Option(None, "--env-file", help=".env 文件路径（默认 .env）"),
+    log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（默认 logs/run-<ts>.log）"),
+    httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
+    reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="在日志和报告中显示敏感字段明文（password、tokens）", show_default=True),
     response_headers: bool = typer.Option(
         False,
         "--response-headers/--no-response-headers",
-        help="Log HTTP response headers (default off)",
+        help="记录 HTTP 响应头（默认关闭）",
         show_default=False,
     ),
-    notify: Optional[str] = typer.Option(None, "--notify", help="Notify channels, comma-separated: feishu,email,dingtalk"),
+    notify: Optional[str] = typer.Option(None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"),
     notify_only: Optional[str] = typer.Option(
         None,
         "--notify-only",
-        help="Notify policy: failed|always (defaults to $DRUN_NOTIFY_ONLY or 'failed')",
+        help="通知策略：failed|always（默认 $DRUN_NOTIFY_ONLY 或 'failed'）",
         show_default=False,
     ),
-    notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="Attach HTML report in email (if email enabled)", show_default=False),
+    notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="在邮件中附加 HTML 报告（如果启用邮件）", show_default=False),
 ):
+    """运行测试用例或测试套件"""
     # default log file path
     ts = time.strftime("%Y%m%d-%H%M%S")
     default_log = log_file or f"logs/run-{ts}.log"
@@ -1357,14 +1360,14 @@ def run(
 
 @app.command("check")
 def check(
-    path: str = typer.Argument(..., help="File or directory to validate"),
+    path: str = typer.Argument(..., help="要验证的文件或目录"),
 ):
-    """Validate YAML tests for syntax and style without executing.
+    """验证 YAML 测试文件的语法和风格（不执行）
 
-    Enforces:
-    - Extract uses only `$` syntax
-    - Check uses `$` for body, and `status_code`/`headers.*` for metadata
-    - Hooks function-name style has required prefixes
+    检查规则：
+    - Extract 仅使用 `$` 语法
+    - Check 对 body 使用 `$`，对元数据使用 `status_code`/`headers.*`
+    - Hooks 函数名格式需符合前缀要求
     """
     files = discover([path])
     if not files:
@@ -1422,14 +1425,14 @@ def check(
 
 @app.command("fix")
 def fix(
-    paths: List[str] = typer.Argument(..., help="File(s) or directories to auto-fix YAML (move hooks to config.* / spacing)", metavar="PATH..."),
-    only_spacing: bool = typer.Option(False, "--only-spacing", help="Only fix steps spacing (do not move hooks)"),
-    only_hooks: bool = typer.Option(False, "--only-hooks", help="Only move hooks into config.* (do not change spacing)"),
+    paths: List[str] = typer.Argument(..., help="要修复的文件或目录（移动 hooks 到 config.* / 步骤间距）", metavar="PATH..."),
+    only_spacing: bool = typer.Option(False, "--only-spacing", help="仅修复步骤间距（不移动 hooks）"),
+    only_hooks: bool = typer.Option(False, "--only-hooks", help="仅移动 hooks 到 config.*（不修改间距）"),
 ):
-    """Auto-fix YAML files for style and structure.
+    """自动修复 YAML 文件的格式和结构
 
-    - Move suite/case-level hooks under `config.setup_hooks/config.teardown_hooks`.
-    - Ensure a single blank line between adjacent steps items under `steps:`.
+    - 将 suite/case 级别的 hooks 移动到 `config.setup_hooks/config.teardown_hooks` 下
+    - 确保 `steps:` 下相邻步骤之间有一个空行
     """
     files = discover(paths)
     if not files:
@@ -1765,15 +1768,16 @@ def init_project(
 
 @app.command("convert-openapi")
 def convert_openapi(
-    spec: str = typer.Argument(..., help="OpenAPI 3.x spec file (.json or .yaml)"),
-    outfile: Optional[str] = typer.Option(None, "--outfile"),
-    case_name: Optional[str] = typer.Option(None, "--case-name"),
-    base_url: Optional[str] = typer.Option(None, "--base-url"),
-    tags: Optional[str] = typer.Option(None, "--tags", help="Comma-separated tags to include (case-sensitive)"),
-    split_output: bool = typer.Option(False, "--split-output/--single-output", help="One YAML per operation"),
-    redact: Optional[str] = typer.Option(None, "--redact", help="Comma-separated header names to mask or placeholder, e.g., Authorization,Cookie"),
-    placeholders: bool = typer.Option(False, "--placeholders/--no-placeholders", help="Replace sensitive headers with $vars and store values in config.variables"),
+    spec: str = typer.Argument(..., help="OpenAPI 3.x 规范文件（.json 或 .yaml）"),
+    outfile: Optional[str] = typer.Option(None, "--outfile", help="输出文件路径"),
+    case_name: Optional[str] = typer.Option(None, "--case-name", help="用例名称"),
+    base_url: Optional[str] = typer.Option(None, "--base-url", help="基础 URL"),
+    tags: Optional[str] = typer.Option(None, "--tags", help="逗号分隔的标签列表（区分大小写）"),
+    split_output: bool = typer.Option(False, "--split-output/--single-output", help="每个操作生成一个 YAML 文件"),
+    redact: Optional[str] = typer.Option(None, "--redact", help="逗号分隔的需要脱敏的请求头名称，如 Authorization,Cookie"),
+    placeholders: bool = typer.Option(False, "--placeholders/--no-placeholders", help="将敏感请求头替换为 $变量 并保存到 config.variables"),
 ) -> None:
+    """转换 OpenAPI 规范到 YAML 测试用例"""
     from drun.importers.openapi import parse_openapi
     text = Path(spec).read_text(encoding="utf-8")
     tag_list = [t.strip() for t in (tags or '').split(',') if t.strip()]
