@@ -485,6 +485,17 @@ class Runner:
                             text = text[:2000] + "..."
                         self.log.info(self._fmt_aligned("RESP", "text", text))
 
+                # extracts ($-only syntax) - moved before validation to allow using extracted vars in validate
+                extracts: Dict[str, Any] = {}
+                for var, expr in (step.extract or {}).items():
+                    val = self._eval_extract(expr, resp_obj)
+                    extracts[var] = val
+                    ctx.set_base(var, val)
+                    if self.log:
+                        self.log.info(f"[EXTRACT] {var} = {val!r} from {expr}")
+                # Update variables after extraction so validate can use them
+                variables = ctx.get_merged(global_vars)
+
                 # assertions
                 assertions: List[AssertionResult] = []
                 step_failed = False
@@ -585,15 +596,6 @@ class Runner:
                             if self.log:
                                 self.log.info(f"[SQL] set var: {k} = {v!r}")
                         variables = ctx.get_merged(global_vars)
-
-                # extracts ($-only syntax)
-                extracts: Dict[str, Any] = {}
-                for var, expr in (step.extract or {}).items():
-                    val = self._eval_extract(expr, resp_obj)
-                    extracts[var] = val
-                    ctx.set_base(var, val)
-                    if self.log:
-                        self.log.info(f"[EXTRACT] {var} = {val!r} from {expr}")
 
                 # teardown hooks
                 try:
