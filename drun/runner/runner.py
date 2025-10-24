@@ -384,7 +384,7 @@ class Runner:
                 if self.log:
                     self.log.info(f"[STEP] Start: {rendered_step_name}")
                     # brief request line
-                    self.log.info(f"[REQUEST] {req_rendered.get('method','GET')} {req_rendered.get('url')}")
+                    self.log.info(f"[REQUEST] {req_rendered.get('method','GET')} {req_rendered.get('path')}")
                     if req_rendered.get("params") is not None:
                         self.log.info(self._fmt_aligned("REQ", "params", self._fmt_json(req_rendered.get("params"))))
                     if req_rendered.get("headers"):
@@ -429,10 +429,10 @@ class Runner:
                     req_summary = {
                         k: v
                         for k, v in (req_rendered or {}).items()
-                        if k in ("method", "url", "params", "headers", "body", "data")
+                        if k in ("method", "path", "params", "headers", "body", "data")
                     }
                     # Build cURL even on error for better diagnostics
-                    url_rendered = (req_rendered or {}).get("url")
+                    url_rendered = (req_rendered or {}).get("path")
                     curl_headers = (req_rendered or {}).get("headers") or {}
                     if not self.reveal and isinstance(curl_headers, dict):
                         curl_headers = mask_headers(curl_headers)
@@ -631,7 +631,7 @@ class Runner:
                 if not self.reveal:
                     body_masked = mask_body(body_masked)
                 # Build curl command for the step (always available in report)
-                url_rendered = resp_obj.get("url") or req_rendered.get("url")
+                url_rendered = resp_obj.get("url") or req_rendered.get("path")
                 curl_headers = req_rendered.get("headers") or {}
                 if not self.reveal and isinstance(curl_headers, dict):
                     curl_headers = mask_headers(curl_headers)
@@ -651,7 +651,9 @@ class Runner:
                     name=rendered_step_name,
                     status="failed" if step_failed else "passed",
                     request={
-                        k: v for k, v in req_rendered.items() if k in ("method", "url", "params", "headers", "body", "data")
+                        k: v
+                        for k, v in req_rendered.items()
+                        if k in ("method", "path", "url", "params", "headers", "body", "data")
                     },
                     response={
                         "status_code": resp_obj.get("status_code"),

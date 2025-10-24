@@ -1178,7 +1178,8 @@ def run(
     def _need_base_url(case: Case) -> bool:
         try:
             for st in case.steps:
-                u = (st.request.url or "").strip()
+                path = getattr(st.request, "path", "") or ""
+                u = str(path).strip()
                 # if not absolute (no scheme), we treat it as relative and require base_url
                 if not (u.startswith("http://") or u.startswith("https://")):
                     return True

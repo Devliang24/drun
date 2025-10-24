@@ -93,7 +93,9 @@ def _build_step(step: StepResult) -> str:
     resp_body_display = _align_like_console(resp_body_json)
 
     method_text = request_map.get("method") if isinstance(request_map, dict) else None
-    url_text = request_map.get("url") if isinstance(request_map, dict) else None
+    url_text = None
+    if isinstance(request_map, dict):
+        url_text = request_map.get("url") or request_map.get("path")
     request_meta_text = None
     if method_text and url_text:
         request_meta_text = f"{method_text} {url_text}"
