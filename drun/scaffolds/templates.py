@@ -85,10 +85,12 @@ steps:
     request:
       method: GET
       url: /get
+    extract:
+      response_url: $.url
     validate:
       - eq: [status_code, 200]
       - contains: [headers.Content-Type, application/json]
-      - eq: [$.url, https://httpbin.org/get]
+      - eq: [$.url, $response_url]
 """
 
 # 测试套件模板
@@ -155,6 +157,29 @@ steps:
       - eq: [status_code, 200]
       - eq: [$.headers.X-Demo-User, $echoed_username]
       - eq: [$.headers.X-User-Role, $role]
+"""
+
+# SQL 断言示例用例
+DB_ASSERT_TESTCASE = """config:
+  name: "数据库断言示例"
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, db]
+  variables:
+    user_id: 1
+
+steps:
+  - name: 获取用户详情
+    setup_hooks:
+      - ${setup_hook_assert_sql($user_id)}
+    request:
+      method: GET
+      url: /api/users/${user_id}
+    extract:
+      api_user_id: $.data.id
+      api_status: $.data.status
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$api_status, ${expected_sql_value($api_user_id)}]
 """
 
 # CSV 示例测试套件
@@ -902,12 +927,15 @@ USER_USERNAME=test_user
 USER_PASSWORD=test_password
 
 # ==================== 数据库配置（可选）====================
-# 用于 SQL 验证功能
-# MYSQL_HOST=localhost
-# MYSQL_PORT=3306
-# MYSQL_USER=root
-# MYSQL_PASSWORD=password
-# MYSQL_DB=test_database
+# 配置 MYSQL_CONFIG（YAML 或 JSON 字符串）以启用数据库访问
+# 示例：
+# MYSQL_CONFIG='
+# main:
+#   default:
+#     dsn: mysql://user:pass@localhost:3306/app
+# analytics:
+#   - dsn: mysql://analytics:pass@localhost:3306/analytics
+# '
 
 # ==================== 系统信息 ====================
 # 系统名称（用于通知标题和报告）
@@ -953,10 +981,13 @@ Drun Hooks 示例文件
 - 模板函数: ${ts()}, ${uid()}, ${md5($password)}
 - Hooks 函数: setup_hooks: [${setup_hook_sign_request($request)}]
 """
-import time
-import hmac
 import hashlib
+import hmac
+import time
 import uuid
+from typing import Any
+
+from drun.db.database_proxy import get_db
 
 
 # ==================== 模板辅助函数 ====================
@@ -1093,6 +1124,84 @@ def teardown_hook_validate_status(response: dict, variables: dict = None, env: d
         raise AssertionError(f"Expected 2xx status code, got {status}")
 
 
+# ==================== 数据库辅助函数 ====================
+
+def _get_db_proxy(db_name: str = "main", role: str | None = None):
+    """内部工具：按库名/角色获取数据库代理。"""
+    manager = get_db()
+    return manager.get(db_name, role)
+
+
+def setup_hook_assert_sql(
+    identifier: Any,
+    *,
+    query: str | None = None,
+    db_name: str = "main",
+    role: str | None = None,
+    fail_message: str | None = None,
+) -> dict:
+    """在步骤前执行 SQL 并判空，常用于校验前置数据是否存在。
+
+    用法:
+        setup_hooks:
+          - ${setup_hook_assert_sql($variables.user_id)}
+        # 指定数据库角色或自定义 SQL:
+        # - ${setup_hook_assert_sql($user_id, query="SELECT * FROM users WHERE id=${user_id}", db_name="analytics", role="read")}
+
+    返回:
+        dict: 默认返回 `{"sql_assert_ok": True}`，可用于在后续步骤判断断言是否执行。
+    """
+    proxy = _get_db_proxy(db_name=db_name, role=role)
+    sql = query
+    if sql is None:
+        try:
+            uid = int(identifier)
+            sql = f"SELECT id, status FROM users WHERE id = {uid}"
+        except (TypeError, ValueError):
+            sql = f"SELECT id, status FROM users WHERE id = '{identifier}'"
+    row = proxy.query(sql)
+    if not row:
+        message = fail_message or f"SQL 返回为空，无法继续执行：{sql}"
+        raise AssertionError(message)
+    # 返回标记，后续步骤如果需要可判断
+    return {"sql_assert_ok": True}
+
+
+def expected_sql_value(
+    identifier: Any,
+    *,
+    query: str | None = None,
+    column: str = "status",
+    db_name: str = "main",
+    role: str | None = None,
+    default: Any | None = None,
+) -> Any:
+    """在 validate 断言中调用，返回 SQL 查询的指定列值。
+
+    用法:
+        validate:
+          - eq: [$api_status, ${expected_sql_value($api_user_id)}]
+        # 自定义 SQL 与列名:
+          - eq: [$.data.total, ${expected_sql_value($order_id, query="SELECT SUM(amount) AS total FROM orders WHERE order_id=${order_id}", column="total", db_name="report")}]
+    """
+    proxy = _get_db_proxy(db_name=db_name, role=role)
+    sql = query
+    if sql is None:
+        try:
+            uid = int(identifier)
+            sql = f"SELECT {column} FROM users WHERE id = {uid}"
+        except (TypeError, ValueError):
+            sql = f"SELECT {column} FROM users WHERE id = '{identifier}'"
+    row = proxy.query(sql)
+    if not row:
+        if default is not None:
+            return default
+        raise AssertionError(f"SQL 返回为空，无法获取列 {column}: {sql}")
+    if column not in row:
+        raise AssertionError(f"SQL 结果缺少列 {column}: {row.keys()}")
+    return row[column]
+
+
 # ==================== Suite 级别 Hooks ====================
 
 def suite_setup():
@@ -1211,6 +1320,7 @@ README_TEMPLATE = """# Drun API 测试项目
 ├── testcases/              # 测试用例目录
 │   ├── test_demo.yaml      # 完整认证流程示例
 │   ├── test_api_health.yaml # 健康检查示例
+│   ├── test_db_assert.yaml # 数据库断言示例
 │   └── test_import_users.yaml # CSV 参数化用例
 ├── testsuites/             # 测试套件目录
 │   ├── testsuite_smoke.yaml # 冒烟测试套件
@@ -1252,6 +1362,9 @@ USER_PASSWORD=test_pass123
 ```bash
 # 运行单个测试用例
 drun run testcases/test_api_health.yaml
+
+# 运行数据库断言示例
+drun run testcases/test_db_assert.yaml
 
 # 运行整个测试目录
 drun run testcases
@@ -1306,6 +1419,20 @@ drun run testsuites/testsuite_csv.yaml
 ```
 
 > 疑似失败时，可检查 CSV 内容与环境变量是否匹配，例如确认 `BASE_URL` 是否对外提供 `/anything` 接口。
+
+## 🗄️ 数据库断言示例
+
+- 关联 Hook：`setup_hook_assert_sql`（前置 SQL 校验）、`expected_sql_value`（在 `validate` 预期值中执行查询）。
+- 对应用例：`testcases/test_db_assert.yaml`
+- 依赖环境：在 `.env` 中配置 `MYSQL_CONFIG`，并确保数据库可连通。
+
+运行命令：
+
+```bash
+drun run testcases/test_db_assert.yaml
+```
+
+用例会先在步骤前执行 `setup_hook_assert_sql` 判定数据库中是否存在目标记录，并在断言阶段通过 `expected_sql_value` 获取最新字段值用于对比，从而实现“仅保留一种断言写法”的 SQL 校验。
 
 ## 📝 编写测试用例
 

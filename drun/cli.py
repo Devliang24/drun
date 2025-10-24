@@ -1640,6 +1640,9 @@ def init_project(
     # data/users.csv
     _write_template("data/users.csv", scaffolds.CSV_USERS_SAMPLE)
 
+    # testcases/test_db_assert.yaml
+    _write_template("testcases/test_db_assert.yaml", scaffolds.DB_ASSERT_TESTCASE)
+
     # testcases/test_import_users.yaml
     _write_template("testcases/test_import_users.yaml", scaffolds.CSV_DATA_TESTCASE)
 
@@ -1686,6 +1689,7 @@ def init_project(
         ("├── ", "testcases/", ""),
         ("│   ├── ", "test_demo.yaml", "完整认证流程示例"),
         ("│   ├── ", "test_api_health.yaml", "健康检查示例"),
+        ("│   ├── ", "test_db_assert.yaml", "数据库断言示例"),
         ("│   └── ", "test_import_users.yaml", "CSV 参数化示例"),
         ("├── ", "testsuites/", ""),
         ("│   ├── ", "testsuite_smoke.yaml", "冒烟测试套件"),
@@ -1721,7 +1725,7 @@ def init_project(
         else:
             typer.echo(full)
     typer.echo("")
-    typer.echo("9 directories, 16 files")
+    typer.echo("9 directories, 17 files")
 
     if skipped_files:
         typer.echo("")
@@ -1742,6 +1746,7 @@ def init_project(
     if name:
         typer.echo(f"  cd {name}")
     typer.echo("  drun run testcases/test_api_health.yaml")
+    typer.echo("  drun run testcases/test_db_assert.yaml   # 数据库断言示例")
     typer.echo("  drun run testcases/test_import_users.yaml  # CSV 数据驱动示例")
     typer.echo("")
     typer.echo("格式转换 (查看 converts/README.md 获取详细说明):")
