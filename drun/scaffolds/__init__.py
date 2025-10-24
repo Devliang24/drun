@@ -6,6 +6,9 @@ Drun 项目脚手架模板集合。
 
 from .templates import (
     CONVERTS_README,
+    CSV_DATA_TESTCASE,
+    CSV_DATA_TESTSUITE,
+    CSV_USERS_SAMPLE,
     DEMO_TESTCASE,
     DEMO_TESTSUITE,
     ENV_TEMPLATE,
@@ -23,6 +26,9 @@ from .templates import (
 
 __all__ = [
     "CONVERTS_README",
+    "CSV_DATA_TESTCASE",
+    "CSV_DATA_TESTSUITE",
+    "CSV_USERS_SAMPLE",
     "DEMO_TESTCASE",
     "DEMO_TESTSUITE",
     "ENV_TEMPLATE",

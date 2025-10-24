@@ -40,8 +40,8 @@ steps:
       - query: "SELECT status, total_amount FROM orders WHERE id='$order_id'"
         expect:
           - eq: [status, pending]
-        store:
-          db_status: status
+        extract:
+          db_status: $status
 
   - name: 复用存储的状态
     skip: ${not ENV(MYSQL_DSN)}

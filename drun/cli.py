@@ -1596,6 +1596,7 @@ def init_project(
     dirs_to_create = {
         "testcases": "测试用例目录",
         "testsuites": "测试套件目录",
+        "data": "数据文件目录",
         "converts": "格式转换源文件目录",
         "reports": "报告输出目录",
         "logs": "日志输出目录",
@@ -1636,8 +1637,17 @@ def init_project(
     # testcases/test_api_health.yaml
     _write_template("testcases/test_api_health.yaml", scaffolds.HEALTH_TESTCASE)
 
+    # data/users.csv
+    _write_template("data/users.csv", scaffolds.CSV_USERS_SAMPLE)
+
+    # testcases/test_import_users.yaml
+    _write_template("testcases/test_import_users.yaml", scaffolds.CSV_DATA_TESTCASE)
+
     # testsuites/testsuite_smoke.yaml
     _write_template("testsuites/testsuite_smoke.yaml", scaffolds.DEMO_TESTSUITE)
+
+    # testsuites/testsuite_csv.yaml
+    _write_template("testsuites/testsuite_csv.yaml", scaffolds.CSV_DATA_TESTSUITE)
 
     # converts/README.md
     _write_template("converts/README.md", scaffolds.CONVERTS_README)
@@ -1671,31 +1681,47 @@ def init_project(
 
     # 输出创建的文件列表（tree 风格）
     project_name = name if name else "."
+
+    tree_entries = [
+        ("├── ", "testcases/", ""),
+        ("│   ├── ", "test_demo.yaml", "完整认证流程示例"),
+        ("│   ├── ", "test_api_health.yaml", "健康检查示例"),
+        ("│   └── ", "test_import_users.yaml", "CSV 参数化示例"),
+        ("├── ", "testsuites/", ""),
+        ("│   ├── ", "testsuite_smoke.yaml", "冒烟测试套件"),
+        ("│   └── ", "testsuite_csv.yaml", "CSV 示例套件"),
+        ("├── ", "data/", ""),
+        ("│   └── ", "users.csv", "CSV 参数数据示例"),
+        ("├── ", "converts/", ""),
+        ("│   ├── ", "README.md", "格式转换完整指南"),
+        ("│   ├── ", "curl/", ""),
+        ("│   │   └── ", "sample.curl", "cURL 命令示例"),
+        ("│   ├── ", "postman/", ""),
+        ("│   │   ├── ", "sample_collection.json", "Postman Collection"),
+        ("│   │   └── ", "sample_environment.json", "Postman 环境变量"),
+        ("│   ├── ", "har/", ""),
+        ("│   │   └── ", "sample_recording.har", "HAR 录屏示例"),
+        ("│   └── ", "openapi/", ""),
+        ("│       └── ", "sample_openapi.json", "OpenAPI 规范"),
+        ("├── ", "reports/", "测试报告输出目录"),
+        ("├── ", "logs/", "运行日志输出目录"),
+        ("├── ", ".env", "环境变量配置"),
+        ("├── ", "drun_hooks.py", "自定义 Hooks 函数"),
+        ("├── ", ".gitignore", "Git 忽略规则"),
+        ("└── ", "README.md", "项目文档"),
+    ]
+
+    pad = max(len(prefix + entry) for prefix, entry, desc in tree_entries if desc) + 8
+
     typer.echo(f"{project_name}")
-    typer.echo("├── testcases/")
-    typer.echo("│   ├── test_demo.yaml                        完整认证流程示例")
-    typer.echo("│   └── test_api_health.yaml                  健康检查示例")
-    typer.echo("├── testsuites/")
-    typer.echo("│   └── testsuite_smoke.yaml                  冒烟测试套件")
-    typer.echo("├── converts/")
-    typer.echo("│   ├── README.md                             格式转换完整指南")
-    typer.echo("│   ├── curl/")
-    typer.echo("│   │   └── sample.curl                       cURL 命令示例")
-    typer.echo("│   ├── postman/")
-    typer.echo("│   │   ├── sample_collection.json            Postman Collection")
-    typer.echo("│   │   └── sample_environment.json           Postman 环境变量")
-    typer.echo("│   ├── har/")
-    typer.echo("│   │   └── sample_recording.har              HAR 录屏示例")
-    typer.echo("│   └── openapi/")
-    typer.echo("│       └── sample_openapi.json               OpenAPI 规范")
-    typer.echo("├── reports/                                  测试报告输出目录")
-    typer.echo("├── logs/                                     运行日志输出目录")
-    typer.echo("├── .env                                      环境变量配置")
-    typer.echo("├── drun_hooks.py                             自定义 Hooks 函数")
-    typer.echo("├── .gitignore                                Git 忽略规则")
-    typer.echo("└── README.md                                 项目文档")
+    for prefix, entry, desc in tree_entries:
+        full = f"{prefix}{entry}"
+        if desc:
+            typer.echo(f"{full.ljust(pad)}{desc}")
+        else:
+            typer.echo(full)
     typer.echo("")
-    typer.echo("6 directories, 12 files")
+    typer.echo("9 directories, 16 files")
 
     if skipped_files:
         typer.echo("")
@@ -1716,6 +1742,7 @@ def init_project(
     if name:
         typer.echo(f"  cd {name}")
     typer.echo("  drun run testcases/test_api_health.yaml")
+    typer.echo("  drun run testcases/test_import_users.yaml  # CSV 数据驱动示例")
     typer.echo("")
     typer.echo("格式转换 (查看 converts/README.md 获取详细说明):")
     typer.echo("  - cURL 转用例:")

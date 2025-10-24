@@ -10,7 +10,7 @@ class SQLValidateConfig(BaseModel):
 
     query: str
     expect: Dict[str, Any] | Sequence[Any] | None = None
-    store: Dict[str, str] | None = None
+    extract: Dict[str, str] | None = None
     allow_empty: bool = Field(default=False)
     dsn: Mapping[str, Any] | str | None = None
 
@@ -18,8 +18,14 @@ class SQLValidateConfig(BaseModel):
     def _validate_expect(self) -> "SQLValidateConfig":
         if self.expect is not None and not isinstance(self.expect, (Mapping, Sequence)):
             raise TypeError("sql_validate.expect must be a mapping or comparator list")
-        if self.store is not None and not isinstance(self.store, Mapping):
-            raise TypeError("sql_validate.store must be a mapping of var -> column")
+        if self.extract is not None and not isinstance(self.extract, Mapping):
+            raise TypeError("sql_validate.extract must be a mapping of var -> expression")
+        if self.extract:
+            for expr in self.extract.values():
+                if not isinstance(expr, str):
+                    raise TypeError("sql_validate.extract expressions must be strings starting with '$'.")
+                if not expr.strip().startswith("$"):
+                    raise ValueError("sql_validate.extract expressions must start with '$', e.g. '$status'.")
         if isinstance(self.query, str) and "| params=" in self.query:
             raise ValueError("sql_validate.query no longer supports '| params=...'; inline variables directly in the SQL text.")
         return self
@@ -28,6 +34,8 @@ class SQLValidateConfig(BaseModel):
     @classmethod
     def _normalize_input(cls, data: Any) -> Any:
         if isinstance(data, Mapping):
+            if "store" in data:
+                raise ValueError("sql_validate now uses 'extract'; rename 'store' to 'extract' and reference columns with '$'.")
             if "params" in data:
                 raise ValueError("sql_validate does not support a separate 'params' field; inline variables directly in the SQL text.")
             query_val = data.get("query")

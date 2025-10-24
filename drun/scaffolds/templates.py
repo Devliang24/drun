@@ -104,6 +104,69 @@ testcases:
     testcase: testcases/test_demo.yaml
 """
 
+# CSV 数据示例
+CSV_USERS_SAMPLE = """username,email,password,role
+alice,alice@example.com,P@ssw0rd123,member
+bob,bob@example.com,P@ssw0rd123,admin
+carol,carol@example.com,P@ssw0rd123,guest
+"""
+
+# 基于 CSV 的数据驱动用例示例
+CSV_DATA_TESTCASE = """config:
+  name: "数据驱动：CSV 示例"
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, csv]
+  parameters:
+    - csv:
+        path: ../data/users.csv
+        strip: true
+
+steps:
+  - name: 提交注册请求
+    request:
+      method: POST
+      url: /anything/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: $username
+        email: $email
+        password: $password
+        role: $role
+        source: csv-demo
+    extract:
+      echoed_username: $.json.username
+      echoed_role: $.json.role
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.json.username, $username]
+      - eq: [$.json.email, $email]
+      - eq: [$.json.role, $role]
+      - eq: [$.json.source, csv-demo]
+
+  - name: 校验回显头部
+    request:
+      method: GET
+      url: /anything/verify
+      headers:
+        X-Demo-User: $echoed_username
+        X-User-Role: $role
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.headers.X-Demo-User, $echoed_username]
+      - eq: [$.headers.X-User-Role, $role]
+"""
+
+# CSV 示例测试套件
+CSV_DATA_TESTSUITE = """config:
+  name: 数据驱动示例套件
+  tags: [csv, demo]
+
+testcases:
+  - name: CSV 参数化注册
+    testcase: testcases/test_import_users.yaml
+"""
+
 # cURL 示例文件
 SAMPLE_CURL = """# 示例 1: GET 请求（带查询参数）
 curl -X GET 'https://api.example.com/api/v1/products?category=electronics&limit=10' \\
@@ -1147,17 +1210,21 @@ README_TEMPLATE = """# Drun API 测试项目
 .
 ├── testcases/              # 测试用例目录
 │   ├── test_demo.yaml      # 完整认证流程示例
-│   └── test_api_health.yaml # 健康检查示例
+│   ├── test_api_health.yaml # 健康检查示例
+│   └── test_import_users.yaml # CSV 参数化用例
 ├── testsuites/             # 测试套件目录
-│   └── testsuite_smoke.yaml # 冒烟测试套件
+│   ├── testsuite_smoke.yaml # 冒烟测试套件
+│   └── testsuite_csv.yaml  # CSV 示例套件
+├── data/                   # 数据文件目录
+│   └── users.csv           # CSV 参数数据
 ├── converts/               # 格式转换源文件
 │   ├── sample.curl         # cURL 命令示例
 │   └── README.md           # 转换命令说明
 ├── reports/                # HTML/JSON 报告输出
 ├── logs/                   # 日志文件输出
 ├── .env                    # 环境变量配置
-├── drun_hooks.py          # 自定义 Hooks 函数
-└── README.md              # 本文档
+├── drun_hooks.py           # 自定义 Hooks 函数
+└── README.md               # 本文档
 ```
 
 ## 🚀 快速开始
@@ -1192,6 +1259,12 @@ drun run testcases
 # 运行测试套件
 drun run testsuites/testsuite_smoke.yaml
 
+# 运行 CSV 数据驱动示例
+drun run testcases/test_import_users.yaml
+
+# 或运行 CSV 套件（包含相同用例）
+drun run testsuites/testsuite_csv.yaml
+
 # 使用标签过滤
 drun run testcases -k "smoke and not slow"
 
@@ -1215,6 +1288,24 @@ open reports/report-*.html
 # JSON 报告（供 CI/CD 集成）
 cat reports/run.json
 ```
+
+## 📊 数据驱动示例（CSV）
+
+- CSV 数据文件：`data/users.csv`
+- 对应用例：`testcases/test_import_users.yaml`
+- 示例套件：`testsuites/testsuite_csv.yaml`
+- 默认假设 `BASE_URL` 指向 [httpbin](https://httpbin.org)，以便 `/anything` 接口回显请求数据。
+
+运行命令：
+
+```bash
+drun run testcases/test_import_users.yaml
+
+# 或运行套件
+drun run testsuites/testsuite_csv.yaml
+```
+
+> 疑似失败时，可检查 CSV 内容与环境变量是否匹配，例如确认 `BASE_URL` 是否对外提供 `/anything` 接口。
 
 ## 📝 编写测试用例
 

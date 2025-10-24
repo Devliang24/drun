@@ -315,6 +315,20 @@ def _format_query_label(query: str) -> str:
     return q[:60] + ("..." if len(q) > 60 else "")
 
 
+def _extract_sql_value(row: Mapping[str, Any], expr: str) -> Any:
+    if not isinstance(expr, str):
+        raise TypeError("sql_validate.extract expressions must be strings starting with '$'.")
+    path = expr.strip()
+    if not path.startswith("$"):
+        raise ValueError("sql_validate.extract expressions must start with '$', e.g. '$status'.")
+    jmes_expr = path[1:]
+    if jmes_expr.startswith("."):
+        jmes_expr = jmes_expr[1:]
+    if not jmes_expr:
+        return row
+    return extract_from_body(row, jmes_expr)
+
+
 def _iter_expectations(expectations: Any) -> Iterable[Tuple[str, str, Any]]:
     if isinstance(expectations, Mapping):
         for column, expect_cfg in expectations.items():
@@ -476,12 +490,13 @@ def run_sql_validate(
                         f"actual={actual!r} comparator={comparator} expected={expected_value!r}"
                     )
 
-        store_cfg = rendered_cfg.get("store")
-        if isinstance(store_cfg, Mapping):
-            for var_name, column in store_cfg.items():
-                updates[str(var_name)] = row_map.get(column)
+        extract_cfg = rendered_cfg.get("extract")
+        if isinstance(extract_cfg, Mapping):
+            for var_name, expr in extract_cfg.items():
+                value = _extract_sql_value(row_map, expr)
+                updates[str(var_name)] = value
                 if logger:
-                    logger.info(f"[SQL] store var: {var_name} = {row_map.get(column)!r}")
+                    logger.info(f"[SQL] extract var: {var_name} = {value!r}")
 
     return results, updates
 

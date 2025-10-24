@@ -7,6 +7,17 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - CLI `--env-file` now accepts shorthand environment aliases (e.g., `--env-file dev` → `.env.dev`), with warnings when no matching file is found.
 
+## [0.3.9] - 2025-10-24
+
+### Changed
+- **SQL 校验 DSL**：`store` 字段更名为 `extract`，改为使用 `$列名` 表达式提取结果，并统一错误提示
+
+### Added
+- **脚手架 CSV 示例**：`drun init` 默认生成 `data/users.csv` 与 `testcases/test_import_users.yaml`，并附带 `testsuites/testsuite_csv.yaml` 套件
+
+### Improved
+- **脚手架产物**：初始化目录树和 README 快速开始描述新增 CSV 示例命令，输出对齐更友好
+
 ## [0.3.8] - 2025-10-24
 
 ### Added

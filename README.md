@@ -6,7 +6,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.3.8-orange)]()
+[![Version](https://img.shields.io/badge/version-0.3.9-orange)]()
 
 [快速开始](#-快速开始-5-分钟) • [核心特性](#-核心特性) • [核心概念](#-核心概念) • [示例](#-实战示例) • [格式转换](docs/FORMAT_CONVERSION.md) • [CLI](docs/CLI.md) • [Reference](docs/REFERENCE.md) • [命名规范](docs/NAMING_CONVENTION.md) • [CI/CD](docs/CI_CD.md)
 
@@ -73,7 +73,7 @@ steps:
 ### 🚀 高级功能
 
 - **Hooks 系统**：测试套件（Suite）/用例（Case）/步骤（Step）三级生命周期钩子，支持请求签名、数据准备
-- **SQL 验证**：内置 MySQL 支持，查询结果断言和变量存储
+- **SQL 验证**：内置 MySQL 支持，查询结果断言与提取列结果为变量
 - **参数化测试**：压缩模式（zipped），保证多参数按行成组传递
 - **重试机制**：指数退避，容错不稳定接口
 
@@ -739,9 +739,9 @@ steps:
         expect:
           - eq: [status, "pending"]     # 断言 status 字段
           - gt: [total, 0]              # 断言 total 字段
-        store:
-          db_status: status             # 存储结果为变量
-          db_total: total
+        extract:
+          db_status: $status            # 提取列结果为变量
+          db_total: $total
 
       # 查询 2：验证订单项数量
       - query: "SELECT COUNT(*) AS cnt FROM order_items WHERE order_id='$order_id'"
@@ -759,7 +759,7 @@ steps:
 
 - `query` - SQL 查询（必需，支持变量插值）
 - `expect` - 断言列表（可选）
-- `store` - 将字段存储为变量（可选）
+- `extract` - 使用 `$` 表达式提取列结果为变量（可选，例如 `$status`）
 - `allow_empty` - 允许空结果（可选，默认 false）
 - `dsn` - 覆盖数据库连接（可选）
 
