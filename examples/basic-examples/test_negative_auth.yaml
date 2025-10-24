@@ -9,4 +9,4 @@ steps:
       url: /api/v1/cart/
     validate:
       - in: [status_code, [401, 403]]
-      - contains: [$.message, "Not authenticated"]
+      - contains: [$.message, Not authenticated]

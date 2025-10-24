@@ -31,7 +31,7 @@ steps:
       url: /health
     validate:
       - eq: [status_code, 200]
-      - eq: [$.data.status, "healthy"]
+      - eq: [$.data.status, healthy]
 ```
 
 ---
@@ -306,18 +306,18 @@ steps:
 | `ne` | 不等于 | `- ne: [$.error, null]` |
 | `lt` / `le` | 小于 / 小于等于 | `- lt: [$elapsed_ms, 1000]` |
 | `gt` / `ge` | 大于 / 大于等于 | `- gt: [$.count, 0]` |
-| `contains` | 包含子串/元素 | `- contains: [$.message, "success"]` |
-| `not_contains` | 不包含 | `- not_contains: [$.errors, "fatal"]` |
-| `regex` | 正则匹配 | `- regex: [$.email, ".*@example\\.com"]` |
+| `contains` | 包含子串/元素 | `- contains: [$.message, success]` |
+| `not_contains` | 不包含 | `- not_contains: [$.errors, fatal]` |
+| `regex` | 正则匹配 | `- regex: [$.email, .*@example\\.com]` |
 | `len_eq` | 长度等于 | `- len_eq: [$.items, 10]` |
-| `in` | 元素在集合中 | `- in: ["admin", $.roles]` |
+| `in` | 元素在集合中 | `- in: [admin, $.roles]` |
 
 **检查目标**：
 
 ```yaml
 validate:
   - eq: [status_code, 200]            # 状态码
-  - eq: [headers.Content-Type, "application/json"]  # 响应头
+  - eq: [headers.Content-Type, application/json]  # 响应头
   - eq: [$.data.user.id, 123]         # 响应体（JMESPath）
   - lt: [$elapsed_ms, 500]            # 响应时间（毫秒）
 ```
@@ -737,7 +737,7 @@ steps:
       # 查询 1：验证订单状态
       - query: "SELECT status, total FROM orders WHERE id='$order_id'"
         expect:
-          - eq: [status, "pending"]     # 断言 status 字段
+          - eq: [status, pending]     # 断言 status 字段
           - gt: [total, 0]              # 断言 total 字段
         extract:
           db_status: $status            # 提取列结果为变量
@@ -752,7 +752,7 @@ steps:
       - query: "SELECT log FROM audit.logs WHERE order_id='$order_id'"
         dsn: mysql://user:pass@audit-host:3306/audit_db
         expect:
-          - contains: [log, "order_created"]
+          - contains: [log, order_created]
 ```
 
 **SQL 验证选项**：

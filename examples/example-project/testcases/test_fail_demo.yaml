@@ -12,4 +12,4 @@ steps:
         Accept: application/json
     validate:
       - eq: [status_code, 999]  # 故意设置错误的状态码，让测试失败
-      - eq: [$.status, "unhealthy"]  # 故意错误的断言
+      - eq: [$.status, unhealthy]  # 故意错误的断言

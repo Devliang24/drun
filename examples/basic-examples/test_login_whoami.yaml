@@ -18,7 +18,7 @@ steps:
     validate:
       - eq: [status_code, 200]
       - eq: [$.success, true]
-      - eq: [$.message, "登录成功"]
+      - eq: [$.message, 登录成功]
 
   - name: 获取当前用户（自动注入鉴权）
     request:

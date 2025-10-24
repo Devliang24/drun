@@ -1324,7 +1324,7 @@ steps:
       url: /api/endpoint
     validate:
       - eq: [status_code, 200]
-      - eq: [$.data.status, "success"]
+      - eq: [$.data.status, success]
 ```
 
 ### 变量和提取

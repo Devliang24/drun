@@ -26,4 +26,4 @@ steps:
       - eq: [$.success, true]
       - eq: [$.code, 200]
       - eq: [$.data.id, $first_id]
-      - contains: [$.data, "stock"]
+      - contains: [$.data, stock]
