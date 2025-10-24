@@ -491,8 +491,17 @@ class DatabaseManager:
         if not config_text:
             # Empty config -> clear
             with self._lock:
-                self._configs = {}
+                old_proxies = list(self._proxies.values())
                 self._proxies.clear()
+                self._configs = {}
+            for proxy in old_proxies:
+                try:
+                    proxy.close()
+                except Exception:
+                    pass
+            self._log.info("[DB] Loaded 0 database(s), 0 role(s)")
+            if self._log.isEnabledFor(logging.DEBUG):
+                self._log.debug("[DB] Config: {}")
             return
 
         # Parse YAML/JSON via yaml.safe_load (YAML is a superset of JSON)
@@ -572,14 +581,24 @@ class DatabaseManager:
 
         # Apply
         with self._lock:
-            self._configs = parsed
+            old_proxies = list(self._proxies.values())
             self._proxies.clear()
+            self._configs = parsed
             # Logging: INFO only counts, DEBUG details
+            total_dbs = len(parsed)
             total_roles = sum(len(c.roles) for c in parsed.values())
-            self._log.info("[DB] Loaded %d database(s), %d role(s)", len(parsed), total_roles)
-            if self._log.isEnabledFor(logging.DEBUG):
-                details = json.dumps(self.describe(mask=True), ensure_ascii=False)
-                self._log.debug("[DB] Config: %s", details)
+            debug_enabled = self._log.isEnabledFor(logging.DEBUG)
+            details = json.dumps(self.describe(mask=True), ensure_ascii=False) if debug_enabled else ""
+
+        for proxy in old_proxies:
+            try:
+                proxy.close()
+            except Exception:
+                pass
+
+        self._log.info("[DB] Loaded %d database(s), %d role(s)", total_dbs, total_roles)
+        if debug_enabled:
+            self._log.debug("[DB] Config: %s", details)
 
 
 _GLOBAL_DB_MANAGER: Optional[DatabaseManager] = None
