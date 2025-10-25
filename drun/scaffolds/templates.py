@@ -93,6 +93,47 @@ steps:
       - eq: [$.url, $response_url]
 """
 
+# 测试用例模板：HTTP 性能分析演示
+PERF_TESTCASE = """config:
+  name: HTTP 性能分析示例
+  base_url: ${ENV(BASE_URL)}
+  tags: [performance, demo]
+  variables:
+    perf_threshold: 2000  # 响应时间阈值（毫秒）
+
+steps:
+  - name: 快速响应测试
+    request:
+      method: GET
+      path: /get?test=fast
+    validate:
+      - eq: [status_code, 200]
+      - lt: [$elapsed_ms, $perf_threshold]
+
+  - name: 延迟响应测试（1秒）
+    request:
+      method: GET
+      path: /delay/1
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$elapsed_ms, 900]
+      - lt: [$elapsed_ms, 1500]
+
+  - name: POST 请求性能测试
+    request:
+      method: POST
+      path: /post
+      headers:
+        Content-Type: application/json
+      body:
+        test_id: ${short_uid(8)}
+        timestamp: ${ts()}
+        large_data: ${repeat("x", 100)}
+    validate:
+      - eq: [status_code, 200]
+      - lt: [$elapsed_ms, $perf_threshold]
+"""
+
 # 测试套件模板
 DEMO_TESTSUITE = """config:
   name: 冒烟测试套件
@@ -1320,6 +1361,7 @@ README_TEMPLATE = """# Drun API 测试项目
 ├── testcases/              # 测试用例目录
 │   ├── test_demo.yaml      # 完整认证流程示例
 │   ├── test_api_health.yaml # 健康检查示例
+│   ├── test_performance.yaml # HTTP 性能分析示例
 │   ├── test_db_assert.yaml # 数据库断言示例
 │   └── test_import_users.yaml # CSV 参数化用例
 ├── testsuites/             # 测试套件目录
@@ -1386,9 +1428,14 @@ drun run testcases --html reports/report.html
 
 # 启用详细日志
 drun run testcases --log-level debug
+
+# 启用 HTTP 耗时分析（性能调优）
+drun run testcases --http-stat --report reports/perf.json
 ```
 
 > 提示：未显式指定 `--env-file` 时会自动读取当前目录的 `.env`。如果需要加载其他文件，可运行如 `drun run testcases --env-file configs/staging.env`。
+>
+> **性能分析**：使用 `--http-stat` 参数可以收集每个 HTTP 请求的详细耗时（DNS解析、TCP连接、TLS握手、服务器处理、内容传输），帮助识别性能瓶颈。详见 [HTTP Stat 文档](https://github.com/Devliang24/drun/blob/main/docs/HTTP_STAT.md)。
 
 ### 4. 查看报告
 
@@ -1592,7 +1639,8 @@ jobs:
         run: |
           drun run testcases \\
             --html reports/report.html \\
-            --report reports/run.json
+            --report reports/run.json \\
+            --http-stat
 
       - name: Upload Reports
         uses: actions/upload-artifact@v3
@@ -1601,6 +1649,46 @@ jobs:
           name: test-reports
           path: reports/
 ```
+
+### 性能监控示例
+
+在 CI 中启用 HTTP 耗时分析，监控 API 性能趋势：
+
+```yaml
+      - name: Run Performance Tests
+        run: |
+          drun run testcases \\
+            --http-stat \\
+            --report reports/perf-${{ github.sha }}.json
+
+      - name: Check Performance Regression
+        run: |
+          # 分析 httpstat 数据，检测性能回归
+          python scripts/check_perf.py reports/perf-${{ github.sha }}.json \\
+            --threshold 2000 \\
+            --baseline reports/baseline.json
+```
+
+HTTP Stat 会在报告中包含每个请求的详细耗时：
+
+```json
+{
+  "httpstat": {
+    "dns_lookup": 40.5,
+    "tcp_connection": 126.93,
+    "tls_handshake": 296.16,
+    "server_processing": 338.47,
+    "content_transfer": 42.31,
+    "total": 846.18
+  }
+}
+```
+
+你可以编写脚本分析这些数据，实现：
+- 性能基线对比
+- 慢请求告警（如总耗时 > 2s）
+- 性能趋势图表
+- 瓶颈分析（DNS慢？TLS慢？服务器慢？）
 
 ## 📚 更多资源
 

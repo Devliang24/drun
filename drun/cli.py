@@ -1753,6 +1753,9 @@ def init_project(
     # testcases/test_api_health.yaml
     _write_template("testcases/test_api_health.yaml", scaffolds.HEALTH_TESTCASE)
 
+    # testcases/test_performance.yaml
+    _write_template("testcases/test_performance.yaml", scaffolds.PERF_TESTCASE)
+
     # data/users.csv
     _write_template("data/users.csv", scaffolds.CSV_USERS_SAMPLE)
 
@@ -1805,6 +1808,7 @@ def init_project(
         ("├── ", "testcases/", ""),
         ("│   ├── ", "test_demo.yaml", "完整认证流程示例"),
         ("│   ├── ", "test_api_health.yaml", "健康检查示例"),
+        ("│   ├── ", "test_performance.yaml", "HTTP 性能分析示例"),
         ("│   ├── ", "test_db_assert.yaml", "数据库断言示例"),
         ("│   └── ", "test_import_users.yaml", "CSV 参数化示例"),
         ("├── ", "testsuites/", ""),
@@ -1862,6 +1866,7 @@ def init_project(
     if name:
         typer.echo(f"  cd {name}")
     typer.echo("  drun run testcases/test_api_health.yaml")
+    typer.echo("  drun run testcases/test_performance.yaml --http-stat  # HTTP 性能分析示例")
     typer.echo("  drun run testcases/test_db_assert.yaml   # 数据库断言示例")
     typer.echo("  drun run testcases/test_import_users.yaml  # CSV 数据驱动示例")
     typer.echo("")

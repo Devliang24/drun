@@ -23,6 +23,7 @@ class StepResult(BaseModel):
     status: str  # passed|failed|skipped
     duration_ms: float = 0.0
     error: Optional[str] = None
+    httpstat: Optional[Dict[str, float]] = None  # HTTP 请求耗时详情
 
 
 class CaseInstanceResult(BaseModel):

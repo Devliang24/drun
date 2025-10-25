@@ -69,3 +69,8 @@ image.png
 *.png
 .env
 !examples/example-project/.env
+
+# 测试临时目录
+test_*/
+dede/
+
