@@ -7,6 +7,57 @@ import yaml
 from .base import ImportedCase, ImportedStep
 
 
+def _resolve_ref(ref: str, root: Dict[str, Any]) -> Dict[str, Any] | None:
+    if not isinstance(ref, str) or not ref.startswith("#/"):
+        return None
+    parts = ref[2:].split("/")
+    node: Any = root
+    for part in parts:
+        if not isinstance(node, dict):
+            return None
+        node = node.get(part)
+        if node is None:
+            return None
+    if isinstance(node, dict):
+        return node
+    return None
+
+
+def _sample_from_schema(schema: Dict[str, Any] | None, root: Dict[str, Any], depth: int = 0) -> Any:
+    if not schema or depth > 5:
+        return None
+    if "example" in schema:
+        return schema["example"]
+    if "$ref" in schema:
+        resolved = _resolve_ref(schema.get("$ref"), root)
+        if resolved is not None:
+            return _sample_from_schema(resolved, root, depth + 1)
+    schema_type = schema.get("type")
+    if schema_type == "object":
+        props = schema.get("properties") or {}
+        required = schema.get("required") or []
+        result: Dict[str, Any] = {}
+        for key, subschema in props.items():
+            val = _sample_from_schema(subschema, root, depth + 1)
+            if val is None and key in required:
+                val = "string"
+            if val is not None:
+                result[key] = val
+        return result or {}
+    if schema_type == "array":
+        item_schema = schema.get("items") or {}
+        sample_item = _sample_from_schema(item_schema, root, depth + 1)
+        return [sample_item] if sample_item is not None else []
+    if schema_type == "integer":
+        return schema.get("default", 0)
+    if schema_type == "number":
+        return schema.get("default", 0)
+    if schema_type == "boolean":
+        return schema.get("default", True)
+    # string or fallback
+    return schema.get("default") or schema.get("pattern") or "string"
+
+
 def _load_spec(text: str) -> Dict[str, Any]:
     try:
         return json.loads(text)
@@ -25,6 +76,7 @@ def parse_openapi(
     name = case_name or (data.get("info", {}).get("title") if isinstance(data, dict) else None) or "Imported OpenAPI"
     steps: List[ImportedStep] = []
     base_guess: Optional[str] = None
+    components = data.get("components") if isinstance(data, dict) else {}
 
     # servers -> base_url
     servers = data.get("servers") or []
@@ -58,7 +110,10 @@ def parse_openapi(
                 ex = appjson.get("example") or (appjson.get("examples", {}) or {}).get("default", {}).get("value")
                 if ex is not None:
                     body = ex
+                else:
+                    schema_obj = appjson.get("schema")
+                    if schema_obj:
+                        body = _sample_from_schema(schema_obj, data)
             steps.append(ImportedStep(name=step_name, method=m, path=path, headers=headers, body=body))
 
     return ImportedCase(name=name, base_url=base_url or base_guess, steps=steps)
-
