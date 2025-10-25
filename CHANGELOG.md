@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [2.0.4] - 2025-10-25
+
+### Fixed
+- 版本号一致性：将 `pyproject.toml` 与 `drun.__version__` 对齐为 `2.0.4`，确保 `drun --version` 与帮助信息显示正确。
+
 ## [2.0.3] - 2025-10-25
 
 ### Added
