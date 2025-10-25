@@ -14,7 +14,6 @@ from drun.runner.extractors import extract_from_body
 from drun.runner.assertions import compare
 from drun.utils.curl import to_curl
 from drun.utils.mask import mask_body, mask_headers
-from drun.db.sql_validate import run_sql_validate
 
 
 class Runner:
@@ -26,12 +25,14 @@ class Runner:
         log_debug: bool = False,
         reveal_secrets: bool = True,
         log_response_headers: bool = True,
+        enable_http_stat: bool = False,
     ) -> None:
         self.log = log
         self.failfast = failfast
         self.log_debug = log_debug
         self.reveal = reveal_secrets
         self.log_response_headers = log_response_headers
+        self.enable_http_stat = enable_http_stat
         self.templater = TemplateEngine()
 
     def _render(self, data: Any, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None) -> Any:
@@ -39,7 +40,13 @@ class Runner:
 
     def _build_client(self, case: Case) -> HTTPClient:
         cfg = case.config
-        return HTTPClient(base_url=cfg.base_url, timeout=cfg.timeout, verify=cfg.verify, headers=cfg.headers)
+        return HTTPClient(
+            base_url=cfg.base_url,
+            timeout=cfg.timeout,
+            verify=cfg.verify,
+            headers=cfg.headers,
+            enable_http_stat=self.enable_http_stat
+        )
 
     def _request_dict(self, step: Step) -> Dict[str, Any]:
         # Use field names (not aliases) so "body" stays as expected downstream.
@@ -537,65 +544,7 @@ class Runner:
                             actual_fmt = self._format_log_value(actual, prefix_len=indent_len)
                             self.log.info(prefix + actual_fmt + " | PASS")
 
-                if step.sql_validate:
-                    sql_updates_total: Dict[str, Any] = {}
-                    temp_vars = dict(variables)
-                    for idx, sql_cfg in enumerate(step.sql_validate):
-                        try:
-                            rendered_cfg = self._render(sql_cfg.model_dump(), temp_vars, funcs, envmap)
-                        except Exception as e:
-                            step_failed = True
-                            err_msg = f"SQL validate render error: {e}"
-                            assertions.append(
-                                AssertionResult(
-                                    check=f"sql.config[{idx}]",
-                                    comparator="render",
-                                    expect=None,
-                                    actual=None,
-                                    passed=False,
-                                    message=err_msg,
-                                )
-                            )
-                            if self.log:
-                                self.log.error(f"[SQL] render error: {e}")
-                            continue
-                        try:
-                            sql_results, sql_updates = run_sql_validate(
-                                [rendered_cfg],
-                                response=resp_obj,
-                                variables=temp_vars,
-                                env=envmap or {},
-                                render=None,
-                                logger=self.log,
-                            )
-                        except Exception as e:
-                            step_failed = True
-                            err_msg = f"SQL validate error: {e}"
-                            assertions.append(
-                                AssertionResult(
-                                    check=f"sql.exec[{idx}]",
-                                    comparator="execute",
-                                    expect=None,
-                                    actual=None,
-                                    passed=False,
-                                    message=err_msg,
-                                )
-                            )
-                            if self.log:
-                                self.log.error(f"[SQL] execution error: {e}")
-                            continue
-                        for res in sql_results:
-                            assertions.append(res)
-                            if not res.passed:
-                                step_failed = True
-                        sql_updates_total.update(sql_updates)
-                        temp_vars.update(sql_updates)
-                    if sql_updates_total:
-                        for k, v in sql_updates_total.items():
-                            ctx.set_base(k, v)
-                            if self.log:
-                                self.log.info(f"[SQL] set var: {k} = {v!r}")
-                        variables = ctx.get_merged(global_vars)
+                # Built-in SQL validation has been removed; any SQL checks should run via hooks.
 
                 # teardown hooks
                 try:
@@ -663,6 +612,7 @@ class Runner:
                     asserts=assertions,
                     extracts=extracts,
                     duration_ms=resp_obj.get("elapsed_ms") or 0.0,
+                    httpstat=resp_obj.get("httpstat"),  # 包含 HTTP 耗时统计
                 )
                 steps_results.append(sr)
                 if step_failed:

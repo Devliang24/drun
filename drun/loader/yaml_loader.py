@@ -292,7 +292,7 @@ def _format_case_validation_error(exc: ValidationError, obj: Dict[str, Any], pat
             and loc[2] == "request"
         ):
             field = loc[3]
-            if field in {"extract", "validate", "setup_hooks", "teardown_hooks", "sql_validate"}:
+            if field in {"extract", "validate", "setup_hooks", "teardown_hooks"}:
                 step_label = _step_name(loc[1])
                 line_info = _find_step_field_location(raw_text, loc[1], field)
                 if line_info:

@@ -256,7 +256,7 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
         if "validate" in step:
             step.pop("validate", None)
 
-        for field in ("variables", "extract", "setup_hooks", "teardown_hooks", "sql_validate"):
+        for field in ("variables", "extract", "setup_hooks", "teardown_hooks"):
             if field in step and not step.get(field):
                 step.pop(field, None)
 
@@ -1060,6 +1060,12 @@ def run(
         help="记录 HTTP 响应头（默认关闭）",
         show_default=False,
     ),
+    http_stat: bool = typer.Option(
+        False,
+        "--http-stat/--no-http-stat",
+        help="收集并展示 HTTP 请求各阶段耗时（DNS、TCP、TLS、服务器处理、传输）",
+        show_default=False,
+    ),
     notify: Optional[str] = typer.Option(None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"),
     notify_only: Optional[str] = typer.Option(
         None,
@@ -1196,6 +1202,7 @@ def run(
         log_debug=(log_level.upper() == "DEBUG"),
         reveal_secrets=reveal_secrets,
         log_response_headers=response_headers,
+        enable_http_stat=http_stat,
     )
     templater = TemplateEngine()
     instance_results = []
@@ -1560,7 +1567,7 @@ def fix(
         
         lines = text.splitlines()
         changed = False
-        fields_to_fix = ("validate:", "extract:", "setup_hooks:", "teardown_hooks:", "sql_validate:")
+        fields_to_fix = ("validate:", "extract:", "setup_hooks:", "teardown_hooks:")
         
         for i in range(len(lines)):
             line = lines[i]

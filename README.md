@@ -73,9 +73,10 @@ steps:
 ### 🚀 高级功能
 
 - **Hooks 系统**：测试套件（Suite）/用例（Case）/步骤（Step）三级生命周期钩子，支持请求签名、数据准备
-- **SQL 验证**：内置 MySQL 支持，查询结果断言与提取列结果为变量
+- **SQL 校验**：内置 MySQL 支持，查询结果断言与提取列结果为变量
 - **参数化测试**：压缩模式（zipped），保证多参数按行成组传递
 - **重试机制**：指数退避，容错不稳定接口
+- **HTTP 耗时分析**：`--http-stat` 参数收集请求各阶段耗时（DNS、TCP、TLS、服务器处理、传输），识别性能瓶颈 [详细文档](docs/HTTP_STAT.md)
 
 ### 📊 企业级特性
 
@@ -699,9 +700,12 @@ steps:
 
 **实际示例：** `examples/basic-examples/test_params_csv.yaml`
 
-### SQL 验证
+### SQL 校验（通过 Hook）
 
-对数据库状态进行断言，确保 API 操作正确写入数据库。
+`drun` 现已移除步骤级的 `sql_validate` 字段。若需要对数据库状态做断言，请在 Hook 中执行自定义 SQL。可参考 `drun/scaffolds/templates.py` 中的示例实现：
+
+- `setup_hook_assert_sql`：在步骤前检查指定记录是否存在。
+- `expected_sql_value`：在断言阶段读取数据库字段并返回给校验逻辑。
 
 #### 环境配置
 
@@ -717,11 +721,13 @@ MYSQL_DB=test_database
 MYSQL_DSN=mysql://user:pass@localhost:3306/test_db
 ```
 
-#### 使用示例
+#### Hook 使用示例
 
 ```yaml
 steps:
-  - name: 创建订单
+  - name: 创建订单并校验
+    setup_hooks:
+      - ${setup_hook_assert_sql($customer_id, query="SELECT id FROM customers WHERE id=${customer_id}")}
     request:
       method: POST
       url: /api/orders
@@ -732,36 +738,12 @@ steps:
       order_id: $.data.order_id
     validate:
       - eq: [status_code, 201]
-
-    sql_validate:
-      # 查询 1：验证订单状态
-      - query: "SELECT status, total FROM orders WHERE id='$order_id'"
-        expect:
-          - eq: [status, pending]     # 断言 status 字段
-          - gt: [total, 0]              # 断言 total 字段
-        extract:
-          db_status: $status            # 提取列结果为变量
-          db_total: $total
-
-      # 查询 2：验证订单项数量
-      - query: "SELECT COUNT(*) AS cnt FROM order_items WHERE order_id='$order_id'"
-        expect:
-          - ge: [cnt, 1]                # 至少 1 条记录
-
-      # 查询 3：使用不同数据库
-      - query: "SELECT log FROM audit.logs WHERE order_id='$order_id'"
-        dsn: mysql://user:pass@audit-host:3306/audit_db
-        expect:
-          - contains: [log, order_created]
+      - eq:
+          check: $.data.total_price
+          expect: ${expected_sql_value($order_id, query="SELECT total FROM orders WHERE id=${order_id}", column="total")}
 ```
 
-**SQL 验证选项**：
-
-- `query` - SQL 查询（必需，支持变量插值）
-- `expect` - 断言列表（可选）
-- `extract` - 使用 `$` 表达式提取列结果为变量（可选，例如 `$status`）
-- `allow_empty` - 允许空结果（可选，默认 false）
-- `dsn` - 覆盖数据库连接（可选）
+> 提示：如需自定义更复杂的 SQL 校验，可在 `drun_hooks.py` 中编写新的 Hook 函数，并在 `setup_hooks` 或 `teardown_hooks` 中调用；`drun/scaffolds/templates.py` 提供了完整的示例代码可直接拷贝。
 
 ### 重试机制
 
@@ -1052,7 +1034,7 @@ KeyError: 'user_id'
 - 确认变量在 `config.variables`、`steps[].variables` 或 `extract` 中定义
 - 检查提取路径是否正确
 
-#### 5. SQL 验证失败
+#### 5. SQL 校验失败
 
 ```
 MySQL assertion requires MYSQL_USER or dsn.user.

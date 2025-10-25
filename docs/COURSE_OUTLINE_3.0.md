@@ -11,7 +11,7 @@
 8. 环境与优先级：通过 `DRUN_ENV` + `env/<name>.yaml` + `.env` + `--vars` 构建多层环境合并，梳理冲突与覆盖策略。
 9. 模板与内置函数：熟练 `$var`/`${expr}`、`ENV()` 与 `now/uuid/random_int/base64_encode/hmac_sha256` 等的常见用法与陷阱。
 10. Hooks 与签名：掌握 Case/Suite/Step hooks 的调用栈与 `hook_ctx`，实现时间戳/HMAC 签名与上下文注入（示例：`examples/test_hmac_sign.yaml`）。
-11. SQL 数据一致性：配置 MySQL 连接（`MYSQL_*` 或 `MYSQL_DSN`），运行 `examples/test_sql_validate.yaml` 与 `examples/test_sql_store_reuse.yaml` 完成金额/库存校验与变量复用。
+11. SQL 数据一致性：配置 MySQL 连接（`MYSQL_*` 或 `MYSQL_DSN`），通过 Hook 执行自定义 SQL（示例：`setup_hook_assert_sql`、`expected_sql_value`），完成金额/库存校验与变量复用。
 12. 性能阈值：在关键接口为 `$elapsed_ms` 设置断言阈值（参考 `examples/test_perf_timing.yaml`），形成基线与优化记录。
 13. 通知闭环：完成至少一种渠道（飞书/钉钉/邮件）配置并在失败时自动推送摘要（示例：`--notify feishu --notify-only failed --notify-attach-html`）。
 14. 安全与合规：启用 `--mask-secrets` 进行日志与报告脱敏；密钥通过 `.env`/环境变量注入；产物不包含敏感明文。
@@ -57,7 +57,7 @@
 9. 跳过与重试策略：条件跳过与重试边界；避免掩盖真实失败（`examples/test_skip_and_retry.yaml`）。
 10. 错误定位与追踪：从报告到日志的定位路径；在 `teardown_hook` 捕获 `request_id` 并回填上下文。
 11. 性能阈值与基线：`$elapsed_ms` 阈值设计、P95 监控与回归比对（`drun/utils/timeit.py`）。
-12. SQL 校验与结果复用：查询断言、金额/库存等典型场景；变量存储与后续步骤复用（`drun/db/sql_validate.py`、`examples/test_sql_*`）。
+12. SQL 校验与结果复用：在 Hook 中执行 SQL 查询，结合变量存储与断言（参考 `drun/scaffolds/templates.py` 中提供的 `setup_hook_assert_sql`、`expected_sql_value` 示例）。
 
 ## 阶段 4｜业务实战
 1. 契约驱动用例：`spec/openapi/ecommerce_api.json` 到 YAML（更多格式转换与导入实战见 `docs/CLI.md` 的 convert 章节，覆盖 OpenAPI/cURL/Postman/HAR，导入期脱敏与 Testsuite 生成）。
@@ -77,7 +77,7 @@
 15. 鉴权策略示例：`examples/test_static_bearer.yaml`、`examples/test_hmac_sign.yaml`。
 16. 重试与跳过策略：`examples/test_skip_and_retry.yaml`。
 17. 参数化覆盖策略：`examples/test_params_zipped.yaml`。
-18. SQL 连接与覆盖：`examples/test_sql_validate.yaml`、`examples/test_sql_dsn_override.yaml`。
+18. SQL 连接与覆盖：通过环境变量与 Hook 参数控制连接信息（`MYSQL_*`/`MYSQL_DSN`、Hook `dsn` 参数）。
 19. 测试套件与标签治理：`testsuites/testsuite_smoke.yaml`、`testsuites/testsuite_regression.yaml`、`testsuites/testsuite_permissions.yaml`。
 
 ## 阶段 5｜工程落地
@@ -89,7 +89,7 @@
 6. 环境与密钥管理：`.env` 注入与覆盖（`drun/loader/env.py`）。
 7. CLI 规范化工具：`drun check`/`drun fix` 规则与一键修复（`drun/cli.py`）。
 8. 性能计时与基线：`drun/utils/timeit.py`、`examples/test_perf_timing.yaml`。
-9. SQL 校验落地：`drun/db/sql_validate.py`、`drun/models/sql_validate.py`。
+9. SQL 校验落地：`drun/db/database_proxy.py`、`drun/scaffolds/templates.py` 中的 Hook 实现。
 10. 测试套件化运行与筛选：标签表达式与测试套件产物（`testsuites/*`）。
 11. 提交流程与本地校验：打包与脚本（`pyproject.toml`）。
 
@@ -119,11 +119,11 @@ drun run testsuites/testsuite_regression.yaml \
 ## 阶段 6｜源码拆解与扩展
 1. CLI 与命令体系：`drun/cli.py`（run/convert/export/check/fix、过滤/报告/通知参数）。
 2. 加载器 Loader：`drun/loader/{yaml_loader,collector,env,hooks}.py`（发现/解析/ENV 注入/Hooks 发现）。
-3. 数据模型 Models：`drun/models/{config,case,step,request,validators,sql_validate,report}.py`（Pydantic 建模与校验）。
+3. 数据模型 Models：`drun/models/{config,case,step,request,validators,report}.py`（Pydantic 建模与校验）。
 4. 模板引擎：`drun/templating/{engine,builtins,context}.py`（Dollar 表达式、安全求值、内置函数）。
 5. 运行器 Runner：`drun/runner/{runner,assertions,extractors}.py`（变量作用域、执行与重试、断言与提取）。
 6. HTTP 引擎：`drun/engine/http.py`（httpx 客户端、超时/重试/上传、Authorization 注入）。
-7. SQL 与数据校验：`drun/db/sql_validate.py`、`drun/models/sql_validate.py`（DSN、查询与断言、存储复用）。
+7. SQL 与数据校验：`drun/db/database_proxy.py`、`drun/scaffolds/templates.py` 中 Hook 的 DSN、查询与断言实现。
 8. 报告子系统：`drun/reporter/{json_reporter,html_reporter,allure_reporter}.py`（结构化结果、附件与掩码、历史）。
 9. 通知子系统：`drun/notifier/{base,format,feishu,dingtalk,emailer}.py`（消息格式化、多渠道与失败聚合）。
 10. 工具与基础设施：`drun/utils/{logging,mask,curl,errors,timeit}.py`。

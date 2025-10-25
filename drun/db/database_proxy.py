@@ -25,7 +25,7 @@ class DatabaseNotConfiguredError(Exception):
     pass
 
 
-# ---- MySQL driver helpers (kept local to avoid coupling with sql_validate internals) ----
+# ---- MySQL driver helpers (kept local so hooks can reuse them without extra deps) ----
 _MYSQL_DRIVER_NAME: str | None = None
 _MYSQL_DRIVER_MODULE: Any | None = None
 
