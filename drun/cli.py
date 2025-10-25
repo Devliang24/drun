@@ -1060,12 +1060,6 @@ def run(
         help="记录 HTTP 响应头（默认关闭）",
         show_default=False,
     ),
-    http_stat: bool = typer.Option(
-        False,
-        "--http-stat/--no-http-stat",
-        help="收集并展示 HTTP 请求各阶段耗时（DNS、TCP、TLS、服务器处理、传输）",
-        show_default=False,
-    ),
     notify: Optional[str] = typer.Option(None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"),
     notify_only: Optional[str] = typer.Option(
         None,
@@ -1202,7 +1196,6 @@ def run(
         log_debug=(log_level.upper() == "DEBUG"),
         reveal_secrets=reveal_secrets,
         log_response_headers=response_headers,
-        enable_http_stat=http_stat,
     )
     templater = TemplateEngine()
     instance_results = []
@@ -1866,7 +1859,7 @@ def init_project(
     if name:
         typer.echo(f"  cd {name}")
     typer.echo("  drun run testcases/test_api_health.yaml")
-    typer.echo("  drun run testcases/test_performance.yaml --http-stat  # HTTP 性能分析示例")
+    # httpstat 功能已删除
     typer.echo("  drun run testcases/test_db_assert.yaml   # 数据库断言示例")
     typer.echo("  drun run testcases/test_import_users.yaml  # CSV 数据驱动示例")
     typer.echo("")

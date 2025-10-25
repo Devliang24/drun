@@ -1429,13 +1429,13 @@ drun run testcases --html reports/report.html
 # 启用详细日志
 drun run testcases --log-level debug
 
-# 启用 HTTP 耗时分析（性能调优）
-drun run testcases --http-stat --report reports/perf.json
+# 查看运行时长（使用响应 elapsed_ms）并生成 JSON 报告
+drun run testcases --report reports/run.json
 ```
 
 > 提示：未显式指定 `--env-file` 时会自动读取当前目录的 `.env`。如果需要加载其他文件，可运行如 `drun run testcases --env-file configs/staging.env`。
 >
-> **性能分析**：使用 `--http-stat` 参数可以收集每个 HTTP 请求的详细耗时（DNS解析、TCP连接、TLS握手、服务器处理、内容传输），帮助识别性能瓶颈。详见 [HTTP Stat 文档](https://github.com/Devliang24/drun/blob/main/docs/HTTP_STAT.md)。
+> 性能分析：自 2.1.0 起移除了 httpstat 分解视图，请使用 `elapsed_ms` 结合断言（示例：`- le: [$elapsed_ms, 2000]`）或外部工具（如 `curl -w`、`k6`、APM）进行性能监控。
 
 ### 4. 查看报告
 
@@ -1639,8 +1639,7 @@ jobs:
         run: |
           drun run testcases \\
             --html reports/report.html \\
-            --report reports/run.json \\
-            --http-stat
+            --report reports/run.json
 
       - name: Upload Reports
         uses: actions/upload-artifact@v3
@@ -1652,43 +1651,17 @@ jobs:
 
 ### 性能监控示例
 
-在 CI 中启用 HTTP 耗时分析，监控 API 性能趋势：
+在 CI 中通过断言约束响应时间，避免性能回退：
 
 ```yaml
-      - name: Run Performance Tests
+      - name: Run API tests with latency guard
         run: |
-          drun run testcases \\
-            --http-stat \\
-            --report reports/perf-${{ github.sha }}.json
-
-      - name: Check Performance Regression
-        run: |
-          # 分析 httpstat 数据，检测性能回归
-          python scripts/check_perf.py reports/perf-${{ github.sha }}.json \\
-            --threshold 2000 \\
-            --baseline reports/baseline.json
+          drun run testcases --report reports/run-${{ github.sha }}.json
 ```
 
-HTTP Stat 会在报告中包含每个请求的详细耗时：
-
-```json
-{
-  "httpstat": {
-    "dns_lookup": 40.5,
-    "tcp_connection": 126.93,
-    "tls_handshake": 296.16,
-    "server_processing": 338.47,
-    "content_transfer": 42.31,
-    "total": 846.18
-  }
-}
-```
-
-你可以编写脚本分析这些数据，实现：
-- 性能基线对比
-- 慢请求告警（如总耗时 > 2s）
-- 性能趋势图表
-- 瓶颈分析（DNS慢？TLS慢？服务器慢？）
+建议：
+- 在用例中为关键接口添加耗时断言：`- le: [$elapsed_ms, 2000]`
+- 持续性能测试可使用 `k6`/`wrk`，错误追踪用 APM（如 SkyWalking、Jaeger）。
 
 ## 📚 更多资源
 

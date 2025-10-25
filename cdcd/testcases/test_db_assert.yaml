@@ -1,0 +1,20 @@
+config:
+  name: "数据库断言示例"
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, db]
+  variables:
+    user_id: 1
+
+steps:
+  - name: 获取用户详情
+    setup_hooks:
+      - ${setup_hook_assert_sql($user_id)}
+    request:
+      method: GET
+      path: /api/users/${user_id}
+    extract:
+      api_user_id: $.data.id
+      api_status: $.data.status
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$api_status, ${expected_sql_value($api_user_id)}]

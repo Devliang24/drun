@@ -1,0 +1,38 @@
+config:
+  name: HTTP 性能分析示例
+  base_url: ${ENV(BASE_URL)}
+  tags: [performance, demo]
+  variables:
+    perf_threshold: 2000  # 响应时间阈值（毫秒）
+
+steps:
+  - name: 快速响应测试
+    request:
+      method: GET
+      path: /get?test=fast
+    validate:
+      - eq: [status_code, 200]
+      - lt: [$elapsed_ms, $perf_threshold]
+
+  - name: 延迟响应测试（1秒）
+    request:
+      method: GET
+      path: /delay/1
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$elapsed_ms, 900]
+      - lt: [$elapsed_ms, 1500]
+
+  - name: POST 请求性能测试
+    request:
+      method: POST
+      path: /post
+      headers:
+        Content-Type: application/json
+      body:
+        test_id: ${short_uid(8)}
+        timestamp: ${ts()}
+        large_data: ${repeat("x", 100)}
+    validate:
+      - eq: [status_code, 200]
+      - lt: [$elapsed_ms, $perf_threshold]

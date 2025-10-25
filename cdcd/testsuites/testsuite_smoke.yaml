@@ -1,0 +1,10 @@
+config:
+  name: 冒烟测试套件
+  tags: [smoke]
+
+testcases:
+  - name: API 健康检查
+    testcase: testcases/test_api_health.yaml
+
+  - name: 认证流程测试
+    testcase: testcases/test_demo.yaml

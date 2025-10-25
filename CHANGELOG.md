@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [2.1.0] - 2025-10-25
+
+### Removed
+- 移除接口性能统计（httpstat）功能及相关输出：删除 `--http-stat` CLI 开关、`HttpStat` 模型、`TimingCollector`、控制台 httpstat 格式化、`StepResult.httpstat` 字段、示例与文档（docs/HTTP_STAT.md）。
+
+### Changed
+- Runner 和 HTTPClient 仅保留基础耗时 `elapsed_ms`；建议在用例中以断言约束时延（例如 `- le: [$elapsed_ms, 2000]`）。
+- 脚手架与 README/模板去除 httpstat 用法，CI 示例改为基于 `elapsed_ms` 的守护。
+
+### BREAKING
+- 移除 `--http-stat` 和 `StepResult.httpstat` 属破坏性变更；如需分阶段迁移，请固定在 2.0.x 或改造脚本使用 `elapsed_ms`。
+
 ## [2.0.4] - 2025-10-25
 
 ### Fixed

@@ -3,28 +3,16 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 import httpx
 
-from drun.engine.timing import TimingCollector
-
 
 class HTTPClient:
-    def __init__(self, base_url: Optional[str] = None, timeout: Optional[float] = None, verify: Optional[bool] = None, headers: Optional[Dict[str, str]] = None, enable_http_stat: bool = False) -> None:
+    def __init__(self, base_url: Optional[str] = None, timeout: Optional[float] = None, verify: Optional[bool] = None, headers: Optional[Dict[str, str]] = None) -> None:
         self.base_url = base_url or ""
         self.timeout = timeout
         self.verify = verify
         self.headers = headers or {}
-        self.enable_http_stat = enable_http_stat
-        
-        # 设置 event hooks（如果启用了 http_stat）
-        event_hooks = {}
-        if self.enable_http_stat:
-            self.timing_collector = TimingCollector()
-            event_hooks = {
-                "request": [self.timing_collector.on_request],
-                "response": [self.timing_collector.on_response],
-            }
-        else:
-            self.timing_collector = None
-        
+        event_hooks: Dict[str, list] = {}
+        # httpstat 功能已移除，保留空 hooks
+
         self.client = httpx.Client(
             base_url=self.base_url or None,
             timeout=self.timeout or 10.0,
@@ -99,10 +87,4 @@ class HTTPClient:
             "url": str(resp.request.url),
             "method": str(resp.request.method),
         }
-        
-        # 如果启用了 http_stat，添加时间统计
-        if self.enable_http_stat and self.timing_collector:
-            httpstat = self.timing_collector.build_httpstat(resp)
-            result["httpstat"] = httpstat.to_dict()
-        
         return result

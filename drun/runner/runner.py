@@ -25,14 +25,12 @@ class Runner:
         log_debug: bool = False,
         reveal_secrets: bool = True,
         log_response_headers: bool = True,
-        enable_http_stat: bool = False,
     ) -> None:
         self.log = log
         self.failfast = failfast
         self.log_debug = log_debug
         self.reveal = reveal_secrets
         self.log_response_headers = log_response_headers
-        self.enable_http_stat = enable_http_stat
         self.templater = TemplateEngine()
 
     def _render(self, data: Any, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None) -> Any:
@@ -45,7 +43,6 @@ class Runner:
             timeout=cfg.timeout,
             verify=cfg.verify,
             headers=cfg.headers,
-            enable_http_stat=self.enable_http_stat
         )
 
     def _request_dict(self, step: Step) -> Dict[str, Any]:
@@ -473,20 +470,12 @@ class Runner:
 
                 assert resp_obj is not None
                 last_resp_obj = resp_obj
+
                 if self.log:
                     hdrs = resp_obj.get("headers") or {}
                     if not self.reveal:
                         hdrs = mask_headers(hdrs)
                     self.log.info(f"[RESPONSE] status={resp_obj.get('status_code')} elapsed={resp_obj.get('elapsed_ms'):.1f}ms")
-                    
-                    # 显示 HTTP Stat 详细耗时
-                    if self.enable_http_stat and resp_obj.get("httpstat"):
-                        from drun.reporter.console_reporter import format_httpstat
-                        httpstat_output = format_httpstat(
-                            resp_obj["httpstat"],
-                            url=str(resp_obj.get("url", ""))
-                        )
-                        self.log.info(httpstat_output)
                     
                     if self.log_response_headers:
                         self.log.info(self._fmt_aligned("RESP", "headers", self._fmt_json(hdrs)))
@@ -622,19 +611,21 @@ class Runner:
                     asserts=assertions,
                     extracts=extracts,
                     duration_ms=resp_obj.get("elapsed_ms") or 0.0,
-                    httpstat=resp_obj.get("httpstat"),  # 包含 HTTP 耗时统计
                 )
                 steps_results.append(sr)
                 if step_failed:
                     status = "failed"
                     if self.log:
                         self.log.error(f"[STEP] Result: {rendered_step_name} | FAILED")
-                    if self.failfast:
-                        ctx.pop()
-                        break
                 else:
                     if self.log:
                         self.log.info(f"[STEP] Result: {rendered_step_name} | PASSED")
+
+                # httpstat 输出已移除
+
+                if step_failed and self.failfast:
+                    ctx.pop()
+                    break
                 ctx.pop()
 
         finally:
