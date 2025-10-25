@@ -219,6 +219,8 @@ def parse_curl_text(text: str, *, case_name: Optional[str] = None, base_url: Opt
         ls = line.strip()
         if not ls:
             continue
+        if ls.startswith("#"):
+            continue
         if buf and _is_command_start(ls):
             pieces.append(" ".join(buf))
             buf = [ls]

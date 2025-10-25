@@ -437,7 +437,7 @@ def _apply_convert_filters(case: Case, *, redact_headers: list[str] | None = Non
 def _make_step_from_imported(imported_step: Any) -> Step:
     req = StepRequest(
         method=imported_step.method,
-        url=imported_step.url,
+        path=imported_step.path,
         params=imported_step.params,
         headers=imported_step.headers,
         body=imported_step.body,
@@ -661,6 +661,9 @@ def convert_auto(
             split_output=split_output,
             redact=redact,
             placeholders=placeholders,
+            exclude_static=True,
+            only_2xx=False,
+            exclude_pattern=None,
         )
     elif suffix == ".json":
         # Try Postman by default; if 'openapi' field detected, prefer OpenAPI
@@ -678,6 +681,7 @@ def convert_auto(
                 split_output=split_output,
                 redact=redact,
                 placeholders=placeholders,
+                tags=None,
             )
         else:
             convert_postman(
@@ -689,6 +693,8 @@ def convert_auto(
                 split_output=split_output,
                 redact=redact,
                 placeholders=placeholders,
+                postman_env=None,
+                suite_out=None,
             )
     else:
         typer.echo("[CONVERT] Unrecognized file format. Supported suffixes: .curl, .har, .json")
