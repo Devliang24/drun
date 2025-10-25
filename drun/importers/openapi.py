@@ -116,4 +116,5 @@ def parse_openapi(
                         body = _sample_from_schema(schema_obj, data)
             steps.append(ImportedStep(name=step_name, method=m, path=path, headers=headers, body=body))
 
-    return ImportedCase(name=name, base_url=base_url or base_guess, steps=steps)
+    fallback_base = base_url or base_guess or "http://localhost:8000"
+    return ImportedCase(name=name, base_url=fallback_base, steps=steps)
