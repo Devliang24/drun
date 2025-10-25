@@ -1,8 +1,0 @@
-config:
-  name: "冒烟套件"
-  base_url: ${ENV(BASE_URL)}
-  tags: [smoke]
-
-testcases:
-  - name: 目录基础
-    testcase: testcases/test_catalog.yaml
