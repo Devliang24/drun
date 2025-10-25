@@ -4,8 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+_No unreleased changes._
+
+## [2.0.0] - 2025-10-25
+
+### Removed
+- YAML DSL 中的 `sql_validate` 字段被移除；SQL 校验需通过 Hook（如 `setup_hook_assert_sql`、`expected_sql_value`）实现。
+
 ### Changed
-- CLI `--env-file` now accepts shorthand environment aliases (e.g., `--env-file dev` → `.env.dev`), with warnings when no matching file is found.
+- README 与 `docs/COURSE_OUTLINE_3.0.md` 说明改为 Hook 方案，并新增 HTTP 耗时统计功能介绍。
+- `drun/cli.py` 与 loader 不再尝试修复或清理 `sql_validate` 字段，出现时直接报错。
+- `drun/db/database_proxy.py` 注释更新，强调仅供 Hook 复用。
+- `Runner` 结构移除 SQL 校验流程，并能在 `StepResult` 中附带 `httpstat` 数据。
+
+### Fixed
+- 模型校验现在在加载阶段就提示不再支持 `sql_validate`，避免运行期再出错。
 
 ## [0.3.9] - 2025-10-24
 
