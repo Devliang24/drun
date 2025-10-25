@@ -478,6 +478,16 @@ class Runner:
                     if not self.reveal:
                         hdrs = mask_headers(hdrs)
                     self.log.info(f"[RESPONSE] status={resp_obj.get('status_code')} elapsed={resp_obj.get('elapsed_ms'):.1f}ms")
+                    
+                    # 显示 HTTP Stat 详细耗时
+                    if self.enable_http_stat and resp_obj.get("httpstat"):
+                        from drun.reporter.console_reporter import format_httpstat
+                        httpstat_output = format_httpstat(
+                            resp_obj["httpstat"],
+                            url=str(resp_obj.get("url", ""))
+                        )
+                        self.log.info(httpstat_output)
+                    
                     if self.log_response_headers:
                         self.log.info(self._fmt_aligned("RESP", "headers", self._fmt_json(hdrs)))
                     body_preview = resp_obj.get("body")
