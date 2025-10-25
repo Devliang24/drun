@@ -104,6 +104,19 @@ def _replace_in_value(val: Any, name_map: Dict[str, str]) -> Any:
     return val
 
 
+def _strip_base_placeholder(path: Any, base_tokens: List[str]) -> Any:
+    if not isinstance(path, str):
+        return path
+    text = path.strip()
+    for token in base_tokens:
+        if token and text.startswith(token):
+            stripped = text[len(token):]
+            if not stripped.startswith("/"):
+                stripped = "/" + stripped if stripped else "/"
+            return stripped or "/"
+    return text or "/"
+
+
 def _map_postman_auth(auth_obj: Any, name_map: Dict[str, str]) -> Tuple[Dict[str, str], Dict[str, str] | None]:
     """Return (headers_update, auth_dict)."""
     if not isinstance(auth_obj, dict):
@@ -166,6 +179,14 @@ def parse_postman(
 
     env_raw, name_map = _parse_postman_env(env_text)
     variables: Dict[str, Any] = { _sanitize_var_name(k): v for k, v in env_raw.items() }
+    base_placeholder_tokens: List[str] = ["$base_url", "$BASE_URL", "$baseUrl"]
+    for key in ("base_url", "BASE_URL", "baseUrl"):
+        if key in env_raw:
+            sanitized = name_map.get(key, _sanitize_var_name(key))
+            variables.pop(sanitized, None)
+            token = f"${sanitized}"
+            if token not in base_placeholder_tokens:
+                base_placeholder_tokens.append(token)
 
     def visit(items: List[Dict[str, Any]]):
         nonlocal base_guess
@@ -182,6 +203,7 @@ def parse_postman(
             # Replace placeholders in path and params if they are strings
             if isinstance(path, str):
                 path = _replace_placeholders(path, name_map)
+                path = _strip_base_placeholder(path, base_placeholder_tokens)
             if isinstance(params, dict):
                 params = {k: _replace_placeholders(str(v), name_map) for k, v in params.items()}
 
