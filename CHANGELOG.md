@@ -6,13 +6,20 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
-## [2.0.1] - 2025-10-25
+## [2.0.2] - 2025-10-25
 
 ### Added
-- HTTP 请求耗时统计功能：`--http-stat` 开关、`docs/HTTP_STAT.md` 文档以及 JSON 报告中的 `httpstat` 字段。
+- HTTP Stat 仪表功能：启用 `--http-stat` 后采集 DNS/TCP/TLS/服务器处理等耗时，JSON 报告输出 `httpstat` 字段。
+- TimingCollector 和 HttpStat 模型，用于构建耗时分析数据；CLI 脚手架新增 `test_performance.yaml` 示例与相关文档。
+- 新增 `docs/HTTP_STAT.md`、`docs/SCAFFOLD_HTTP_STAT.md` 以及控制台 Reporter，帮助理解耗时分析结果。
 
 ### Changed
-- CLI、Runner、Reporter 等模块感知 HTTP Stat 数据，Hook/模板中可读取 `httpstat` 结构。
+- `drun init` 生成项目时包含性能测试示例和说明；`HTTPClient` 支持 `enable_http_stat` 并在步骤结果写入耗时数据。
+- 报告模型扩展 `httpstat` 字段，配套测试覆盖基础/端到端场景。
+
+## [2.0.1] - 2025-10-25 *(yanked)*
+
+> 内部构建版本，功能已由 2.0.2 覆盖，未正式发布。
 
 ## [2.0.0] - 2025-10-25
 
