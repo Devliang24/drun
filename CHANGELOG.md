@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [2.0.3] - 2025-10-25
+
+### Added
+- 控制台输出新增 HTTP Stat 汇总日志：启用 `--http-stat` 时自动打印 DNS/TCP/TLS/Server 等耗时详情。
+
+### Fixed
+- Runner 在启用 httpstat 模式下会读取 `console_reporter` 的格式化函数，避免重复实现。
+
 ## [2.0.2] - 2025-10-25
 
 ### Added
