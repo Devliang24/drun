@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [2.0.1] - 2025-10-25
+
+### Added
+- HTTP 请求耗时统计功能：`--http-stat` 开关、`docs/HTTP_STAT.md` 文档以及 JSON 报告中的 `httpstat` 字段。
+
+### Changed
+- CLI、Runner、Reporter 等模块感知 HTTP Stat 数据，Hook/模板中可读取 `httpstat` 结构。
+
 ## [2.0.0] - 2025-10-25
 
 ### Removed
