@@ -17,6 +17,12 @@ def _strip_leading_quotes(text: str) -> str:
     return text
 
 
+def _strip_wrapping_quotes(text: str) -> str:
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in ("'", '"'):
+        return text[1:-1]
+    return text
+
+
 def _is_command_start(line: str) -> bool:
     if not line:
         return False
@@ -215,17 +221,28 @@ def parse_curl_text(text: str, *, case_name: Optional[str] = None, base_url: Opt
     # Fallback: treat whole text as one command
     pieces: List[str] = []
     buf: List[str] = []
+    prev_continuation = False
     for line in text.splitlines():
-        ls = line.strip()
+        raw = line.rstrip()
+        if not raw:
+            prev_continuation = False
+            continue
+        continuation = raw.endswith("\\")
+        if continuation:
+            raw = raw[:-1]
+        ls = raw.strip()
         if not ls:
+            prev_continuation = continuation
             continue
         if ls.startswith("#"):
+            prev_continuation = False
             continue
-        if buf and _is_command_start(ls):
+        if buf and not prev_continuation and _is_command_start(ls):
             pieces.append(" ".join(buf))
             buf = [ls]
         else:
             buf.append(ls)
+        prev_continuation = continuation
     if buf:
         pieces.append(" ".join(buf))
     if not pieces and text.strip():
@@ -246,6 +263,7 @@ def parse_curl_text(text: str, *, case_name: Optional[str] = None, base_url: Opt
             tokens = shlex.split(s, posix=True)
         except Exception:
             tokens = s.split()
+        tokens = [_strip_wrapping_quotes(tok.strip()) for tok in tokens if tok]
         if tokens and tokens[0].upper() in _HTTP_METHODS and not tokens[0].startswith("-"):
             # Normalize leading HTTP method to '-X METHOD'
             method_token = tokens.pop(0).upper()
