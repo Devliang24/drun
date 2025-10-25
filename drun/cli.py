@@ -589,6 +589,8 @@ def convert_auto(
     into: Optional[str] = typer.Option(None, "--into", help="追加到已存在的 YAML 文件"),
     case_name: Optional[str] = typer.Option(None, "--case-name", help="覆盖生成的用例名称"),
     base_url: Optional[str] = typer.Option(None, "--base-url", help="覆盖生成用例的 base_url"),
+    postman_env: Optional[str] = typer.Option(None, "--postman-env", help="Postman 环境 JSON 文件，用于导入变量"),
+    suite_out: Optional[str] = typer.Option(None, "--suite-out", help="生成引用测试套件 YAML（需配合 --split-output 或 --outfile）"),
     split_output: bool = typer.Option(
         False,
         "--split-output/--single-output",
@@ -631,6 +633,8 @@ def convert_auto(
         into is not None,
         case_name is not None,
         base_url is not None,
+        postman_env is not None,
+        suite_out is not None,
         split_output,
         (redact is not None),
         placeholders,
@@ -706,8 +710,8 @@ def convert_auto(
                 split_output=split_output,
                 redact=redact,
                 placeholders=placeholders,
-                postman_env=None,
-                suite_out=None,
+                postman_env=postman_env,
+                suite_out=suite_out,
             )
     else:
         typer.echo("[CONVERT] Unrecognized file format. Supported suffixes: .curl, .har, .json")

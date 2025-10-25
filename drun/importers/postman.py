@@ -222,4 +222,7 @@ def parse_postman(
             final_base = env_raw[k]
             break
 
+    if not final_base:
+        final_base = "${ENV(BASE_URL)}"
+
     return ImportedCase(name=name, base_url=final_base, steps=steps, variables=variables or None)
