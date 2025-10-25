@@ -294,7 +294,20 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
         if ensure_body:
             _ensure_validator("ne", "$", None)
 
-        reorder_keys = ("method", "url", "headers", "params", "body", "data", "files", "auth", "timeout", "verify", "allow_redirects")
+        reorder_keys = (
+            "method",
+            "path",
+            "url",
+            "headers",
+            "params",
+            "body",
+            "data",
+            "files",
+            "auth",
+            "timeout",
+            "verify",
+            "allow_redirects",
+        )
         if isinstance(req, dict):
             reordered: Dict[str, object] = {}
             for key in reorder_keys:
