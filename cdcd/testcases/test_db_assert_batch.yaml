@@ -21,11 +21,9 @@ steps:
       method: POST
       path: /anything
       body: $body
-    extract:
-      echoed_statuses: $.json.statuses
     validate:
       - eq: [status_code, 200]
-      - eq: [$echoed_statuses, $expected_statuses]
+      - eq: [$.json.statuses, $expected_statuses]
 
   - name: 单变量（列表）
     # 以一个列表变量作为入参
@@ -38,11 +36,9 @@ steps:
       method: POST
       path: /anything
       body: $body
-    extract:
-      echoed_statuses: $.json.statuses
     validate:
       - eq: [status_code, 200]
-      - eq: [$echoed_statuses, $expected_statuses_list]
+      - eq: [$.json.statuses, $expected_statuses_list]
 
   - name: 混合与索引/切片（前两项）
     # 传入切片、以及混合单个索引
@@ -56,10 +52,7 @@ steps:
       body:
         head2: $expected_head2
         one_and_three: $expected_1_and_3
-    extract:
-      echoed_head2: $.json.head2
-      echoed_1_and_3: $.json.one_and_three
     validate:
       - eq: [status_code, 200]
-      - eq: [$echoed_head2, $expected_head2]
-      - eq: [$echoed_1_and_3, $expected_1_and_3]
+      - eq: [$.json.head2, $expected_head2]
+      - eq: [$.json.one_and_three, $expected_1_and_3]

@@ -19,11 +19,9 @@ steps:
       body:
         ids: $ids_shuffled
         statuses: $expected_shuffled
-    extract:
-      echoed_statuses: $.json.statuses
     validate:
       - eq: [status_code, 200]
-      - eq: [${sort_list($echoed_statuses)}, ${sort_list($expected_shuffled)}]
+      - eq: [$sort(json.statuses), ${sort_list($expected_shuffled)}]
 
   - name: 映射对齐（id->status）
     variables:
@@ -39,9 +37,6 @@ steps:
       body:
         records: $records
         map: ${to_map($records, 'id', 'status')}
-    extract:
-      echoed_map: $.json.map
     validate:
       - eq: [status_code, 200]
-      - eq: [$echoed_map, $expected_map_db]
-
+      - eq: [$.json.map, $expected_map_db]
