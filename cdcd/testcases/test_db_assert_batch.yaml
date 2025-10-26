@@ -22,7 +22,7 @@ steps:
       path: /anything
       body: $body
     extract:
-      echoed_statuses: $.json.body.statuses
+      echoed_statuses: $.json.statuses
     validate:
       - eq: [status_code, 200]
       - eq: [$echoed_statuses, $expected_statuses]
@@ -39,7 +39,7 @@ steps:
       path: /anything
       body: $body
     extract:
-      echoed_statuses: $.json.body.statuses
+      echoed_statuses: $.json.statuses
     validate:
       - eq: [status_code, 200]
       - eq: [$echoed_statuses, $expected_statuses_list]
@@ -57,10 +57,9 @@ steps:
         head2: $expected_head2
         one_and_three: $expected_1_and_3
     extract:
-      echoed_head2: $.json.body.head2
-      echoed_1_and_3: $.json.body.one_and_three
+      echoed_head2: $.json.head2
+      echoed_1_and_3: $.json.one_and_three
     validate:
       - eq: [status_code, 200]
       - eq: [$echoed_head2, $expected_head2]
       - eq: [$echoed_1_and_3, $expected_1_and_3]
-

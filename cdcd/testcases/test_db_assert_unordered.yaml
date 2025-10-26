@@ -1,0 +1,47 @@
+config:
+  name: 无序与映射对齐示例（排序与字典对比）
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, db, unordered]
+  variables:
+    id1: 1
+    id2: 2
+    id3: 3
+    ids: [1, 2, 3]
+
+steps:
+  - name: 无序列表比较（排序后对齐）
+    variables:
+      ids_shuffled: [$id3, $id1, $id2]
+      expected_shuffled: ${expected_sql_values($ids_shuffled, column="status")}
+    request:
+      method: POST
+      path: /anything
+      body:
+        ids: $ids_shuffled
+        statuses: $expected_shuffled
+    extract:
+      echoed_statuses: $.json.statuses
+    validate:
+      - eq: [status_code, 200]
+      - eq: [${sort_list($echoed_statuses)}, ${sort_list($expected_shuffled)}]
+
+  - name: 映射对齐（id->status）
+    variables:
+      # 按不同顺序构造记录，模拟服务端返回无序对象数组
+      records:
+        - { id: $id3, status: ${expected_sql_value($id3, column="status")} }
+        - { id: $id1, status: ${expected_sql_value($id1, column="status")} }
+        - { id: $id2, status: ${expected_sql_value($id2, column="status")} }
+      expected_map_db: ${expected_sql_map($ids, column="status")}
+    request:
+      method: POST
+      path: /anything
+      body:
+        records: $records
+        map: ${to_map($records, 'id', 'status')}
+    extract:
+      echoed_map: $.json.map
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$echoed_map, $expected_map_db]
+

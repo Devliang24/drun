@@ -308,6 +308,35 @@ def sort_list(xs):
         return xs
 
 
+def to_map(items, key_field: str, value_field: str):
+    """将 list[dict] 转换为 {key: value} 的映射。
+
+    例：to_map([{id:1,status:"active"},{id:2,status:"blocked"}], "id", "status")
+    -> {"1":"active","2":"blocked"}
+    """
+    out = {}
+    try:
+        for it in items or []:
+            if isinstance(it, dict) and key_field in it and value_field in it:
+                out[str(it[key_field])] = it[value_field]
+    except Exception:
+        pass
+    return out
+
+
+def expected_sql_map(*identifiers, query: str | None = None, column: str = "status", db_name: str = "main", role: str | None = None, default: Any | None = None):
+    """批量返回 {identifier: column_value} 的映射。
+
+    - ${expected_sql_map($id1, $id2)}
+    - ${expected_sql_map($ids)}
+    """
+    ids = _flatten_identifiers(*identifiers)
+    m = {}
+    for x in ids:
+        m[str(x)] = expected_sql_value(x, query=query, column=column, db_name=db_name, role=role, default=default)
+    return m
+
+
 # ==================== Suite 级别 Hooks ====================
 
 def suite_setup():

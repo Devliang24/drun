@@ -59,6 +59,9 @@ drun run testcases/test_db_assert.yaml
 # 运行批量 SQL 断言示例（多变量/列表/索引切片）
 drun run testcases/test_db_assert_batch.yaml
 
+# 运行无序与映射对齐示例（排序与字典对比）
+drun run testcases/test_db_assert_unordered.yaml
+
 # 运行整个测试目录
 drun run testcases
 
