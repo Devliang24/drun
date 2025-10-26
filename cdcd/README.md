@@ -62,8 +62,6 @@ drun run testcases/test_db_assert_batch.yaml
 # 运行无序与映射对齐示例（排序与字典对比）
 drun run testcases/test_db_assert_unordered.yaml
 
-# 运行列表断言示例（contains/eq/忽略顺序）
-drun run testcases/test_list_contains.yaml
 
 # 运行整个测试目录
 drun run testcases
