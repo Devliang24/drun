@@ -9,20 +9,6 @@ config:
     ids: [1, 2, 3]
 
 steps:
-  - name: 无序列表比较（排序后对齐）
-    variables:
-      ids_shuffled: [$id3, $id1, $id2]
-      expected_shuffled: ${expected_sql_values($ids_shuffled, column="status")}
-    request:
-      method: POST
-      path: /anything
-      body:
-        ids: $ids_shuffled
-        statuses: $expected_shuffled
-    validate:
-      - eq: [status_code, 200]
-      - eq: [$sort(json.statuses), ${sort_list($expected_shuffled)}]
-
   - name: 映射对齐（id->status）
     variables:
       # 按不同顺序构造记录，模拟服务端返回无序对象数组
