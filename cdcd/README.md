@@ -56,6 +56,9 @@ drun run testcases/test_api_health.yaml
 # 运行数据库断言示例
 drun run testcases/test_db_assert.yaml
 
+# 运行批量 SQL 断言示例（多变量/列表/索引切片）
+drun run testcases/test_db_assert_batch.yaml
+
 # 运行整个测试目录
 drun run testcases
 

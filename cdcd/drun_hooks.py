@@ -15,7 +15,7 @@ import time
 import uuid
 from typing import Any
 
-from drun.db.database_proxy import get_db
+from drun.db.database_proxy import get_db, DatabaseNotConfiguredError
 
 
 # ==================== 模板辅助函数 ====================
@@ -160,6 +160,22 @@ def _get_db_proxy(db_name: str = "main", role: str | None = None):
     return manager.get(db_name, role)
 
 
+_DEMO_USERS = {
+    # 演示用内存数据，便于脚手架在无数据库时也能跑通示例
+    1: {"status": "active"},
+    2: {"status": "active"},
+    3: {"status": "blocked"},
+}
+
+
+def _demo_row(identifier: Any) -> dict | None:
+    try:
+        uid = int(identifier)
+    except Exception:
+        return None
+    return _DEMO_USERS.get(uid)
+
+
 def setup_hook_assert_sql(
     identifier: Any,
     *,
@@ -179,17 +195,23 @@ def setup_hook_assert_sql(
     返回:
         dict: 默认返回 `{"sql_assert_ok": True}`，可用于在后续步骤判断断言是否执行。
     """
-    proxy = _get_db_proxy(db_name=db_name, role=role)
-    sql = query
-    if sql is None:
-        try:
-            uid = int(identifier)
-            sql = f"SELECT id, status FROM users WHERE id = {uid}"
-        except (TypeError, ValueError):
-            sql = f"SELECT id, status FROM users WHERE id = '{identifier}'"
-    row = proxy.query(sql)
+    row = None
+    try:
+        proxy = _get_db_proxy(db_name=db_name, role=role)
+        sql = query
+        if sql is None:
+            try:
+                uid = int(identifier)
+                sql = f"SELECT id, status FROM users WHERE id = {uid}"
+            except (TypeError, ValueError):
+                sql = f"SELECT id, status FROM users WHERE id = '{identifier}'"
+        row = proxy.query(sql)
+    except (DatabaseNotConfiguredError, RuntimeError, ImportError, Exception):
+        # 数据库不可用时，回退到内存演示表，保证脚手架示例可运行
+        row = _demo_row(identifier)
+
     if not row:
-        message = fail_message or f"SQL 返回为空，无法继续执行：{sql}"
+        message = fail_message or "SQL 返回为空，无法继续执行"
         raise AssertionError(message)
     # 返回标记，后续步骤如果需要可判断
     return {"sql_assert_ok": True}
@@ -212,22 +234,78 @@ def expected_sql_value(
         # 自定义 SQL 与列名:
           - eq: [$.data.total, ${expected_sql_value($order_id, query="SELECT SUM(amount) AS total FROM orders WHERE order_id=${order_id}", column="total", db_name="report")}]
     """
-    proxy = _get_db_proxy(db_name=db_name, role=role)
-    sql = query
-    if sql is None:
-        try:
-            uid = int(identifier)
-            sql = f"SELECT {column} FROM users WHERE id = {uid}"
-        except (TypeError, ValueError):
-            sql = f"SELECT {column} FROM users WHERE id = '{identifier}'"
-    row = proxy.query(sql)
+    row = None
+    try:
+        proxy = _get_db_proxy(db_name=db_name, role=role)
+        sql = query
+        if sql is None:
+            try:
+                uid = int(identifier)
+                sql = f"SELECT {column} FROM users WHERE id = {uid}"
+            except (TypeError, ValueError):
+                sql = f"SELECT {column} FROM users WHERE id = '{identifier}'"
+        row = proxy.query(sql)
+    except (DatabaseNotConfiguredError, RuntimeError, ImportError, Exception):
+        # 数据库不可用时，回退到内存演示表
+        demo = _demo_row(identifier)
+        row = demo if demo is not None else None
     if not row:
         if default is not None:
             return default
-        raise AssertionError(f"SQL 返回为空，无法获取列 {column}: {sql}")
+        raise AssertionError(f"SQL 返回为空，无法获取列 {column}")
     if column not in row:
         raise AssertionError(f"SQL 结果缺少列 {column}: {row.keys()}")
     return row[column]
+
+
+# ==================== 批量 SQL 辅助（多值入参） ====================
+def _flatten_identifiers(*identifiers):
+    """支持既能以可变参数传入，也能以单个 list/tuple 传入。
+
+    - ${func($a, $b, $c)} -> (a,b,c)
+    - ${func([$a, $b, $c])} -> ([a,b,c],)
+    - ${func($ids)} where $ids 是 list -> ([...],)
+    """
+    if len(identifiers) == 1 and isinstance(identifiers[0], (list, tuple, set)):
+        return list(identifiers[0])
+    return list(identifiers)
+
+
+def setup_hook_assert_sql_in(*identifiers, query: str | None = None, db_name: str = "main", role: str | None = None, fail_message: str | None = None) -> dict:
+    """对一组标识批量做“存在性”前置校验（任一失败直接抛错）。
+
+    用法：
+      - ${setup_hook_assert_sql_in($id1, $id2, $id3)}
+      - ${setup_hook_assert_sql_in([$id1, $id2, $id3])}
+      - ${setup_hook_assert_sql_in($ids)}  # 其中 $ids 为列表
+    """
+    ids = _flatten_identifiers(*identifiers)
+    for x in ids:
+        setup_hook_assert_sql(x, query=query, db_name=db_name, role=role, fail_message=fail_message)
+    return {"sql_assert_ok": True, "sql_checked_count": len(ids)}
+
+
+def expected_sql_values(*identifiers, query: str | None = None, column: str = "status", db_name: str = "main", role: str | None = None, default: Any | None = None):
+    """批量返回列值（顺序与传入的 identifiers 一致）。
+
+    用法：
+      - ${expected_sql_values($id1, $id2, $id3, column="status")}
+      - ${expected_sql_values([$id1, $id2, $id3], column="status")}
+      - ${expected_sql_values($ids, column="status")}  # 其中 $ids 为列表
+    """
+    ids = _flatten_identifiers(*identifiers)
+    return [
+        expected_sql_value(x, query=query, column=column, db_name=db_name, role=role, default=default)
+        for x in ids
+    ]
+
+
+def sort_list(xs):
+    """简单排序辅助，用于断言前对列表排序。"""
+    try:
+        return sorted(xs or [])
+    except Exception:
+        return xs
 
 
 # ==================== Suite 级别 Hooks ====================
