@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [2.1.1] - 2025-10-26
+
+### Added
+- 脚手架示例与 Hook 增强：
+  - 批量 SQL 断言辅助：`setup_hook_assert_sql_in(...)`、`expected_sql_values(...)`、`expected_sql_map(...)`；排序与映射工具：`sort_list(...)`、`to_map(...)`。
+  - 新增可运行示例用例：`cdcd/testcases/test_db_assert_batch.yaml`（多变量/列表/索引切片）、`cdcd/testcases/test_db_assert_unordered.yaml`（无序与映射对齐）。
+  - 在无数据库环境下提供内存演示数据回退，保证示例开箱即用。
+
+### Docs
+- 更新 `cdcd/README.md`，补充批量与无序对齐示例运行指引。
+
 ## [2.1.0] - 2025-10-25
 
 ### Removed
