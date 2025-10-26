@@ -1,5 +1,5 @@
 config:
-  name: 无序与映射对齐示例（排序与字典对比）
+  name: 无序对象数组断言示例（多 contains 与过滤器）
   base_url: ${ENV(BASE_URL)}
   tags: [demo, db, unordered]
   variables:
@@ -9,20 +9,39 @@ config:
     ids: [1, 2, 3]
 
 steps:
-  - name: 映射对齐（id->status）
+  - name: contains 对象成员（忽略顺序但逐条断言）
     variables:
-      # 按不同顺序构造记录，模拟服务端返回无序对象数组
+      s1: ${expected_sql_value($id1, column="status")}
+      s2: ${expected_sql_value($id2, column="status")}
+      s3: ${expected_sql_value($id3, column="status")}
       records:
-        - { id: $id3, status: ${expected_sql_value($id3, column="status")} }
-        - { id: $id1, status: ${expected_sql_value($id1, column="status")} }
-        - { id: $id2, status: ${expected_sql_value($id2, column="status")} }
-      expected_map_db: ${expected_sql_map($ids, column="status")}
+        - { id: $id3, status: $s3 }
+        - { id: $id1, status: $s1 }
+        - { id: $id2, status: $s2 }
     request:
       method: POST
       path: /anything
       body:
         records: $records
-        map: ${to_map($records, 'id', 'status')}
     validate:
       - eq: [status_code, 200]
-      - eq: [$.json.map, $expected_map_db]
+      - contains: [$.json.records, {id: $id1, status: $s1}]
+      - contains: [$.json.records, {id: $id2, status: $s2}]
+      - contains: [$.json.records, {id: $id3, status: $s3}]
+      - len_eq: [$.json.records, 3]
+
+  - name: 过滤器精确校验（按 id 取 status）
+    # 用 JMESPath 过滤器定位元素，再比对其字段；顺序无关
+    request:
+      method: POST
+      path: /anything
+      body:
+        records:
+          - { id: $id2, status: $s2 }
+          - { id: $id3, status: $s3 }
+          - { id: $id1, status: $s1 }
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.json.records[?id==`1`].status[0], $s1]
+      - eq: [$.json.records[?id==`2`].status[0], $s2]
+      - eq: [$.json.records[?id==`3`].status[0], $s3]

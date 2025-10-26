@@ -59,7 +59,7 @@ drun run testcases/test_db_assert.yaml
 # 运行批量 SQL 断言示例（多变量/列表/索引切片）
 drun run testcases/test_db_assert_batch.yaml
 
-# 运行映射对齐示例（id→status 字典比对）
+# 运行无序对象数组断言示例（多 contains 与过滤器）
 drun run testcases/test_db_assert_unordered.yaml
 
 
