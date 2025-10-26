@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, List
+import re
 from pydantic import BaseModel
 
 
@@ -24,6 +25,12 @@ def normalize_validators(items: List[Any]) -> List[Validator]:
             if not isinstance(payload, (list, tuple)) or len(payload) != 2:
                 raise ValueError(f"Validator payload must be a list of [check, expect]: {payload!r}")
             check, expect = payload
+            # Disallow order-agnostic tricks using JMESPath sort/sort_by in check side
+            if isinstance(check, str):
+                s = check.strip()
+                # Pattern examples: $sort(json.a), $sort_by(items,&k), sort($.a), $.a | sort(@)
+                if re.search(r"\bsort_by\s*\(|\bsort\s*\(", s):
+                    raise ValueError("Order-agnostic comparison is disabled: 'sort'/'sort_by' are not allowed in checks. Use explicit map alignment or multiple contains.")
             out.append(Validator(check=check, comparator=str(comparator), expect=expect))
             continue
         raise ValueError(f"Invalid validator item: {it!r}")

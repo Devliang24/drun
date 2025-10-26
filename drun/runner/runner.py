@@ -127,6 +127,15 @@ class Runner:
         e = expr.strip()
         if not e.startswith("$"):
             return None
+        # Disallow order-agnostic JMESPath functions (sort/sort_by)
+        body_expr = e[1:].strip()
+        try:
+            import re as _re
+            if _re.search(r"\bsort_by\s*\(|\bsort\s*\(", body_expr):
+                raise ValueError("JMESPath 'sort'/'sort_by' functions are disabled. Use explicit alignment.")
+        except Exception:
+            # best-effort; fall through
+            pass
         if e in ("$", "$body"):
             return resp.get("body")
         if e == "$headers":
