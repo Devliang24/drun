@@ -59,6 +59,134 @@ def _build_assert_table(asserts: List[AssertionResult]) -> str:
     return f"<table class='assert-table'>{thead}<tbody>{''.join(rows)}</tbody></table>"
 
 
+def _extract_merged_content(events: List[Dict[str, Any]]) -> str:
+    """Extract and merge text content from stream events"""
+    contents = []
+    for event in events:
+        data = event.get("data")
+        if not isinstance(data, dict):
+            continue
+        
+        # Support multiple formats: OpenAI choices[0].delta.content, or direct content/text
+        try:
+            choice = data.get("choices", [{}])[0] if "choices" in data else {}
+            delta = choice.get("delta", {}) if "delta" in choice else choice
+            content = delta.get("content") or delta.get("text") or data.get("content") or data.get("text")
+            
+            if content:
+                contents.append(str(content))
+        except (IndexError, KeyError, TypeError):
+            pass
+    
+    return "".join(contents) if contents else "(无文本内容)"
+
+
+def _build_stream_response_panel(response_map: Dict[str, Any]) -> str:
+    """Build streaming response panel with multiple views"""
+    stream_events = response_map.get("stream_events", [])
+    stream_summary = response_map.get("stream_summary", {})
+    raw_chunks = response_map.get("stream_raw_chunks", [])
+    
+    event_count = len(stream_events)
+    first_chunk_ms = stream_summary.get("first_chunk_ms", 0)
+    
+    # Stats badges
+    stats_html = (
+        "<span class='stream-stats'>"
+        f"<span class='badge-mini'>{event_count} events</span>"
+        f"<span class='badge-mini'>首包 {first_chunk_ms:.0f}ms</span>"
+        "</span>"
+    )
+    
+    # Build View 1: Events list
+    events_html_list = []
+    for idx, event in enumerate(stream_events):
+        event_data = event.get("data")
+        event_type = event.get("event", "message")
+        event_time = event.get("timestamp_ms", 0)
+        is_final = (idx == len(stream_events) - 1)
+        is_done = event_data is None or str(event_data) == "[DONE]"
+        
+        if is_done:
+            event_json = "[DONE]"
+        else:
+            event_json = _json(event_data)
+        
+        final_class = " final" if is_final else ""
+        done_badge = " done" if is_done else ""
+        
+        events_html_list.append(
+            f"<div class='event-item{final_class}'>"
+            f"<div class='event-meta'>"
+            f"<span class='event-num'>#{idx+1}</span>"
+            f"<span class='event-time'>+{event_time:.0f}ms</span>"
+            f"<span class='event-badge{done_badge}'>{_escape_html(event_type)}</span>"
+            f"</div>"
+            f"<pre data-raw=\"{_escape_html(event_json)}\"><code>{_escape_html(event_json)}</code></pre>"
+            f"</div>"
+        )
+    
+    events_view = (
+        "<div class='view-content' data-view='events'>"
+        "<div class='stream-events'>"
+        + "".join(events_html_list)
+        + "</div></div>"
+    )
+    
+    # Build View 2: Merged content
+    merged_content = _extract_merged_content(stream_events)
+    merged_view = (
+        "<div class='view-content' data-view='merged' style='display:none;'>"
+        f"<pre data-raw=\"{_escape_html(merged_content)}\"><code>{_escape_html(merged_content)}</code></pre>"
+        "</div>"
+    )
+    
+    # Build View 3: Raw SSE
+    raw_text = "".join(raw_chunks) if raw_chunks else "(无原始数据)"
+    raw_view = (
+        "<div class='view-content' data-view='raw' style='display:none;'>"
+        f"<pre data-raw=\"{_escape_html(raw_text)}\"><code>{_escape_html(raw_text)}</code></pre>"
+        "</div>"
+    )
+    
+    # Build View 4: JSON array
+    json_array = _json(stream_events)
+    json_view = (
+        "<div class='view-content' data-view='json' style='display:none;'>"
+        f"<pre data-raw=\"{_escape_html(json_array)}\"><code>{_escape_html(json_array)}</code></pre>"
+        "</div>"
+    )
+    
+    # Assemble complete panel
+    return (
+        "<div class='panel' data-section='response-body' data-stream='true'>"
+        f"<div class='p-head'>"
+        f"<span>响应体 (流式)</span>"
+        f"{stats_html}"
+        f"<span class='actions'>"
+        f"<button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button>"
+        f"</span>"
+        f"</div>"
+        # Tab bar
+        "<div class='view-tabs'>"
+        "<button class='tab-btn active' data-view='events' onclick=\"window.switchView && window.switchView(this, 'events')\">"
+        "<span class='tab-icon'>📋</span> 事件列表</button>"
+        "<button class='tab-btn' data-view='merged' onclick=\"window.switchView && window.switchView(this, 'merged')\">"
+        "<span class='tab-icon'>📝</span> 合并内容</button>"
+        "<button class='tab-btn' data-view='raw' onclick=\"window.switchView && window.switchView(this, 'raw')\">"
+        "<span class='tab-icon'>🔧</span> 原始 SSE</button>"
+        "<button class='tab-btn' data-view='json' onclick=\"window.switchView && window.switchView(this, 'json')\">"
+        "<span class='tab-icon'>{ }</span> JSON 数组</button>"
+        "</div>"
+        # View contents
+        + events_view
+        + merged_view
+        + raw_view
+        + json_view
+        + "</div>"
+    )
+
+
 def _build_step(step: StepResult) -> str:
     pass_cnt = sum(1 for a in (step.asserts or []) if a.passed)
     fail_cnt = sum(1 for a in (step.asserts or []) if not a.passed)
@@ -148,12 +276,20 @@ def _build_step(step: StepResult) -> str:
         "</div>"
     )
 
-    response_panel = (
-        "<div class='panel' data-section='response-body'>"
-        f"<div class='p-head'><span>{resp_title}</span><span class='actions'><button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button></span></div>"
-        f"<pre data-raw=\"{_escape_html(resp_body_json)}\"><code>{_escape_html(resp_body_display)}</code></pre>"
-        "</div>"
-    )
+    # Check if response is streaming
+    is_stream = response_map.get("is_stream", False) if isinstance(response_map, dict) else False
+    
+    if is_stream:
+        # Use streaming response panel with view tabs
+        response_panel = _build_stream_response_panel(response_map)
+    else:
+        # Use regular response panel
+        response_panel = (
+            "<div class='panel' data-section='response-body'>"
+            f"<div class='p-head'><span>{resp_title}</span><span class='actions'><button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button></span></div>"
+            f"<pre data-raw=\"{_escape_html(resp_body_json)}\"><code>{_escape_html(resp_body_display)}</code></pre>"
+            "</div>"
+        )
 
     if headers_payload:
         panels.append(
@@ -320,6 +456,25 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
   .panel .p-head button.copy-failed { border-color:var(--fail); background:#ffebe9; color:var(--fail); font-weight:500; }
   .footer { margin-top: 24px; color: var(--muted); font-size: 12px; }
   .collapsed .body { display: none; }
+  /* Streaming response styles */
+  .stream-stats { display: flex; gap: 6px; margin-left: auto; margin-right: 8px; }
+  .badge-mini { font-size: 11px; padding: 2px 7px; background: var(--chip-bg); border: 1px solid var(--border); border-radius: 4px; color: var(--muted); white-space: nowrap; }
+  .view-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); background: var(--panel-head-bg); padding: 0 8px; }
+  .tab-btn { padding: 8px 14px; border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; transition: all 0.2s ease; border-bottom: 2px solid transparent; margin-bottom: -2px; display: flex; align-items: center; gap: 6px; }
+  .tab-btn:hover { color: var(--fg); background: var(--card); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+  .tab-icon { font-size: 14px; line-height: 1; }
+  .view-content { padding: 10px; max-height: 600px; overflow-y: auto; }
+  .stream-events { display: flex; flex-direction: column; gap: 10px; }
+  .event-item { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; transition: box-shadow 0.2s ease; }
+  .event-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .event-item.final { border-color: var(--ok); background: rgba(26, 127, 55, 0.02); }
+  .event-meta { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: var(--panel-head-bg); border-bottom: 1px solid var(--border); font-size: 12px; }
+  .event-num { font-weight: 600; color: var(--accent); min-width: 28px; }
+  .event-time { color: var(--muted); font-family: monospace; font-size: 11px; }
+  .event-badge { background: var(--chip-bg); padding: 2px 8px; border-radius: 999px; color: var(--muted); font-size: 11px; border: 1px solid var(--border); }
+  .event-badge.done { background: rgba(26, 127, 55, 0.1); color: var(--ok); border-color: var(--ok); }
+  .event-item pre { margin: 0; padding: 10px; background: var(--bg); font-size: 12px; max-height: 200px; overflow-y: auto; }
 </style>
 <script>(function(){
   function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -379,6 +534,25 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
     }, 1500);
   }
   window.toggleStepBody = function(headEl){ var step=headEl && headEl.closest ? headEl.closest('.step') : null; if(!step) return; step.classList.toggle('collapsed'); };
+  // Switch view in streaming response panel
+  window.switchView = function(btn, viewName){
+    try{
+      var panel = btn.closest ? btn.closest('.panel') : null;
+      if(!panel) return;
+      // Update tab states
+      var tabs = panel.querySelectorAll('.tab-btn');
+      forEachNode(tabs, function(tab){
+        if(tab.classList){ tab.classList.remove('active'); }
+      });
+      if(btn.classList){ btn.classList.add('active'); }
+      // Switch content display
+      var contents = panel.querySelectorAll('.view-content');
+      forEachNode(contents, function(content){
+        var isTarget = content.getAttribute('data-view') === viewName;
+        if(content.style){ content.style.display = isTarget ? 'block' : 'none'; }
+      });
+    }catch(e){ /* ignore */ }
+  };
   function forEachNode(list, cb){
     if(!list || !cb) return;
     if(typeof list.forEach === 'function'){
@@ -397,9 +571,54 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
     try{
       var panel=closestPanel(btn);
       if(!panel) return;
-      var pre=panel.querySelector('pre');
-      if(!pre) return;
-      var text=pre.getAttribute('data-raw') || pre.innerText || pre.textContent || '';
+      var text = '';
+      var targetEl = null;
+      
+      // Check if this is a streaming panel with multiple views
+      var isStream = panel.getAttribute('data-stream') === 'true';
+      if(isStream){
+        // Find visible view
+        var visibleView = null;
+        var views = panel.querySelectorAll('.view-content');
+        forEachNode(views, function(v){
+          var display = v.style && v.style.display;
+          if(display !== 'none'){
+            visibleView = v;
+          }
+        });
+        
+        if(visibleView){
+          var viewType = visibleView.getAttribute('data-view');
+          // Special handling for events view: copy as JSON array
+          if(viewType === 'events'){
+            var events = [];
+            var eventPres = visibleView.querySelectorAll('.event-item pre');
+            forEachNode(eventPres, function(eventPre){
+              var raw = eventPre.getAttribute('data-raw');
+              if(raw && raw !== '[DONE]'){
+                try{ events.push(JSON.parse(raw)); }catch(_){ events.push(raw); }
+              }
+            });
+            text = JSON.stringify(events, null, 2);
+            targetEl = visibleView;
+          } else {
+            // For other views, use data-raw or text content
+            var pre = visibleView.querySelector('pre');
+            if(pre){
+              text = pre.getAttribute('data-raw') || pre.innerText || pre.textContent || '';
+              targetEl = pre;
+            }
+          }
+        }
+      } else {
+        // Regular panel: use first pre element
+        var pre=panel.querySelector('pre');
+        if(pre){
+          text=pre.getAttribute('data-raw') || pre.innerText || pre.textContent || '';
+          targetEl = pre;
+        }
+      }
+      
       if(!text) return;
       var did=false;
       try{
@@ -409,14 +628,14 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
             showCopied(btn);
           }).catch(function(){
             if(fallbackCopy(text)) { showCopied(btn); }
-            else { selectForManual(pre, btn); }
+            else { selectForManual(targetEl || panel, btn); }
           });
           did=true;
         }
       }catch(_){ /* ignore */ }
       if(!did){
         if(fallbackCopy(text)) { showCopied(btn); }
-        else { selectForManual(pre, btn); }
+        else { selectForManual(targetEl || panel, btn); }
       }
     }catch(e){
       showCopyFailed(btn);

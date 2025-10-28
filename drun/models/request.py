@@ -19,3 +19,5 @@ class StepRequest(BaseModel):
     timeout: Optional[float] = None
     verify: Optional[bool] = None
     allow_redirects: Optional[bool] = None
+    stream: bool = False  # Enable streaming mode for SSE
+    stream_timeout: Optional[float] = None  # Streaming timeout in seconds

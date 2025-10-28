@@ -156,10 +156,33 @@ class Runner:
                 if h_key.lower() == key_lower:
                     return h_val
             return None
+        
+        # Streaming-specific fields
+        if e.startswith("$stream_events"):
+            # Support $.stream_events[0].data or $stream_events[0].data
+            if e == "$stream_events":
+                return resp.get("stream_events")
+            # Use JMESPath for nested access: $.stream_events[0].data -> stream_events[0].data
+            jexpr = e[2:] if e.startswith("$.") else e[1:]
+            return extract_from_body(resp, jexpr)
+        if e.startswith("$stream_summary"):
+            # Support $.stream_summary.event_count or $stream_summary.first_chunk_ms
+            if e == "$stream_summary":
+                return resp.get("stream_summary")
+            jexpr = e[2:] if e.startswith("$.") else e[1:]
+            return extract_from_body(resp, jexpr)
+        if e == "$stream_raw_chunks":
+            return resp.get("stream_raw_chunks")
+        
         # JSON body via JSONPath-like: $.a.b or $[0].id -> jmespath a.b / [0].id
         body = resp.get("body")
         if e.startswith("$."):
             jexpr = e[2:]
+            # For streaming responses, try extracting from full response first
+            if resp.get("is_stream"):
+                result = extract_from_body(resp, jexpr)
+                if result is not None:
+                    return result
             return extract_from_body(body, jexpr)
         if e.startswith("$["):
             jexpr = e[1:]  # e.g. $[0].id -> [0].id
@@ -484,21 +507,45 @@ class Runner:
                     hdrs = resp_obj.get("headers") or {}
                     if not self.reveal:
                         hdrs = mask_headers(hdrs)
-                    self.log.info(f"[RESPONSE] status={resp_obj.get('status_code')} elapsed={resp_obj.get('elapsed_ms'):.1f}ms")
+                    
+                    # Check if streaming response
+                    is_stream = resp_obj.get("is_stream", False)
+                    if is_stream:
+                        stream_summary = resp_obj.get("stream_summary", {})
+                        event_count = stream_summary.get("event_count", 0)
+                        first_chunk_ms = stream_summary.get("first_chunk_ms", 0)
+                        self.log.info(f"[RESPONSE] status={resp_obj.get('status_code')} elapsed={resp_obj.get('elapsed_ms'):.1f}ms (streaming: {event_count} events, first chunk: {first_chunk_ms:.1f}ms)")
+                    else:
+                        self.log.info(f"[RESPONSE] status={resp_obj.get('status_code')} elapsed={resp_obj.get('elapsed_ms'):.1f}ms")
                     
                     if self.log_response_headers:
                         self.log.info(self._fmt_aligned("RESP", "headers", self._fmt_json(hdrs)))
-                    body_preview = resp_obj.get("body")
-                    if isinstance(body_preview, (dict, list)):
-                        out_body = body_preview
-                        if not self.reveal:
-                            out_body = mask_body(out_body)
-                        self.log.info(self._fmt_aligned("RESP", "body", self._fmt_json(out_body)))
-                    elif body_preview is not None:
-                        text = str(body_preview)
-                        if len(text) > 2000:
-                            text = text[:2000] + "..."
-                        self.log.info(self._fmt_aligned("RESP", "text", text))
+                    
+                    if is_stream:
+                        # For streaming, show summary instead of full events
+                        stream_events = resp_obj.get("stream_events", [])
+                        if stream_events:
+                            self.log.info(f"[STREAM] {len(stream_events)} events received")
+                            # Show first and last events
+                            if len(stream_events) > 0:
+                                first_event = stream_events[0]
+                                self.log.info(self._fmt_aligned("STREAM", "first event", self._fmt_json(first_event)))
+                            if len(stream_events) > 1:
+                                last_event = stream_events[-1]
+                                self.log.info(self._fmt_aligned("STREAM", "last event", self._fmt_json(last_event)))
+                    else:
+                        # Regular response body logging
+                        body_preview = resp_obj.get("body")
+                        if isinstance(body_preview, (dict, list)):
+                            out_body = body_preview
+                            if not self.reveal:
+                                out_body = mask_body(out_body)
+                            self.log.info(self._fmt_aligned("RESP", "body", self._fmt_json(out_body)))
+                        elif body_preview is not None:
+                            text = str(body_preview)
+                            if len(text) > 2000:
+                                text = text[:2000] + "..."
+                            self.log.info(self._fmt_aligned("RESP", "text", text))
 
                 # extracts ($-only syntax) - moved before validation to allow using extracted vars in validate
                 extracts: Dict[str, Any] = {}
@@ -587,6 +634,32 @@ class Runner:
                 body_masked = resp_obj.get("body")
                 if not self.reveal:
                     body_masked = mask_body(body_masked)
+                
+                # Build response dict - include streaming fields if present
+                response_dict = {
+                    "status_code": resp_obj.get("status_code"),
+                }
+                
+                # Check if streaming response
+                if resp_obj.get("is_stream"):
+                    response_dict["is_stream"] = True
+                    response_dict["stream_events"] = resp_obj.get("stream_events", [])
+                    response_dict["stream_summary"] = resp_obj.get("stream_summary", {})
+                    response_dict["stream_raw_chunks"] = resp_obj.get("stream_raw_chunks", [])
+                    # Optionally mask streaming data if needed
+                    if not self.reveal:
+                        # Mask sensitive data in stream events
+                        masked_events = []
+                        for event in response_dict["stream_events"]:
+                            masked_event = event.copy()
+                            if isinstance(masked_event.get("data"), (dict, list)):
+                                masked_event["data"] = mask_body(masked_event["data"])
+                            masked_events.append(masked_event)
+                        response_dict["stream_events"] = masked_events
+                else:
+                    # Regular response body
+                    response_dict["body"] = body_masked if isinstance(body_masked, (dict, list)) else (str(body_masked)[:2048] if body_masked else None)
+                
                 # Build curl command for the step (always available in report)
                 url_rendered = resp_obj.get("url") or req_rendered.get("path")
                 curl_headers = req_rendered.get("headers") or {}
@@ -612,10 +685,7 @@ class Runner:
                         for k, v in req_rendered.items()
                         if k in ("method", "path", "url", "params", "headers", "body", "data")
                     },
-                    response={
-                        "status_code": resp_obj.get("status_code"),
-                        "body": body_masked if isinstance(body_masked, (dict, list)) else (str(body_masked)[:2048] if body_masked else None),
-                    },
+                    response=response_dict,
                     curl=curl,
                     asserts=assertions,
                     extracts=extracts,
