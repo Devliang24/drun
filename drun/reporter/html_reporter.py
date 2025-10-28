@@ -4,7 +4,7 @@ import json
 import time
 import os
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Dict
 
 from drun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult
 

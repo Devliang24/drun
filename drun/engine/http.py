@@ -160,8 +160,10 @@ class HTTPClient:
                 headers=headers,
                 json=json_data,
                 data=data,
+                files=files,
                 timeout=actual_timeout,
                 follow_redirects=bool(allow_redirects),
+                auth=auth_tuple,
             ) as resp:
                 elapsed_ms = (time.perf_counter() - start_time) * 1000.0
                 
