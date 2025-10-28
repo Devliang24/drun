@@ -1752,6 +1752,9 @@ def init_project(
     # testcases/test_stream.yaml
     _write_template("testcases/test_stream.yaml", scaffolds.STREAM_TESTCASE)
 
+    # testcases/test_assertions.yaml
+    _write_template("testcases/test_assertions.yaml", scaffolds.ASSERTIONS_TESTCASE)
+
     # data/users.csv
     _write_template("data/users.csv", scaffolds.CSV_USERS_SAMPLE)
 

@@ -5,6 +5,7 @@ Drun 项目脚手架模板集合。
 """
 
 from .templates import (
+    ASSERTIONS_TESTCASE,
     CONVERTS_README,
     CSV_DATA_TESTCASE,
     CSV_DATA_TESTSUITE,
@@ -27,6 +28,7 @@ from .templates import (
 )
 
 __all__ = [
+    "ASSERTIONS_TESTCASE",
     "CONVERTS_README",
     "CSV_DATA_TESTCASE",
     "CSV_DATA_TESTSUITE",
