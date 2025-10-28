@@ -563,9 +563,15 @@ class Runner:
                 step_failed = False
                 for v in step.validators:
                     rendered_check = self._render(v.check, variables, funcs, envmap)
-                    check_str = rendered_check if isinstance(rendered_check, str) else str(v.check)
+                    # If rendered_check is not a string, it's already a value (e.g., extracted variable)
+                    # Use it directly as actual instead of trying to resolve from response
+                    if not isinstance(rendered_check, str):
+                        actual = rendered_check
+                        check_str = str(v.check)
+                    else:
+                        check_str = rendered_check
+                        actual = self._resolve_check(check_str, resp_obj)
                     expect_rendered = self._render(v.expect, variables, funcs, envmap)
-                    actual = self._resolve_check(check_str, resp_obj)
                     passed, err = compare(v.comparator, actual, expect_rendered)
                     msg = err
                     if not passed and msg is None:

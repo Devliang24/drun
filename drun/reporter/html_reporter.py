@@ -44,14 +44,28 @@ def _escape_html(text: str) -> str:
     )
 
 
+def _format_assert_value(value: Any) -> str:
+    """Format assertion value: strings without quotes, others with JSON"""
+    if value is None:
+        return "null"
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    # For lists and dicts, use JSON formatting
+    return json.dumps(value, ensure_ascii=False)
+
+
 def _build_assert_table(asserts: List[AssertionResult]) -> str:
     rows = []
     for a in asserts or []:
         cells = [
             f"<td><code>{_escape_html(str(a.check))}</code></td>",
             f"<td><code>{_escape_html(str(a.comparator))}</code></td>",
-            f"<td><code>{_escape_html(json.dumps(a.expect, ensure_ascii=False))}</code></td>",
-            f"<td><code>{_escape_html(json.dumps(a.actual, ensure_ascii=False))}</code></td>",
+            f"<td><code>{_escape_html(_format_assert_value(a.expect))}</code></td>",
+            f"<td><code>{_escape_html(_format_assert_value(a.actual))}</code></td>",
             ("<td><span class='ok'>✓</span></td>" if a.passed else f"<td><span class='err' title='{_escape_html(a.message or '')}'>✗</span></td>")
         ]
         rows.append("<tr " + ("data-pass=1" if a.passed else "data-pass=0") + ">" + "".join(cells) + "</tr>")
@@ -428,14 +442,14 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
   .panel .p-head { padding:6px 8px; background:var(--panel-head-bg); color:var(--muted); font-size:12px; display:flex; justify-content:space-between; align-items:center; }
   .panel .p-head .actions { display:flex; gap:6px; }
   .panel pre, .panel table { margin:0; padding:10px; overflow:auto; max-height: 360px; }
-  .panel[data-section='curl'] pre { white-space: pre-wrap; word-break: break-word; }
+  .panel[data-section='curl'] pre { white-space: pre; overflow-x: auto; word-break: normal; }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   th { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; text-align: left; font-weight: 600; }
   td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; word-break: break-word; }
-  .assert-table th:nth-child(1), .assert-table td:nth-child(1) { width: 25%; }
-  .assert-table th:nth-child(2), .assert-table td:nth-child(2) { width: 10%; }
-  .assert-table th:nth-child(3), .assert-table td:nth-child(3) { width: 25%; }
-  .assert-table th:nth-child(4), .assert-table td:nth-child(4) { width: 25%; }
+  .assert-table th:nth-child(1), .assert-table td:nth-child(1) { width: 23%; }
+  .assert-table th:nth-child(2), .assert-table td:nth-child(2) { width: 15%; }
+  .assert-table th:nth-child(3), .assert-table td:nth-child(3) { width: 23%; }
+  .assert-table th:nth-child(4), .assert-table td:nth-child(4) { width: 24%; }
   .assert-table th:nth-child(5), .assert-table td:nth-child(5) { width: 15%; text-align: center; }
   .ok { color: var(--ok); }
   .err { color: var(--fail); }

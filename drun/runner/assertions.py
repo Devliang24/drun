@@ -23,6 +23,19 @@ def op_ge(a: Any, b: Any) -> bool: return a >= b
 def op_len_eq(a: Any, b: Any) -> bool: return _len(a) == int(b)
 def op_in(a: Any, b: Any) -> bool: return a in b if b is not None else False
 def op_not_in(a: Any, b: Any) -> bool: return a not in b if b is not None else True
+def op_contains_all(a: Any, b: Any) -> bool:
+    """Check if all elements in list a contain string b"""
+    if not isinstance(a, list):
+        return False
+    if not b:
+        return False
+    return all(str(b) in str(item) for item in a)
+def op_match_regex_all(a: Any, b: Any) -> bool:
+    """Check if all elements in list a match regex pattern b"""
+    if not isinstance(a, list):
+        return False
+    pattern = str(b)
+    return all(bool(re.search(pattern, str(item))) for item in a)
 
 
 OPS: Dict[str, Callable[[Any, Any], bool]] = {
@@ -38,6 +51,8 @@ OPS: Dict[str, Callable[[Any, Any], bool]] = {
     "len_eq": op_len_eq,
     "in": op_in,
     "not_in": op_not_in,
+    "contains_all": op_contains_all,
+    "match_regex_all": op_match_regex_all,
 }
 
 
