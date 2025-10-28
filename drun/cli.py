@@ -1675,6 +1675,9 @@ def init_project(
         drun init --force            # 强制覆盖已存在文件
     """
     from drun import scaffolds
+    
+    # Display version
+    typer.echo(f"Drun v{_get_drun_version()}\n")
 
     # 确定目标目录
     if name:
@@ -1746,9 +1749,6 @@ def init_project(
     # testcases/test_api_health.yaml
     _write_template("testcases/test_api_health.yaml", scaffolds.HEALTH_TESTCASE)
 
-    # testcases/test_performance.yaml
-    _write_template("testcases/test_performance.yaml", scaffolds.PERF_TESTCASE)
-
     # testcases/test_stream.yaml
     _write_template("testcases/test_stream.yaml", scaffolds.STREAM_TESTCASE)
 
@@ -1804,7 +1804,6 @@ def init_project(
         ("├── ", "testcases/", ""),
         ("│   ├── ", "test_demo.yaml", "完整认证流程示例"),
         ("│   ├── ", "test_api_health.yaml", "健康检查示例"),
-        ("│   ├── ", "test_performance.yaml", "HTTP 性能分析示例"),
         ("│   ├── ", "test_stream.yaml", "流式响应 (SSE) 示例"),
         ("│   ├── ", "test_db_assert.yaml", "数据库断言示例"),
         ("│   └── ", "test_import_users.yaml", "CSV 参数化示例"),
