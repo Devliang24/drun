@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [2.1.2] - 2025-10-28
+
+### Fixed
+- Streaming SSE: forward Basic/Bearer credentials by passing `auth=auth_tuple` to `httpx.stream`, and align options by forwarding `files=files`.
+- HTML reporter: import `typing.Dict` to avoid `NameError` when rendering streaming response panel.
+
 ## [2.1.1] - 2025-10-26
 
 ### Added
