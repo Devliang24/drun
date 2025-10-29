@@ -1677,7 +1677,7 @@ def init_project(
     from drun import scaffolds
     
     # Display version
-    typer.echo(f"Drun v{_get_drun_version()}\n")
+    typer.echo(f"Drun v{_get_drun_version()}")
 
     # 确定目标目录
     if name:
@@ -1809,7 +1809,8 @@ def init_project(
         ("│   ├── ", "test_api_health.yaml", "健康检查示例"),
         ("│   ├── ", "test_stream.yaml", "流式响应 (SSE) 示例"),
         ("│   ├── ", "test_db_assert.yaml", "数据库断言示例"),
-        ("│   └── ", "test_import_users.yaml", "CSV 参数化示例"),
+        ("│   ├── ", "test_import_users.yaml", "CSV 参数化示例"),
+        ("│   └── ", "test_assertions.yaml", "断言操作符完整示例"),
         ("├── ", "testsuites/", ""),
         ("│   ├── ", "testsuite_smoke.yaml", "冒烟测试套件"),
         ("│   └── ", "testsuite_csv.yaml", "CSV 示例套件"),
@@ -1865,20 +1866,10 @@ def init_project(
     if name:
         typer.echo(f"  cd {name}")
     typer.echo("  drun run testcases/test_api_health.yaml")
-    # httpstat 功能已删除
-    typer.echo("  drun run testcases/test_stream.yaml      # 流式响应 (SSE) 示例")
-    typer.echo("  drun run testcases/test_db_assert.yaml   # 数据库断言示例")
-    typer.echo("  drun run testcases/test_import_users.yaml  # CSV 数据驱动示例")
-    typer.echo("")
-    typer.echo("格式转换 (查看 converts/README.md 获取详细说明):")
-    typer.echo("  - cURL 转用例:")
-    typer.echo("    drun convert converts/curl/sample.curl --outfile testcases/new_test.yaml")
-    typer.echo("  - Postman 转用例:")
-    typer.echo("    drun convert converts/postman/sample_collection.json --split-output --suite-out testsuites/new_suite.yaml")
-    typer.echo("  - HAR 转用例:")
-    typer.echo("    drun convert converts/har/sample_recording.har --exclude-static --only-2xx --outfile testcases/from_har.yaml")
-    typer.echo("  - OpenAPI 转用例:")
-    typer.echo("    drun convert-openapi converts/openapi/sample_openapi.json --split-output --outfile testcases/from_openapi.yaml")
+    typer.echo("  drun run testcases/test_stream.yaml")
+    typer.echo("  drun run testcases/test_db_assert.yaml")
+    typer.echo("  drun run testcases/test_import_users.yaml")
+    typer.echo("  drun run testcases/test_assertions.yaml")
     typer.echo("")
     typer.echo("文档: https://github.com/Devliang24/drun")
 
