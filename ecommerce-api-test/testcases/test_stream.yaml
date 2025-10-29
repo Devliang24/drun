@@ -1,0 +1,74 @@
+config:
+  name: 流式响应测试示例
+  base_url: ${ENV(BASE_URL)}
+  tags: [stream, demo]
+  variables:
+    api_key: ${ENV(API_KEY, demo-key)}
+
+steps:
+  - name: 流式聊天对话
+    request:
+      method: POST
+      path: /v1/chat/completions
+      headers:
+        Authorization: Bearer $api_key
+        Content-Type: application/json
+      body:
+        model: "gpt-3.5-turbo"
+        messages:
+          - role: user
+            content: "你好，请简单介绍一下自己"
+        stream: true          # API 参数：启用流式响应
+      stream: true            # Drun 配置：启用流式处理
+      stream_timeout: 30      # 流式超时（秒）
+    
+    extract:
+      # 提取第一个事件的内容
+      first_content: $.stream_events[0].data.choices[0].delta.content
+      # 提取最后一个事件的完成原因
+      finish_reason: $.stream_events[-1].data.choices[0].finish_reason
+      # 提取事件总数
+      event_count: $.stream_summary.event_count
+      # 提取首包时间
+      first_chunk_ms: $.stream_summary.first_chunk_ms
+    
+    validate:
+      # 验证 HTTP 状态码
+      - eq: [status_code, 200]
+      
+      # 验证至少收到一个事件
+      - gt: [$event_count, 0]
+      
+      # 验证首包响应时间（毫秒）
+      - lt: [$first_chunk_ms, 2000]
+      
+      # 验证总耗时（毫秒）
+      
+      # 验证正常结束（如果 API 支持）
+      # - eq: [$finish_reason, "stop"]
+
+  - name: 流式响应性能测试
+    request:
+      method: POST
+      path: /v1/chat/completions
+      headers:
+        Authorization: Bearer $api_key
+      body:
+        model: "gpt-3.5-turbo"
+        messages:
+          - role: user
+            content: "计数到 10"
+        stream: true
+      stream: true
+      stream_timeout: 20
+    
+    extract:
+      total_events: $.stream_summary.event_count
+      time_to_first: $.stream_summary.first_chunk_ms
+      time_to_last: $.stream_summary.last_chunk_ms
+    
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$total_events, 5]              # 至少 5 个事件
+      - lt: [$time_to_first, 1000]          # 首包 < 1s
+      - gt: [$time_to_last, $time_to_first] # 末包晚于首包

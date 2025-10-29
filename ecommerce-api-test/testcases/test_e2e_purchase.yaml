@@ -1,0 +1,181 @@
+config:
+  name: E2E完整购物流程测试（含SQL断言）
+  base_url: ${ENV(BASE_URL)}
+  tags: [e2e, critical, sql]
+  variables:
+    test_username: e2e_user_${short_uid(8)}
+    test_email: e2e_${short_uid(8)}@example.com
+    test_password: ${ENV(USER_PASSWORD)}
+    test_fullname: E2E Test User
+    test_address: 789 E2E Test Road, E2E City, EC 99999
+
+steps:
+  - name: 步骤1 - 用户注册
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: $test_username
+        email: $test_email
+        password: $test_password
+        full_name: $test_fullname
+        shipping_address: $test_address
+    extract:
+      user_id: $.data.id
+      username: $.data.username
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.success, true]
+      - eq: [$.data.username, $test_username]
+
+  - name: 步骤2 - 用户登录
+    request:
+      method: POST
+      path: /api/v1/auth/login
+      headers:
+        Content-Type: application/json
+      body:
+        username: $test_username
+        password: $test_password
+    extract:
+      token: $.data.access_token
+    validate:
+      - eq: [status_code, 200]
+      - ne: [$.data.access_token, null]
+
+  - name: 步骤3 - 浏览商品分类
+    request:
+      method: GET
+      path: /api/v1/categories/
+    extract:
+      category_id: $.data[0].id
+      category_name: $.data[0].name
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$.data, []]
+
+  - name: 步骤4 - 查看分类下的商品
+    request:
+      method: GET
+      path: /api/v1/products/?category_id=$category_id&in_stock=true&limit=5
+    extract:
+      product1_id: $.data.items[0].id
+      product1_name: $.data.items[0].name
+      product1_price: $.data.items[0].price
+      product1_stock_before: $.data.items[0].stock
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$.data.items, []]
+      - gt: ["$.data.items[0].stock", 0]
+
+  - name: 步骤5 - 查看商品详情
+    request:
+      method: GET
+      path: /api/v1/products/$product1_id
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.id, $product1_id]
+      - eq: [$.data.name, $product1_name]
+
+  - name: 步骤6 - 添加商品到购物车
+    request:
+      method: POST
+      path: /api/v1/cart/items
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        product_id: $product1_id
+        quantity: 2
+    extract:
+      cart_item_quantity: $.data.quantity
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.data.product_id, $product1_id]
+      - eq: [$.data.quantity, 2]
+
+  - name: 步骤7 - 查看购物车
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    extract:
+      cart_total_price: $.data.total_price
+      cart_items_count: $.data.items
+    validate:
+      - eq: [status_code, 200]
+      - len_eq: [$.data.items, 1]
+      - gt: [$.data.total_price, 0]
+      - eq: ["$.data.items[0].product.id", $product1_id]
+
+  - name: 步骤8 - 创建订单（结算）
+    request:
+      method: POST
+      path: /api/v1/orders/
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        shipping_address: $test_address
+    extract:
+      order_id: $.data.id
+      order_total: $.data.total_price
+      order_status: $.data.status
+      order_item_quantity: $.data.items[0].quantity
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.success, true]
+      - ne: [$.data.id, null]
+      - gt: [$.data.total_price, 0]
+      - eq: [$.data.status, pending]
+      - len_eq: [$.data.items, 1]
+      - eq: ["$.data.items[0].product_id", $product1_id]
+      - eq: ["$.data.items[0].quantity", 2]
+
+  - name: 步骤9 - 验证购物车已自动清空
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.items, []]
+      - eq: [$.data.total_price, 0]
+
+  - name: 步骤10 - 查看订单详情
+    request:
+      method: GET
+      path: /api/v1/orders/$order_id
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.id, $order_id]
+      - eq: [$.data.total_price, $order_total]
+      - eq: [$.data.status, pending]
+      - eq: [$.data.shipping_address, $test_address]
+
+  - name: 步骤11 - 验证商品库存已扣减
+    request:
+      method: GET
+      path: /api/v1/products/$product1_id
+    extract:
+      product1_stock_after: $.data.stock
+    validate:
+      - eq: [status_code, 200]
+      - lt: [$.data.stock, $product1_stock_before]
+
+  - name: 步骤12 - 查看用户订单列表
+    request:
+      method: GET
+      path: /api/v1/orders/?scope=user
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - ge: [$.data.total, 1]
+      - gt: [$.data.items, []]

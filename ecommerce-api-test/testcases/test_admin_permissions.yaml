@@ -1,0 +1,168 @@
+config:
+  name: 管理员权限测试
+  base_url: ${ENV(BASE_URL)}
+  tags: [admin, security, regression]
+  variables:
+    regular_username: regular_${short_uid(8)}
+    regular_email: regular_${short_uid(8)}@example.com
+    admin_username: ${ENV(ADMIN_USERNAME)}
+    admin_password: ${ENV(ADMIN_PASSWORD)}
+    test_password: ${ENV(USER_PASSWORD)}
+
+steps:
+  - name: 注册普通用户
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: $regular_username
+        email: $regular_email
+        password: $test_password
+        full_name: Regular User
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.data.role, user]
+
+  - name: 普通用户登录
+    request:
+      method: POST
+      path: /api/v1/auth/login
+      headers:
+        Content-Type: application/json
+      body:
+        username: $regular_username
+        password: $test_password
+    extract:
+      regular_token: $.data.access_token
+    validate:
+      - eq: [status_code, 200]
+
+  - name: 普通用户尝试创建分类（应失败）
+    request:
+      method: POST
+      path: /api/v1/categories/
+      headers:
+        Authorization: Bearer $regular_token
+        Content-Type: application/json
+      body:
+        name: Test Category ${short_uid(6)}
+        description: This should fail
+    validate:
+      - eq: [status_code, 403]
+      - eq: [$.success, false]
+      - contains: [$.message, permission]
+
+  - name: 普通用户尝试创建商品（应失败）
+    request:
+      method: POST
+      path: /api/v1/products/
+      headers:
+        Authorization: Bearer $regular_token
+        Content-Type: application/json
+      body:
+        name: Test Product
+        description: This should fail
+        price: 99.99
+        stock: 10
+        category_id: 1
+    validate:
+      - eq: [status_code, 403]
+      - eq: [$.success, false]
+
+  - name: 管理员登录
+    request:
+      method: POST
+      path: /api/v1/auth/login
+      headers:
+        Content-Type: application/json
+      body:
+        username: $admin_username
+        password: $admin_password
+    extract:
+      admin_token: $.data.access_token
+      admin_role: $.data.user.role
+    validate:
+      - eq: [status_code, 200]
+      - ne: [$.data.access_token, null]
+
+  - name: 管理员创建分类（应成功）
+    variables:
+      new_category_name: Category_${short_uid(8)}
+    request:
+      method: POST
+      path: /api/v1/categories/
+      headers:
+        Authorization: Bearer $admin_token
+        Content-Type: application/json
+      body:
+        name: $new_category_name
+        description: Admin created category
+    extract:
+      new_category_id: $.data.id
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.success, true]
+      - eq: [$.data.name, $new_category_name]
+      - ne: [$.data.id, null]
+
+  - name: 验证新分类已创建
+    request:
+      method: GET
+      path: /api/v1/categories/$new_category_id
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.name, $new_category_name]
+
+  - name: 管理员创建商品（应成功）
+    variables:
+      new_product_name: Product_${short_uid(8)}
+    request:
+      method: POST
+      path: /api/v1/products/
+      headers:
+        Authorization: Bearer $admin_token
+        Content-Type: application/json
+      body:
+        name: $new_product_name
+        description: Admin created product
+        price: 88.88
+        stock: 100
+        category_id: $new_category_id
+    extract:
+      new_product_id: $.data.id
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.success, true]
+      - eq: [$.data.name, $new_product_name]
+      - eq: [$.data.price, 88.88]
+      - eq: [$.data.stock, 100]
+
+  - name: 验证新商品已创建
+    request:
+      method: GET
+      path: /api/v1/products/$new_product_id
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.id, $new_product_id]
+      - eq: [$.data.name, $new_product_name]
+
+  - name: 管理员查看所有订单（应成功）
+    request:
+      method: GET
+      path: /api/v1/orders/?scope=all
+      headers:
+        Authorization: Bearer $admin_token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+
+  - name: 普通用户尝试查看所有订单（应失败或只看到自己的）
+    request:
+      method: GET
+      path: /api/v1/orders/?scope=all
+      headers:
+        Authorization: Bearer $regular_token
+    validate:
+      - eq: [status_code, 403]

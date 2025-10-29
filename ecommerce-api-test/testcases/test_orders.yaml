@@ -1,0 +1,142 @@
+config:
+  name: 订单管理测试
+  base_url: ${ENV(BASE_URL)}
+  tags: [orders, regression]
+  variables:
+    test_username: order_user_${short_uid(8)}
+    test_email: order_${short_uid(8)}@example.com
+    test_password: ${ENV(USER_PASSWORD)}
+    test_address: ${ENV(SHIPPING_ADDRESS)}
+
+steps:
+  - name: 注册测试用户
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: $test_username
+        email: $test_email
+        password: $test_password
+        full_name: Order Test User
+        shipping_address: $test_address
+    validate:
+      - eq: [status_code, 201]
+
+  - name: 登录获取token
+    request:
+      method: POST
+      path: /api/v1/auth/login
+      headers:
+        Content-Type: application/json
+      body:
+        username: $test_username
+        password: $test_password
+    extract:
+      token: $.data.access_token
+    validate:
+      - eq: [status_code, 200]
+
+  - name: 获取有库存的商品
+    request:
+      method: GET
+      path: /api/v1/products/?in_stock=true&limit=2
+    extract:
+      product_id: $.data.items[0].id
+      product_stock: $.data.items[0].stock
+      product_price: $.data.items[0].price
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$.data.items, []]
+      - gt: ["$.data.items[0].stock", 0]
+
+  - name: 添加商品到购物车
+    request:
+      method: POST
+      path: /api/v1/cart/items
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        product_id: $product_id
+        quantity: 1
+    validate:
+      - eq: [status_code, 201]
+
+  - name: 创建订单
+    request:
+      method: POST
+      path: /api/v1/orders/
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        shipping_address: $test_address
+    extract:
+      order_id: $.data.id
+      order_total: $.data.total_price
+      order_status: $.data.status
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.success, true]
+      - ne: [$.data.id, null]
+      - gt: [$.data.total_price, 0]
+      - eq: [$.data.status, pending]
+      - eq: [$.data.shipping_address, $test_address]
+      - gt: [$.data.items, []]
+
+  - name: 验证购物车已清空
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.items, []]
+
+  - name: 查询订单详情
+    request:
+      method: GET
+      path: /api/v1/orders/$order_id
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+      - eq: [$.data.id, $order_id]
+      - eq: [$.data.total_price, $order_total]
+      - eq: [$.data.status, $order_status]
+
+  - name: 查询用户所有订单
+    request:
+      method: GET
+      path: /api/v1/orders/?scope=user
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+      - gt: [$.data.items, []]
+      - ge: [$.data.total, 1]
+
+  - name: 按状态过滤订单
+    request:
+      method: GET
+      path: /api/v1/orders/?scope=user&status=pending
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+
+  - name: 订单排序测试
+    request:
+      method: GET
+      path: /api/v1/orders/?scope=user&sort_by=created_at&sort_order=desc
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]

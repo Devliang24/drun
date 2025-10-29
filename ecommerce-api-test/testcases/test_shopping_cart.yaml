@@ -1,0 +1,174 @@
+config:
+  name: 购物车管理测试
+  base_url: ${ENV(BASE_URL)}
+  tags: [cart, regression]
+  variables:
+    test_username: cart_user_${short_uid(8)}
+    test_email: cart_${short_uid(8)}@example.com
+    test_password: ${ENV(USER_PASSWORD)}
+
+steps:
+  - name: 注册测试用户
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: $test_username
+        email: $test_email
+        password: $test_password
+        full_name: Cart Test User
+    extract:
+      user_id: $.data.id
+    validate:
+      - eq: [status_code, 201]
+
+  - name: 登录获取token
+    request:
+      method: POST
+      path: /api/v1/auth/login
+      headers:
+        Content-Type: application/json
+      body:
+        username: $test_username
+        password: $test_password
+    extract:
+      token: $.data.access_token
+    validate:
+      - eq: [status_code, 200]
+
+  - name: 获取可用商品
+    request:
+      method: GET
+      path: /api/v1/products/?in_stock=true&limit=3
+    extract:
+      product1_id: $.data.items[0].id
+      product1_price: $.data.items[0].price
+      product2_id: $.data.items[1].id
+      product2_price: $.data.items[1].price
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$.data.items, []]
+
+  - name: 查看空购物车
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+      - eq: [$.data.items, []]
+      - eq: [$.data.total_price, 0]
+
+  - name: 添加第一个商品到购物车
+    request:
+      method: POST
+      path: /api/v1/cart/items
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        product_id: $product1_id
+        quantity: 2
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.success, true]
+      - eq: [$.data.product_id, $product1_id]
+      - eq: [$.data.quantity, 2]
+
+  - name: 添加第二个商品到购物车
+    request:
+      method: POST
+      path: /api/v1/cart/items
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        product_id: $product2_id
+        quantity: 1
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.success, true]
+
+  - name: 查看购物车（包含商品）
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    extract:
+      cart_total: $.data.total_price
+      cart_items_count: $.data.items
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+      - len_eq: [$.data.items, 2]
+      - gt: [$.data.total_price, 0]
+
+  - name: 更新购物车商品数量
+    request:
+      method: PUT
+      path: /api/v1/cart/items/$product1_id
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        quantity: 5
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+      - eq: [$.data.quantity, 5]
+
+  - name: 验证购物车数量更新
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - len_eq: [$.data.items, 2]
+      - gt: [$.data.total_price, $cart_total]
+
+  - name: 移除购物车中的商品
+    request:
+      method: DELETE
+      path: /api/v1/cart/items/$product2_id
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+
+  - name: 验证商品已移除
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - len_eq: [$.data.items, 1]
+
+  - name: 清空购物车（移除最后一个商品）
+    request:
+      method: DELETE
+      path: /api/v1/cart/items/$product1_id
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+
+  - name: 验证购物车已清空
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.items, []]
+      - eq: [$.data.total_price, 0]

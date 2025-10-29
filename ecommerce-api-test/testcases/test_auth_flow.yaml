@@ -1,0 +1,113 @@
+config:
+  name: 用户认证流程测试
+  base_url: ${ENV(BASE_URL)}
+  tags: [auth, smoke, regression]
+  variables:
+    unique_username: user_${short_uid(8)}
+    unique_email: ${short_uid(8)}@example.com
+    test_password: ${ENV(USER_PASSWORD)}
+    test_fullname: Test User ${short_uid(4)}
+    test_address: ${ENV(SHIPPING_ADDRESS)}
+
+steps:
+  - name: 用户注册
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: $unique_username
+        email: $unique_email
+        password: $test_password
+        full_name: $test_fullname
+        shipping_address: $test_address
+    extract:
+      registered_user_id: $.data.id
+      registered_username: $.data.username
+      registered_email: $.data.email
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.success, true]
+      - eq: [$.data.username, $unique_username]
+      - eq: [$.data.email, $unique_email]
+      - eq: [$.data.full_name, $test_fullname]
+      - eq: [$.data.role, user]
+      - ne: [$.data.id, null]
+
+  - name: 用户登录
+    request:
+      method: POST
+      path: /api/v1/auth/login
+      headers:
+        Content-Type: application/json
+      body:
+        username: $unique_username
+        password: $test_password
+    extract:
+      token: $.data.access_token
+      login_user_id: $.data.user.id
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+      - ne: [$.data.access_token, null]
+      - eq: [$.data.user.username, $unique_username]
+      - eq: [$.data.user.id, $registered_user_id]
+
+  - name: 获取当前用户信息
+    request:
+      method: GET
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+      - eq: [$.data.id, $registered_user_id]
+      - eq: [$.data.username, $unique_username]
+      - eq: [$.data.email, $unique_email]
+      - eq: [$.data.full_name, $test_fullname]
+      - eq: [$.data.shipping_address, $test_address]
+
+  - name: 更新用户信息
+    variables:
+      new_fullname: Updated ${short_uid(4)}
+      new_address: 456 New Street, New City
+    request:
+      method: PUT
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        full_name: $new_fullname
+        shipping_address: $new_address
+    extract:
+      updated_fullname: $.data.full_name
+      updated_address: $.data.shipping_address
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+      - eq: [$.data.full_name, $new_fullname]
+      - eq: [$.data.shipping_address, $new_address]
+
+  - name: 验证更新后的用户信息
+    request:
+      method: GET
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.full_name, $updated_fullname]
+      - eq: [$.data.shipping_address, $updated_address]
+
+  - name: 登出
+    request:
+      method: DELETE
+      path: /api/v1/auth/session
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]

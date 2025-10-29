@@ -1,0 +1,25 @@
+config:
+  name: E-commerce API 回归测试套件
+  tags: [regression]
+
+testcases:
+  - name: 系统健康检查
+    testcase: testcases/test_health_check.yaml
+
+  - name: 用户认证流程
+    testcase: testcases/test_auth_flow.yaml
+
+  - name: 商品浏览与搜索
+    testcase: testcases/test_products.yaml
+
+  - name: 购物车管理
+    testcase: testcases/test_shopping_cart.yaml
+
+  - name: 订单管理
+    testcase: testcases/test_orders.yaml
+
+  - name: E2E完整购物流程
+    testcase: testcases/test_e2e_purchase.yaml
+
+  - name: 管理员权限控制
+    testcase: testcases/test_admin_permissions.yaml

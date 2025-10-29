@@ -1,0 +1,50 @@
+config:
+  name: 系统健康检查
+  base_url: ${ENV(BASE_URL)}
+  tags: [smoke, health]
+
+steps:
+  - name: 健康检查端点
+    request:
+      method: GET
+      path: /health
+    validate:
+      - eq: [status_code, 200]
+
+  - name: 根路径检查
+    request:
+      method: GET
+      path: /
+    validate:
+      - eq: [status_code, 200]
+
+  - name: API文档可访问
+    request:
+      method: GET
+      path: /docs
+    validate:
+      - eq: [status_code, 200]
+
+  - name: OpenAPI规范可访问
+    request:
+      method: GET
+      path: /api/v1/openapi.json
+    validate:
+      - eq: [status_code, 200]
+      - contains: [headers.Content-Type, application/json]
+
+  - name: 公开接口 - 获取分类列表
+    request:
+      method: GET
+      path: /api/v1/categories/
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]
+
+  - name: 公开接口 - 获取商品列表
+    request:
+      method: GET
+      path: /api/v1/products/
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]

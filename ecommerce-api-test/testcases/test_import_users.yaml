@@ -1,0 +1,43 @@
+config:
+  name: "数据驱动：CSV 示例"
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, csv]
+  parameters:
+    - csv:
+        path: data/users.csv
+        strip: true
+
+steps:
+  - name: 提交注册请求
+    request:
+      method: POST
+      path: /anything/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: $username
+        email: $email
+        password: $password
+        role: $role
+        source: csv-demo
+    extract:
+      echoed_username: $.json.username
+      echoed_role: $.json.role
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.json.username, $username]
+      - eq: [$.json.email, $email]
+      - eq: [$.json.role, $role]
+      - eq: [$.json.source, csv-demo]
+
+  - name: 校验回显头部
+    request:
+      method: GET
+      path: /anything/verify
+      headers:
+        X-Demo-User: $echoed_username
+        X-User-Role: $role
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.headers.X-Demo-User, $echoed_username]
+      - eq: [$.headers.X-User-Role, $role]

@@ -1,0 +1,17 @@
+config:
+  name: "数据库断言示例"
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, db]
+  variables:
+    user_id: 1
+
+steps:
+  - name: 获取用户详情
+    request:
+      method: GET
+      path: /api/v1/users/me
+    extract:
+      api_user_id: $.data.id
+      api_username: $.data.username
+    validate:
+      - eq: [status_code, 401]

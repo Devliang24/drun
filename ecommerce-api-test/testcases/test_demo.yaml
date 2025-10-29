@@ -1,0 +1,66 @@
+config:
+  name: HTTP 测试功能演示
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, smoke]
+  variables:
+    test_data: test_value_${short_uid(6)}
+    user_agent: Drun-Test-Client
+
+steps:
+  - name: GET 请求 - 查询参数
+    request:
+      method: GET
+      path: /get?page=1&limit=10
+      headers:
+        User-Agent: $user_agent
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.args.page, 1]
+      - eq: [$.args.limit, 10]
+      - contains: [$.headers.User-Agent, Drun-Test-Client]
+
+  - name: POST 请求 - 提交 JSON 数据
+    request:
+      method: POST
+      path: /post
+      headers:
+        Content-Type: application/json
+      body:
+        username: ${ENV(USER_USERNAME)}
+        data: $test_data
+        timestamp: ${ts()}
+    extract:
+      posted_data: $.json.data
+      posted_username: $.json.username
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.json.username, test_user]
+      - eq: [$.json.data, $test_data]
+      - contains: [headers.Content-Type, application/json]
+
+  - name: Basic 认证请求
+    request:
+      method: GET
+      path: /basic-auth/${ENV(USER_USERNAME)}/${ENV(USER_PASSWORD)}
+      auth:
+        type: basic
+        username: ${ENV(USER_USERNAME)}
+        password: ${ENV(USER_PASSWORD)}
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.authenticated, true]
+      - eq: [$.user, test_user]
+
+  - name: 响应延迟测试
+    request:
+      method: GET
+      path: /delay/1
+    validate:
+      - eq: [status_code, 200]
+
+  - name: 不同状态码测试
+    request:
+      method: GET
+      path: /status/201
+    validate:
+      - eq: [status_code, 201]
