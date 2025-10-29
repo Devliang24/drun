@@ -1845,7 +1845,7 @@ def init_project(
         else:
             typer.echo(full)
     typer.echo("")
-    typer.echo("9 directories, 17 files")
+    typer.echo("9 directories, 18 files")
 
     if skipped_files:
         typer.echo("")
