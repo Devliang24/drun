@@ -424,21 +424,20 @@ def _find_request_subfield_location(raw_text: str, step_index: int, subfield: st
 
 def _resolve_csv_path(path_value: str, source_path: Path | None) -> Path:
     from drun.loader.hooks import find_hooks
-    
+
     candidate = Path(path_value).expanduser()
     if candidate.is_absolute():
         return candidate
-    
-    # Try to find project root by looking for drun_hooks.py
+
+    base: Path | None = None
     if source_path:
         hooks_path = find_hooks(source_path)
         if hooks_path:
-            base = hooks_path.parent
-        else:
-            base = Path(source_path).resolve().parent
-    else:
-        base = Path.cwd()
-    
+            base = hooks_path.parent.resolve()
+
+    if base is None:
+        base = Path.cwd().resolve()
+
     return (base / candidate).resolve()
 
 

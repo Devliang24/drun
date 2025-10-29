@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [2.3.0] - 2025-10-29
+
+### Changed
+- CSV 参数文件路径现在始终相对于项目根目录或执行目录解析，删除对 `../data/...` 等用例目录相对写法的兼容，避免路径越界并统一脚手架用法。
+
 ## [2.2.2] - 2025-10-29
 
 ### Changed
