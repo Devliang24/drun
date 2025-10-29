@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [2.2.2] - 2025-10-29
+
+### Changed
+- **脚手架输出优化**：
+  - 移除版本号下方的空行，使输出更紧凑
+  - 简化快速开始命令，移除内联注释说明
+  - 删除"格式转换"示例部分（详细说明仍在 converts/README.md 中）
+  - 在文件树和快速开始中显示 `test_assertions.yaml`（断言操作符完整示例）
+
+## [2.2.1] - 2025-10-29
+
+### Added
+- **断言操作符完整示例**：脚手架新增 `test_assertions.yaml`，包含所有断言操作符的使用示例（eq、ne、lt、le、gt、ge、contains、regex、in、len_eq、contains_all、match_regex_all）
+
 ## [2.1.2] - 2025-10-28
 
 ### Fixed
