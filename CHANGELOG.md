@@ -6,6 +6,21 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [2.3.3] - 2025-10-29
+
+### Changed
+- 对齐版本号与标记，发布 v2.3.3。
+
+## [2.3.2] - 2025-10-29
+
+### Changed
+- 仅更新打包元数据，未包含代码改动。
+
+## [2.3.1] - 2025-10-29
+
+### Removed
+- 移除临时开发资产：`testcases/` 示例、`tests/` 单测、`dede/` 临时项目、`dist/` 构建产物以及 `STREAMING_FEATURE.md` 说明。
+
 ## [2.3.0] - 2025-10-29
 
 ### Changed
