@@ -161,7 +161,7 @@ CSV_DATA_TESTCASE = """config:
   tags: [demo, csv]
   parameters:
     - csv:
-        path: ../data/users.csv
+        path: data/users.csv
         strip: true
 
 steps:
