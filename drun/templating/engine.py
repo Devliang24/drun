@@ -142,25 +142,24 @@ class TemplateEngine:
                 dyn_funcs: Dict[str, Callable[..., Any]] = {"ENV": ENV}
                 ctx: Dict[str, Any] = {**BUILTINS, **dyn_funcs, **(functions or {}), **variables}
 
-                # If the whole string is a single ${...} token, evaluate and return the value with its native type
-                single_token_match = re.fullmatch(r"\$\{([^{}]+)\}", text)
-                if single_token_match:
-                    expr = single_token_match.group(1).strip()
-                    try:
-                        node = ast.parse(expr, mode="eval")
-                        return _safe_eval(node, ctx)
-                    except Exception:
-                        # Fall through to string rendering if evaluation fails
-                        pass
-
-                # multi-pass to resolve nested tokens inside strings, always producing a string
                 cur = text
-                for _ in range(3):
+                for _ in range(5):
+                    single_token_match = re.fullmatch(r"\$\{([^{}]+)\}", cur)
+                    if single_token_match:
+                        expr = single_token_match.group(1).strip()
+                        try:
+                            node = ast.parse(expr, mode="eval")
+                            return _safe_eval(node, ctx)
+                        except Exception:
+                            # Fall through and continue resolving nested tokens if evaluation fails
+                            pass
                     nxt = _render_text_without_jinja(cur, ctx)
-                    if nxt == cur or "${" not in nxt:
-                        cur = nxt
+                    if nxt == cur:
                         break
                     cur = nxt
+                    if "${" not in cur:
+                        break
+                # If we weren't able to evaluate to a native type, return the rendered string
                 return cur
             except Exception:
                 return value
