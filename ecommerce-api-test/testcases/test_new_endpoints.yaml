@@ -97,8 +97,7 @@ steps:
         Authorization: Bearer $token
         Content-Type: application/json
       body:
-        order_id: $order_id
-        payment_method: "credit_card"
+        shipping_address: $test_address
     validate:
       - eq: [status_code, 201]
       - eq: [$.success, true]
@@ -140,8 +139,6 @@ steps:
         Authorization: Bearer $admin_token
         Content-Type: application/json
       body:
-        date_from: "2025-01-01"
-        date_to: "2025-12-31"
         status: "pending"
         limit: 20
     validate:

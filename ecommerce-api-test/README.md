@@ -213,8 +213,8 @@ drun run testsuites/testsuite_regression.yaml \
 - ✅ `GET /api/v1/orders/?scope=user` - 查询用户订单
 - ✅ `GET /api/v1/orders/?scope=all` - 查询所有订单（管理员）
 - ✅ `POST /api/v1/orders/checkout` - 订单结账
-- ✅ `GET /api/v1/orders/?status=pending&limit=10` - 订单状态过滤搜索
-- ✅ `GET /api/v1/orders/admin/all?status=pending&limit=20` - 管理员订单搜索
+- ✅ `POST /api/v1/orders/search` - 订单搜索（支持状态过滤）
+- ✅ `POST /api/v1/orders/admin/search` - 管理员高级订单搜索
 
 ## 🔧 高级功能
 
