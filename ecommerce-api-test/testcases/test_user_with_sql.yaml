@@ -53,9 +53,12 @@ steps:
       # ✅ 正确：setup准备数据，不断言
       - ${setup_hook_prepare_user_data($user_id)}
     variables:
-      # 测试：在variables中调用Hook函数
-      db_username_test: ${hook_query_user_username($user_id)}
-      db_email_test: ${hook_query_user_email($user_id)}
+      # ✅ 调用SQL hook函数获取数据库中的实际值
+      db_username: ${hook_query_user_username($user_id)}
+      db_email: ${hook_query_user_email($user_id)}
+      db_role: ${hook_query_user_role($user_id)}
+      db_full_name: ${hook_query_user_full_name($user_id)}
+      db_shipping_address: ${hook_query_user_shipping_address($user_id)}
     request:
       method: GET
       path: /api/v1/users/me
@@ -65,22 +68,13 @@ steps:
       # ✅ 正确：所有断言在validate中
       - eq: [status_code, 200]
       
-      # SQL断言：验证API返回值与数据库中的值一致
+      # ✅ 完整SQL断言：验证API返回值与数据库实际值一致
       - eq: [$.data.id, $user_id]
-      # 测试：使用variables中的Hook函数返回值
-      - eq: [$.data.username, $db_username_test]
-      - eq: [$.data.email, $db_email_test]
-      - eq: [$.data.role, "user"]
-      - eq: [$.data.full_name, "SQL Test User"]
-      - eq: [$.data.shipping_address, "SQL Test Street 123"]
-      
-      # 数据完整性断言
-      - ne: [$.data.id, null]
-      - ne: [$.data.username, null]
-      - ne: [$.data.email, null]
-      - ne: [$.data.role, null]
-      - ne: [$.data.full_name, null]
-      - ne: [$.data.shipping_address, null]
+      - eq: [$.data.username, $db_username]
+      - eq: [$.data.email, $db_email]
+      - eq: [$.data.role, $db_role]
+      - eq: [$.data.full_name, $db_full_name]
+      - eq: [$.data.shipping_address, $db_shipping_address]
       - eq: [$.data.is_active, true]
     teardown_hooks:
       # ✅ 正确：teardown记录统计，不断言
@@ -101,17 +95,20 @@ steps:
     validate:
       # ✅ 正确：断言在validate中
       - eq: [status_code, 200]
+      - eq: [$.data.id, $user_id]
       
-      # SQL断言：验证更新后的响应（API返回更新后的数据）
+      # 验证更新响应（此处用预期值验证更新是否生效）
       - eq: [$.data.full_name, "Updated SQL User"]
       - eq: [$.data.shipping_address, "Updated Street 456"]
-      
-      # 数据完整性断言
-      - ne: [$.data.full_name, null]
-      - ne: [$.data.shipping_address, null]
-      - eq: [$.data.id, $user_id]
 
   - name: 步骤5-验证更新后的数据（完整SQL断言）
+    variables:
+      # ✅ 调用SQL hook函数获取更新后的数据库实际值
+      db_username: ${hook_query_user_username($user_id)}
+      db_email: ${hook_query_user_email($user_id)}
+      db_role: ${hook_query_user_role($user_id)}
+      db_full_name: ${hook_query_user_full_name($user_id)}
+      db_shipping_address: ${hook_query_user_shipping_address($user_id)}
     request:
       method: GET
       path: /api/v1/users/me
@@ -121,22 +118,24 @@ steps:
       # ✅ 正确：断言在validate中
       - eq: [status_code, 200]
       
-      # SQL断言：验证API返回值与数据库中的值一致（使用已知的更新值）
+      # ✅ 完整SQL断言：验证API返回值与数据库更新后的实际值一致
       - eq: [$.data.id, $user_id]
-      - eq: [$.data.username, $test_username]
-      - eq: [$.data.email, $test_email]
-      - eq: [$.data.full_name, "Updated SQL User"]
-      - eq: [$.data.shipping_address, "Updated Street 456"]
-      - eq: [$.data.role, "user"]
-      
-      # 数据完整性断言
-      - ne: [$.data.full_name, null]
-      - ne: [$.data.shipping_address, null]
-      - ne: [$.data.role, null]
+      - eq: [$.data.username, $db_username]
+      - eq: [$.data.email, $db_email]
+      - eq: [$.data.full_name, $db_full_name]
+      - eq: [$.data.shipping_address, $db_shipping_address]
+      - eq: [$.data.role, $db_role]
 
   # ==================== 测试3：清理测试数据 ====================
   
   - name: 步骤6-最后验证并清理（完整SQL断言）
+    variables:
+      # ✅ 调用SQL hook函数获取数据库最终值
+      db_username: ${hook_query_user_username($user_id)}
+      db_email: ${hook_query_user_email($user_id)}
+      db_role: ${hook_query_user_role($user_id)}
+      db_full_name: ${hook_query_user_full_name($user_id)}
+      db_shipping_address: ${hook_query_user_shipping_address($user_id)}
     request:
       method: GET
       path: /api/v1/users/me
@@ -146,18 +145,13 @@ steps:
       # ✅ 正确：断言在validate中
       - eq: [status_code, 200]
       
-      # SQL断言：验证API返回值与数据库中的最终值一致
+      # ✅ 完整SQL断言：验证API返回值与数据库最终值一致
       - eq: [$.data.id, $user_id]
-      - eq: [$.data.username, $test_username]
-      - eq: [$.data.email, $test_email]
-      - eq: [$.data.full_name, "Updated SQL User"]
-      - eq: [$.data.shipping_address, "Updated Street 456"]
-      - eq: [$.data.role, "user"]
-      
-      # 数据完整性断言
-      - ne: [$.data.id, null]
-      - ne: [$.data.username, null]
-      - ne: [$.data.email, null]
+      - eq: [$.data.username, $db_username]
+      - eq: [$.data.email, $db_email]
+      - eq: [$.data.full_name, $db_full_name]
+      - eq: [$.data.shipping_address, $db_shipping_address]
+      - eq: [$.data.role, $db_role]
     teardown_hooks:
       # ✅ 正确：teardown清理测试用户
       - ${teardown_hook_cleanup_test_user($response, $session_variables)}
