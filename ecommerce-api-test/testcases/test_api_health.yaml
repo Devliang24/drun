@@ -4,13 +4,17 @@ config:
   tags: [smoke, health]
 
 steps:
-  - name: 检查服务状态
+  - name: 检查API根端点
     request:
       method: GET
-      path: /get
-    extract:
-      response_path: $.url
+      path: /
     validate:
       - eq: [status_code, 200]
-      - contains: [headers.Content-Type, application/json]
-      - eq: [$.url, $response_url]
+
+  - name: 检查健康状态
+    request:
+      method: GET
+      path: /health
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.success, true]

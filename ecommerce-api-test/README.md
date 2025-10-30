@@ -195,7 +195,7 @@ drun run testsuites/testsuite_regression.yaml \
 ### 商品管理
 - ✅ `GET /api/v1/products/` - 获取商品列表（支持过滤、排序、分页）
 - ✅ `GET /api/v1/products/{id}` - 获取商品详情
-- ✅ `GET /api/v1/products/search` - 商品搜索
+- ✅ `POST /api/v1/products/search` - 商品搜索（JSON请求体）
 - ✅ `POST /api/v1/products/quick-search` - 快速商品搜索
 - ✅ `POST /api/v1/products/` - 创建商品（管理员）
 

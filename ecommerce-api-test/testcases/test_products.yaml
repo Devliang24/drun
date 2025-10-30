@@ -77,8 +77,13 @@ steps:
 
   - name: 商品搜索功能
     request:
-      method: GET
-      path: /api/v1/products/search?q=test&limit=5
+      method: POST
+      path: /api/v1/products/search
+      headers:
+        Content-Type: application/json
+      body:
+        query: "test"
+        limit: 5
     validate:
       - eq: [status_code, 200]
       - eq: [$.success, true]

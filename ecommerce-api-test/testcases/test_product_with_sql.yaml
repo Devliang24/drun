@@ -77,10 +77,12 @@ steps:
   
   - name: 步骤4-搜索商品（完整SQL断言）
     request:
-      method: GET
+      method: POST
       path: /api/v1/products/search
-      params:
-        keyword: iPhone
+      headers:
+        Content-Type: application/json
+      body:
+        query: "iPhone"
     validate:
       # ✅ 正确：断言在validate中
       - eq: [status_code, 200]
