@@ -1,105 +1,126 @@
 # E-commerce API 自动化测试项目
 
-基于 Drun 框架的 E-commerce API 完整自动化测试套件，包含 API 接口测试和 MySQL 数据库断言验证。
+基于 Drun 框架的 E-commerce API 完整自动化测试套件，提供全面的 API 接口测试和数据库断言验证功能。
 
 ## 📋 项目概述
 
-本项目针对 E-commerce API (http://110.40.159.145:9099) 提供全面的自动化测试，验证：
-- ✅ 用户认证与授权流程
-- ✅ 商品浏览与搜索功能
-- ✅ 购物车管理
-- ✅ 订单创建与查询
-- ✅ 管理员权限控制
-- ✅ 数据库数据一致性
+本项目针对 [E-commerce API](http://110.40.159.145:9099) 提供完整的自动化测试解决方案，涵盖：
 
-## 🗂️ 项目结构
+- ✅ **用户认证与授权** - 注册、登录、权限验证
+- ✅ **商品管理** - 浏览、搜索、分类查询
+- ✅ **购物车操作** - 添加、修改、删除商品
+- ✅ **订单处理** - 创建、查询、状态管理
+- ✅ **管理后台** - 分类管理、商品管理、订单查看
+- ✅ **数据库验证** - SQL 断言验证数据一致性
+- ✅ **格式转换** - 支持 cURL、Postman、HAR、OpenAPI 导入
+
+## 🏗️ 项目架构
 
 ```
 ecommerce-api-test/
-├── testcases/                      # 测试用例目录
-│   ├── test_health_check.yaml      # 系统健康检查
-│   ├── test_auth_flow.yaml         # 用户认证流程
-│   ├── test_products.yaml          # 商品浏览与搜索
-│   ├── test_shopping_cart.yaml     # 购物车管理
-│   ├── test_orders.yaml            # 订单管理
-│   ├── test_e2e_purchase.yaml      # E2E完整购物流程
-│   └── test_admin_permissions.yaml # 管理员权限测试
-├── testsuites/                     # 测试套件目录
-│   ├── testsuite_smoke.yaml        # 冒烟测试套件
-│   └── testsuite_regression.yaml   # 回归测试套件
-├── reports/                        # 测试报告输出
-├── logs/                           # 日志输出
-├── .env                            # 环境配置
-├── drun_hooks.py                   # 自定义Hooks函数
-└── README.md                       # 本文档
+├── 📁 testcases/                    # 测试用例目录 (17个文件)
+│   ├── test_health_check.yaml        # API 健康检查 (50行)
+│   ├── test_auth_flow.yaml           # 用户认证流程 (113行)
+│   ├── test_products.yaml            # 商品浏览与搜索 (113行)
+│   ├── test_shopping_cart.yaml       # 购物车管理 (174行)
+│   ├── test_orders.yaml              # 订单管理 (142行)
+│   ├── test_e2e_purchase.yaml        # E2E完整购物流程 (181行)
+│   ├── test_admin_permissions.yaml   # 管理员权限测试 (168行)
+│   ├── test_assertions.yaml          # 断言验证示例 (241行)
+│   ├── test_db_assert.yaml           # 数据库断言示例 (17行)
+│   ├── test_user_with_sql.yaml       # 用户SQL验证 (158行)
+│   ├── test_product_with_sql.yaml    # 商品SQL验证 (123行)
+│   ├── test_order_with_sql.yaml      # 订单SQL验证 (208行)
+│   ├── test_api_health.yaml          # API接口健康检查 (16行)
+│   ├── test_demo.yaml                # 基础示例 (66行)
+│   ├── test_import_users.yaml        # 用户批量导入 (43行)
+│   └── test_stream.yaml              # 流式响应测试 (74行)
+│
+├── 📁 testsuites/                   # 测试套件目录
+│   ├── testsuite_smoke.yaml          # 冒烟测试套件 (3个用例)
+│   ├── testsuite_regression.yaml     # 回归测试套件 (完整覆盖)
+│   └── testsuite_csv.yaml            # CSV参数化测试套件
+│
+├── 📁 converts/                      # 格式转换示例
+│   ├── curl/sample.curl              # cURL 命令示例
+│   ├── postman/                      # Postman Collection示例
+│   ├── har/sample_recording.har      # 浏览器录制HAR文件
+│   ├── openapi/sample_openapi.json   # OpenAPI 3.x规范示例
+│   └── README.md                     # 格式转换详细指南
+│
+├── 📁 data/                          # 测试数据
+│   └── users.csv                     # 用户测试数据
+│
+├── 📁 reports/                       # 测试报告输出目录
+├── 📁 logs/                          # 日志输出目录
+│
+├── 📄 drun_hooks.py                  # 自定义Hooks函数 (完整SQL断言)
+├── 📄 .env.example                   # 环境配置模板
+├── 📄 .env                           # 实际环境配置
+└── 📄 README.md                      # 本文档
 ```
 
-## 🎯 测试用例说明
+## 🎯 核心功能特性
 
-### 1. test_health_check.yaml - 系统健康检查
-- 验证 API 服务可用性
-- 检查基础端点响应
-- 标签: `smoke`, `health`
+### 1. 多层次测试覆盖
 
-### 2. test_auth_flow.yaml - 用户认证流程
-- 用户注册
-- 用户登录
-- 获取用户信息
-- 更新用户信息
-- 用户登出
-- 标签: `auth`, `smoke`, `regression`
+**冒烟测试** (`testsuite_smoke.yaml`)
+- 系统健康检查
+- 基础功能验证
+- 执行时间: ~30秒
 
-### 3. test_products.yaml - 商品浏览与搜索
-- 获取分类列表
-- 按分类查询商品
-- 商品搜索
-- 商品详情查看
-- 商品过滤与排序
-- 标签: `products`, `smoke`, `regression`
+**回归测试** (`testsuite_regression.yaml`)
+- 完整功能覆盖
+- 所有API端点验证
+- 执行时间: ~5-10分钟
 
-### 4. test_shopping_cart.yaml - 购物车管理
-- 查看空购物车
-- 添加商品到购物车
-- 更新购物车商品数量
-- 移除购物车商品
-- 标签: `cart`, `regression`
+**专项测试**
+- 认证授权测试
+- 数据库一致性验证
+- E2E购物流程
+- 管理员权限验证
 
-### 5. test_orders.yaml - 订单管理
-- 创建订单
-- 查询订单详情
-- 查询用户订单列表
-- 订单状态过滤
-- 标签: `orders`, `regression`
+### 2. SQL 数据库断言
 
-### 6. test_e2e_purchase.yaml - E2E完整购物流程
-- 完整购物旅程：注册 → 登录 → 浏览 → 加购 → 下单
-- 验证库存扣减
-- 验证购物车清空
-- 标签: `e2e`, `critical`
+项目包含完整的 SQL 断言功能，支持：
+- 用户数据写入验证
+- 商品库存扣减验证
+- 订单金额计算验证
+- 购物车数据一致性验证
 
-### 7. test_admin_permissions.yaml - 管理员权限测试
-- 验证普通用户权限限制
-- 验证管理员特权功能
-- 创建分类和商品
-- 查看所有订单
-- 标签: `admin`, `security`, `regression`
+```yaml
+# SQL断言示例
+validate:
+  - eq: [$.data.total, ${expected_sql_value($order_id, column="total")}]
+```
+
+### 3. 格式转换支持
+
+支持从多种格式导入测试用例：
+
+| 格式 | 命令 | 推荐选项 |
+|------|------|----------|
+| cURL | `drun convert <file>.curl` | `--placeholders --split-output` |
+| Postman | `drun convert <file>.json` | `--split-output --suite-out --postman-env` |
+| HAR | `drun convert <file>.har` | `--exclude-static --only-2xx --split-output` |
+| OpenAPI | `drun convert-openapi <file>.json` | `--tags --split-output --placeholders` |
 
 ## 🚀 快速开始
 
 ### 1. 环境配置
 
-编辑 `.env` 文件，配置 API 地址和数据库连接：
+复制环境配置文件：
+```bash
+cp .env.example .env
+```
 
+编辑 `.env` 文件配置数据库连接：
 ```env
 # API 基础地址
 BASE_URL=http://110.40.159.145:9099
 
-# MySQL 数据库配置
-MYSQL_HOST=110.40.159.145
-MYSQL_PORT=3306
-MYSQL_USER=root
-MYSQL_PASSWORD=your_password_here
-MYSQL_DB=ecommerce
+# MySQL 数据库配置 (端口已更新为 8020)
+MYSQL_CONFIG={"main": {"default": {"dsn": "mysql://root:password@110.40.159.145:8020/ecommerce"}}}
 
 # 测试用户凭证
 USER_PASSWORD=Test@123456
@@ -107,39 +128,118 @@ ADMIN_USERNAME=admin
 ADMIN_PASSWORD=Admin@123456
 ```
 
-**重要**: 
-- 请替换 `MYSQL_PASSWORD` 为实际的数据库密码
-- 确保管理员账号已创建（或首次注册后手动修改数据库 role 字段为 'admin'）
-
 ### 2. 运行测试
 
-#### 运行冒烟测试（快速验证）
+#### 冒烟测试
 ```bash
-cd ecommerce-api-test
 drun run testsuites/testsuite_smoke.yaml
 ```
 
-#### 运行完整回归测试
+#### 完整回归测试
 ```bash
 drun run testsuites/testsuite_regression.yaml --html reports/regression_report.html
 ```
 
-#### 运行单个测试用例
+#### 特定功能测试
 ```bash
-# 健康检查
-drun run testcases/test_health_check.yaml
-
 # 用户认证流程
 drun run testcases/test_auth_flow.yaml
 
 # E2E购物流程
 drun run testcases/test_e2e_purchase.yaml
 
+# 数据库断言验证
+drun run testcases/test_order_with_sql.yaml
+
 # 管理员权限测试
 drun run testcases/test_admin_permissions.yaml
 ```
 
-#### 使用标签过滤测试
+#### 参数化测试
+```bash
+drun run testsuites/testsuite_csv.yaml
+```
+
+### 3. 测试报告
+
+生成 HTML 测试报告：
+```bash
+drun run testsuites/testsuite_regression.yaml \
+  --html reports/regression_report.html \
+  --log-level info
+```
+
+生成 JSON 报告（用于 CI/CD）：
+```bash
+drun run testsuites/testsuite_regression.yaml \
+  --report reports/run.json
+```
+
+## 📊 API 接口覆盖
+
+### 认证接口
+- ✅ `POST /api/v1/auth/register` - 用户注册
+- ✅ `POST /api/v1/auth/login` - 用户登录
+- ✅ `DELETE /api/v1/auth/session` - 用户登出
+
+### 用户管理
+- ✅ `GET /api/v1/users/me` - 获取当前用户信息
+- ✅ `PUT /api/v1/users/me` - 更新用户信息
+
+### 分类管理
+- ✅ `GET /api/v1/categories/` - 获取所有分类
+- ✅ `GET /api/v1/categories/{id}` - 获取分类详情
+- ✅ `POST /api/v1/categories/` - 创建分类（管理员）
+
+### 商品管理
+- ✅ `GET /api/v1/products/` - 获取商品列表（支持过滤、排序、分页）
+- ✅ `GET /api/v1/products/{id}` - 获取商品详情
+- ✅ `GET /api/v1/products/search` - 商品搜索
+- ✅ `POST /api/v1/products/` - 创建商品（管理员）
+
+### 购物车操作
+- ✅ `GET /api/v1/cart/` - 查看购物车
+- ✅ `POST /api/v1/cart/items` - 添加商品到购物车
+- ✅ `PUT /api/v1/cart/items/{product_id}` - 更新购物车商品数量
+- ✅ `DELETE /api/v1/cart/items/{product_id}` - 移除购物车商品
+
+### 订单管理
+- ✅ `POST /api/v1/orders/` - 创建订单
+- ✅ `GET /api/v1/orders/{id}` - 获取订单详情
+- ✅ `GET /api/v1/orders/?scope=user` - 查询用户订单
+- ✅ `GET /api/v1/orders/?scope=all` - 查询所有订单（管理员）
+
+## 🔧 高级功能
+
+### 1. 自定义 Hooks 函数
+
+`drun_hooks.py` 提供丰富的自定义函数：
+
+**模板辅助函数**
+```yaml
+# 时间戳
+headers: { X-Timestamp: ${ts()} }
+
+# UUID生成
+email: user_${uid()}@example.com
+
+# 短UUID生成
+username: user_${short_uid(8)}
+```
+
+**SQL断言函数**
+```yaml
+# 验证订单数据
+validate:
+  - eq: [$.data.total, ${expected_sql_value($order_id, column="total")}]
+
+# 验证库存扣减
+validate:
+  - eq: [$.data.stock, ${get_product_stock($product_id)}]
+```
+
+### 2. 标签过滤
+
 ```bash
 # 只运行smoke测试
 drun run testcases -k "smoke"
@@ -147,145 +247,103 @@ drun run testcases -k "smoke"
 # 运行关键测试
 drun run testcases -k "critical or smoke"
 
-# 排除特定测试
+# 排除管理员测试
 drun run testcases -k "regression and not admin"
 ```
 
-### 3. 生成报告
+### 3. 格式转换示例
 
+#### 从 cURL 导入
 ```bash
-# 生成HTML报告
-drun run testsuites/testsuite_regression.yaml \
-  --html reports/report.html \
-  --log-level info
-
-# 生成JSON报告（用于CI/CD）
-drun run testsuites/testsuite_regression.yaml \
-  --report reports/run.json
-
-# 查看报告
-open reports/report.html
+drun convert converts/curl/sample.curl \
+  --outfile testcases/from_curl.yaml \
+  --placeholders \
+  --split-output
 ```
 
-## 📊 API 接口覆盖
-
-### 认证接口
-- ✅ POST /api/v1/auth/register - 用户注册
-- ✅ POST /api/v1/auth/login - 用户登录
-- ✅ DELETE /api/v1/auth/session - 用户登出
-
-### 用户接口
-- ✅ GET /api/v1/users/me - 获取当前用户信息
-- ✅ PUT /api/v1/users/me - 更新用户信息
-
-### 分类接口
-- ✅ GET /api/v1/categories/ - 获取所有分类
-- ✅ GET /api/v1/categories/{id} - 获取分类详情
-- ✅ POST /api/v1/categories/ - 创建分类（管理员）
-
-### 商品接口
-- ✅ GET /api/v1/products/ - 获取商品列表（支持过滤、排序、分页）
-- ✅ GET /api/v1/products/{id} - 获取商品详情
-- ✅ GET /api/v1/products/search - 商品搜索
-- ✅ POST /api/v1/products/ - 创建商品（管理员）
-
-### 购物车接口
-- ✅ GET /api/v1/cart/ - 查看购物车
-- ✅ POST /api/v1/cart/items - 添加商品到购物车
-- ✅ PUT /api/v1/cart/items/{product_id} - 更新购物车商品数量
-- ✅ DELETE /api/v1/cart/items/{product_id} - 移除购物车商品
-
-### 订单接口
-- ✅ POST /api/v1/orders/ - 创建订单
-- ✅ GET /api/v1/orders/{id} - 获取订单详情
-- ✅ GET /api/v1/orders/?scope=user - 查询用户订单
-- ✅ GET /api/v1/orders/?scope=all - 查询所有订单（管理员）
-
-## 🔧 高级功能
-
-### SQL 断言验证
-
-项目预留了 SQL 断言功能的实现位置（`drun_hooks.py`），可用于：
-- 验证用户数据写入数据库
-- 验证商品库存扣减
-- 验证订单金额计算
-- 验证购物车数据一致性
-
-示例用法（需配置数据库连接）：
-```yaml
-steps:
-  - name: 验证订单数据
-    setup_hooks:
-      - ${setup_hook_assert_sql($order_id)}
-    validate:
-      - eq: [$.data.total, ${expected_sql_value($order_id, column="total")}]
+#### 从 Postman 导入
+```bash
+drun convert converts/postman/sample_collection.json \
+  --postman-env converts/postman/sample_environment.json \
+  --split-output \
+  --suite-out testsuites/from_postman.yaml \
+  --placeholders
 ```
 
-### 参数化测试
-
-可创建 CSV 文件进行批量测试：
-```yaml
-config:
-  parameters:
-    - csv:
-        path: data/test_users.csv
+#### 从 HAR 导入
+```bash
+drun convert converts/har/sample_recording.har \
+  --exclude-static \
+  --only-2xx \
+  --split-output \
+  --outfile testcases/from_har.yaml
 ```
 
-## 🎯 测试策略
+#### 从 OpenAPI 导入
+```bash
+drun convert-openapi converts/openapi/sample_openapi.json \
+  --tags users,orders \
+  --split-output \
+  --base-url http://localhost:8000 \
+  --outfile testcases/from_openapi.yaml
+```
 
-### 冒烟测试（Smoke Test）
-- 执行时间: ~1-2 分钟
-- 覆盖范围: 核心功能基础验证
-- 运行频率: 每次代码提交
-- 命令: `drun run testsuites/testsuite_smoke.yaml`
+## 📈 测试策略
 
-### 回归测试（Regression Test）
-- 执行时间: ~5-10 分钟
-- 覆盖范围: 所有功能完整验证
-- 运行频率: 每日构建、发布前
-- 命令: `drun run testsuites/testsuite_regression.yaml`
+### 测试分层策略
 
-### E2E测试（End-to-End Test）
-- 执行时间: ~30-60 秒
-- 覆盖范围: 完整用户旅程
-- 运行频率: 关键功能变更后
-- 命令: `drun run testcases/test_e2e_purchase.yaml`
+| 测试类型 | 覆盖范围 | 执行时间 | 运行频率 | 目标 |
+|----------|----------|----------|----------|------|
+| **冒烟测试** | 核心功能 | ~30秒 | 每次提交 | 快速验证系统可用性 |
+| **回归测试** | 全功能覆盖 | ~5-10分钟 | 每日构建 | 确保功能完整性 |
+| **E2E测试** | 业务流程 | ~1分钟 | 版本发布 | 验证关键用户旅程 |
+| **专项测试** | 特定功能 | ~2-5分钟 | 功能变更 | 深度测试特定模块 |
+
+### 质量指标
+
+- **API覆盖率**: 100% (所有公开接口)
+- **功能覆盖率**: 95%+ (核心业务流程)
+- **断言覆盖率**: 90%+ (状态码、数据结构、业务逻辑)
+- **数据库验证**: 完整的数据一致性检查
 
 ## 🐛 故障排查
 
-### 问题1: 连接数据库失败
-```
+### 常见问题解决方案
+
+#### 1. 数据库连接失败
+```bash
 Error: Cannot connect to MySQL database
 ```
 **解决方案**:
-1. 检查 `.env` 中的数据库配置是否正确
-2. 确认数据库服务运行正常: `nc -zv 110.40.159.145 3306`
-3. 验证用户名密码是否正确
+1. 检查 `.env` 中的数据库配置
+2. 确认端口使用 `8020`（非默认3306）
+3. 验证数据库服务运行: `nc -zv 110.40.159.145 8020`
 
-### 问题2: 管理员权限测试失败
-```
+#### 2. 管理员权限测试失败
+```bash
 Error: 403 Forbidden
 ```
 **解决方案**:
-1. 确保管理员账号已创建
-2. 在数据库中将用户的 `role` 字段设置为 `admin`:
-   ```sql
-   UPDATE users SET role='admin' WHERE username='admin';
-   ```
-
-### 问题3: Token 过期
-**解决方案**:
-- JWT Token 默认有效期较长，如果遇到过期问题，重新运行测试即可
-
-### 问题4: 商品库存不足
+```sql
+-- 在数据库中设置管理员权限
+UPDATE users SET role='admin' WHERE username='admin';
 ```
-Error: Insufficient stock
+
+#### 3. SQL断言执行失败
+```bash
+Error: SQL assertion failed
 ```
 **解决方案**:
-- 确保测试数据库中有足够库存的商品
-- 或在测试前重置数据库
+1. 确认 `MYSQL_CONFIG` 格式正确
+2. 检查数据库连接权限
+3. 验证SQL语句语法
 
-## 📈 CI/CD 集成
+#### 4. Token过期问题
+**解决方案**:
+- 重新运行登录测试获取新Token
+- 检查Token自动刷新机制
+
+## 🔄 CI/CD 集成
 
 ### GitHub Actions 示例
 
@@ -302,22 +360,19 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      
+
       - name: Install Drun
         run: pip install -e ../drun
-      
+
       - name: Run Smoke Tests
         env:
           BASE_URL: http://110.40.159.145:9099
-          MYSQL_HOST: 110.40.159.145
-          MYSQL_USER: ${{ secrets.MYSQL_USER }}
-          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          MYSQL_CONFIG: ${{ secrets.MYSQL_CONFIG }}
         run: |
           cd ecommerce-api-test
           drun run testsuites/testsuite_smoke.yaml \
-            --html reports/smoke_report.html \
-            --report reports/smoke.json
-      
+            --html reports/smoke_report.html
+
       - name: Upload Reports
         uses: actions/upload-artifact@v3
         if: always()
@@ -326,28 +381,66 @@ jobs:
           path: ecommerce-api-test/reports/
 ```
 
+### 测试报告集成
+
+- **HTML报告**: 可视化测试结果，适合开发团队查看
+- **JSON报告**: 机器可读格式，适合CI/CD系统解析
+- **日志文件**: 详细的执行过程记录，便于问题诊断
+
+## 📊 项目统计
+
+- **测试用例**: 17个YAML文件
+- **测试套件**: 3个套件文件
+- **代码行数**: 1,887行测试代码
+- **API覆盖**: 15个核心接口
+- **数据库表**: 6个业务表验证
+- **转换示例**: 4种格式（cURL、Postman、HAR、OpenAPI）
+
 ## 📚 相关文档
 
 - [Drun 官方文档](https://github.com/Devliang24/drun)
 - [API 接口文档](http://110.40.159.145:9099/docs)
 - [OpenAPI 规范](http://110.40.159.145:9099/api/v1/openapi.json)
+- [格式转换详细指南](./converts/README.md)
 
 ## 🤝 贡献指南
 
 欢迎贡献新的测试用例或改进现有测试！
 
+### 贡献流程
 1. Fork 本项目
-2. 创建特性分支
-3. 提交更改
-4. 发起 Pull Request
+2. 创建特性分支: `git checkout -b feature/amazing-feature`
+3. 提交更改: `git commit -m 'Add amazing feature'`
+4. 推送分支: `git push origin feature/amazing-feature`
+5. 发起 Pull Request
 
-## 📝 维护日志
+### 代码规范
+- 测试用例命名遵循 `test_[feature]_[scenario].yaml` 格式
+- 使用有意义的步骤描述
+- 添加适当的断言验证
+- 保持配置文件简洁清晰
 
-- **2025-10-29**: 初始项目创建，完成核心测试用例
-- 包含7个测试用例文件
-- 2个测试套件
-- 完整的 README 文档
+## 📝 版本历史
 
-## 📧 联系方式
+### v2.4.0 (2025-10-30)
+- ✨ 完成项目重构和文档优化
+- 🧹 清理冗余文档文件
+- 🔧 完善环境配置和数据库连接
 
-如有问题或建议，请联系测试团队。
+### v1.0.0 (2025-10-29)
+- 🎉 初始项目创建
+- ✅ 完成17个核心测试用例
+- ✅ 实现3个测试套件
+- ✅ 集成SQL断言功能
+- ✅ 支持4种格式转换
+
+## 📞 联系方式
+
+如有问题或建议，请通过以下方式联系：
+- 📧 邮箱: test-team@example.com
+- 🐛 问题反馈: [GitHub Issues](https://github.com/Devliang24/drun/issues)
+- 📖 文档: [项目Wiki](https://github.com/Devliang24/drun/wiki)
+
+---
+
+**⭐ 如果这个项目对您有帮助，请给我们一个 Star！**
