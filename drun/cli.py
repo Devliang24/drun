@@ -1738,6 +1738,7 @@ def init_project(
         "converts": "格式转换源文件目录",
         "reports": "报告输出目录",
         "logs": "日志输出目录",
+        ".github/workflows": "GitHub Actions 工作流目录",
     }
 
     for dir_name, desc in dirs_to_create.items():
@@ -1826,6 +1827,9 @@ def init_project(
     # README.md
     _write_template("README.md", scaffolds.README_TEMPLATE)
 
+    # GitHub Actions workflow
+    _write_template(".github/workflows/test.yml", scaffolds.GITHUB_WORKFLOW_TEMPLATE)
+
     # 输出创建的文件列表（tree 风格）
     project_name = name if name else "."
 
@@ -1855,6 +1859,9 @@ def init_project(
         ("│       └── ", "sample_openapi.json", "OpenAPI 规范"),
         ("├── ", "reports/", "测试报告输出目录"),
         ("├── ", "logs/", "运行日志输出目录"),
+        ("├── ", ".github/", "GitHub 配置目录"),
+        ("│   └── ", "workflows/", "GitHub Actions 工作流"),
+        ("│       └── ", "test.yml", "默认 CI 流水线"),
         ("├── ", ".env", "环境变量配置"),
         ("├── ", "drun_hooks.py", "自定义 Hooks 函数"),
         ("├── ", ".gitignore", "Git 忽略规则"),
