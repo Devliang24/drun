@@ -131,10 +131,14 @@ steps:
 
   - name: 步骤7-查询订单列表
     request:
-      method: GET
-      path: /api/v1/orders/
+      method: POST
+      path: /api/v1/orders/search
       headers:
         Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        skip: 0
+        limit: 10
     validate:
       # ✅ 正确：断言在validate中
       - eq: [status_code, 200]

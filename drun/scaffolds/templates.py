@@ -968,15 +968,13 @@ USER_USERNAME=test_user
 USER_PASSWORD=test_password
 
 # ==================== 数据库配置（可选）====================
-# 配置 MYSQL_CONFIG（YAML 或 JSON 字符串）以启用数据库访问
+# 采用 MYSQL_<DB>__<ROLE>__<FIELD> 形式。
+# 常用字段：DSN、HOST、PORT、USER、PASSWORD、DATABASE、CHARSET、ENABLED、TAGS
 # 示例：
-# MYSQL_CONFIG='
-# main:
-#   default:
-#     dsn: mysql://user:pass@localhost:3306/app
-# analytics:
-#   - dsn: mysql://analytics:pass@localhost:3306/analytics
-# '
+# MYSQL_MAIN__DEFAULT__DSN=mysql://user:pass@localhost:3306/app
+# MYSQL_MAIN__DEFAULT__CHARSET=utf8mb4
+# MYSQL_ANALYTICS__READER__DSN=mysql://analytics:pass@localhost:3306/analytics
+# MYSQL_ANALYTICS__READER__TAGS=reporting,readonly
 
 # ==================== 系统信息 ====================
 # 系统名称（用于通知标题和报告）
@@ -1471,7 +1469,7 @@ drun run testsuites/testsuite_csv.yaml
 
 - 关联 Hook：`setup_hook_assert_sql`（前置 SQL 校验）、`expected_sql_value`（在 `validate` 预期值中执行查询）。
 - 对应用例：`testcases/test_db_assert.yaml`
-- 依赖环境：在 `.env` 中配置 `MYSQL_CONFIG`，并确保数据库可连通。
+- 依赖环境：在 `.env` 中配置 `MYSQL_<DB>__<ROLE>__<FIELD>` 环境变量（至少提供 DSN），并确保数据库可连通。
 
 运行命令：
 

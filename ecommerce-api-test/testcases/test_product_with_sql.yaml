@@ -39,9 +39,12 @@ steps:
 
   - name: 步骤2-查询商品列表（完整SQL断言）
     request:
-      method: GET
-      path: /api/v1/products/
-      params:
+      method: POST
+      path: /api/v1/products/search
+      headers:
+        Content-Type: application/json
+      body:
+        query: ""  # 空查询返回所有商品
         page: 1
         page_size: 10
     validate:
@@ -58,10 +61,13 @@ steps:
 
   - name: 步骤3-按分类查询商品（完整SQL断言）
     request:
-      method: GET
-      path: /api/v1/products/
-      params:
-        category_id: 1
+      method: POST
+      path: /api/v1/products/search
+      headers:
+        Content-Type: application/json
+      body:
+        query: ""  # 空查询
+        category_id: 1  # 按分类过滤
     validate:
       # ✅ 正确：断言在validate中
       - eq: [status_code, 200]

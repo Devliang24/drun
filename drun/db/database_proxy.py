@@ -9,11 +9,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Tuple
 from urllib.parse import urlparse
 
-import yaml
-
 from drun.utils.logging import get_logger
 from drun.utils.mask import mask_body
-from drun.utils.errors import LoadError  # backward compat alias for parse errors
 
 
 # Local exceptions (exported via utils.errors in a follow-up for reuse)
@@ -160,75 +157,200 @@ def _parse_dsn_string(dsn: str) -> Dict[str, Any]:
     }
 
 
-def _normalize_role_entry(value: Any, *, path: str, errors: List[str]) -> Dict[str, Any]:
-    meta_enabled = True
-    meta_tags: List[str] = []
-    raw: Dict[str, Any]
+_BOOL_TRUE = {"1", "true", "yes", "y", "on"}
+
+
+def _parse_bool(value: str | None, *, default: bool = True) -> bool:
     if value is None:
-        errors.append(f"{path}: role entry cannot be null")
-        raw = {}
-    elif isinstance(value, str):
-        raw = {"dsn": value}
-    elif isinstance(value, Mapping):
-        raw = dict(value)
-        # read meta
-        if "enabled" in raw and not isinstance(raw["enabled"], bool):
-            errors.append(f"{path}.enabled must be boolean")
-        else:
-            meta_enabled = bool(raw.get("enabled", True))
-        tags_val = raw.get("tags")
-        if tags_val is not None:
-            if isinstance(tags_val, list) and all(isinstance(t, (str, int, float)) for t in tags_val):
-                meta_tags = [str(t) for t in tags_val]
+        return default
+    text = str(value).strip().lower()
+    if text == "":
+        return default
+    if text in _BOOL_TRUE:
+        return True
+    return False
+
+
+def _split_tags(value: str | None) -> List[str]:
+    if not value:
+        return []
+    items = []
+    for part in value.replace(";", ",").split(","):
+        token = part.strip()
+        if token:
+            items.append(token)
+    return items
+
+
+def _strip_quotes(value: str) -> str:
+    text = value.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+        return text[1:-1]
+    return text
+
+
+def _parse_env_block(text: str) -> Dict[str, str]:
+    pairs: Dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" not in stripped:
+            continue
+        key, val = stripped.split("=", 1)
+        pairs[key.strip()] = _strip_quotes(val)
+    return pairs
+
+
+def _split_mysql_key(key: str) -> Tuple[str, Optional[str], str] | None:
+    if not key.upper().startswith("MYSQL_"):
+        return None
+    body = key[6:]
+    if "__" in body:
+        parts = [p for p in body.split("__") if p != ""]
+        if len(parts) == 2:
+            return parts[0], None, parts[1]
+        if len(parts) >= 3:
+            return parts[0], parts[1], "__".join(parts[2:])
+        return None
+    # Fallback: MYSQL_DB_ROLE_FIELD or MYSQL_DB_FIELD
+    if "_" not in body:
+        return None
+    segments = body.rsplit("_", 2)
+    if len(segments) == 2:
+        db, field = segments
+        return db, None, field
+    if len(segments) == 3:
+        db, role, field = segments
+        return db, role, field
+    return None
+
+
+def _build_config_from_env(source: Mapping[str, str]) -> Tuple[Dict[str, DatabaseConfig], List[str]]:
+    db_store: Dict[str, Dict[str, Any]] = {}
+    errors: List[str] = []
+
+    for raw_key, raw_value in source.items():
+        spec = _split_mysql_key(raw_key)
+        if spec is None:
+            continue
+        db_raw, role_raw, field_raw = spec
+        if not db_raw:
+            continue
+        db_key = db_raw.strip().lower()
+        db_entry = db_store.setdefault(
+            db_key,
+            {
+                "name": db_raw.strip() or db_key,
+                "enabled": True,
+                "tags": set(),
+                "roles": {},
+            },
+        )
+
+        value = _strip_quotes(raw_value)
+        field = field_raw.strip().upper()
+
+        if role_raw is None or role_raw.strip() == "":
+            if field == "ENABLED":
+                db_entry["enabled"] = _parse_bool(value, default=True)
+            elif field == "TAGS":
+                db_entry["tags"].update(_split_tags(value))
             else:
-                errors.append(f"{path}.tags must be a list of strings")
-        # drop meta keys for DSN normalization
-        raw = {k: v for k, v in raw.items() if k not in {"enabled", "tags"}}
-    else:
-        errors.append(f"{path}: unsupported role entry type {type(value).__name__}")
-        raw = {}
+                errors.append(f"{db_entry['name']}: unsupported field '{field}'")
+            continue
 
-    dsn: Dict[str, Any] = {
-        "host": "127.0.0.1",
-        "port": 3306,
-        "user": None,
-        "password": None,
-        "database": None,
-        "charset": "utf8mb4",
-    }
+        role_key = role_raw.strip().lower()
+        role_entry = db_entry["roles"].setdefault(
+            role_key,
+            {
+                "name": role_raw.strip() or role_key,
+                "enabled": True,
+                "tags": set(),
+                "dsn": None,
+                "fields": {},
+                "order": len(db_entry["roles"]),
+            },
+        )
 
-    if "dsn" in raw and raw["dsn"] not in (None, ""):
-        try:
-            parsed = _parse_dsn_string(str(raw["dsn"]))
-            dsn.update({k: v for k, v in parsed.items() if v is not None})
-        except Exception as e:
-            errors.append(f"{path}.dsn invalid: {e}")
+        if field == "DSN":
+            role_entry["dsn"] = value
+        elif field in {"HOST", "USER", "PASSWORD", "DATABASE", "CHARSET"}:
+            role_entry["fields"][field.lower()] = value
+        elif field == "PORT":
+            try:
+                role_entry["fields"]["port"] = int(value)
+            except Exception:
+                errors.append(f"{db_entry['name']}.{role_entry['name']}: PORT must be an integer")
+        elif field == "ENABLED":
+            role_entry["enabled"] = _parse_bool(value, default=True)
+        elif field == "TAGS":
+            role_entry["tags"].update(_split_tags(value))
+        else:
+            errors.append(f"{db_entry['name']}.{role_entry['name']}: unsupported field '{field}'")
 
-    # explicit fields override DSN
-    for k in ("host", "user", "password", "database", "charset"):
-        v = raw.get(k)
-        if v not in (None, ""):
-            dsn[k] = v
+    parsed: Dict[str, DatabaseConfig] = {}
 
-    if raw.get("port") not in (None, ""):
-        try:
-            dsn["port"] = int(raw.get("port"))
-        except Exception:
-            errors.append(f"{path}.port must be an integer")
+    for db_key, db_entry in db_store.items():
+        role_configs: Dict[str, RoleConfig] = {}
+        for role_key, role_entry in sorted(db_entry["roles"].items(), key=lambda item: item[1]["order"]):
+            dsn_info: Dict[str, Any] = {
+                "host": "127.0.0.1",
+                "port": 3306,
+                "user": None,
+                "password": None,
+                "database": None,
+                "charset": "utf8mb4",
+            }
 
-    # required fields
-    if not dsn.get("database"):
-        errors.append(f"{path}.database is required (or provide it in DSN)")
-    if not dsn.get("user"):
-        errors.append(f"{path}.user is required (or provide it in DSN)")
-    if dsn.get("password") in (None, ""):
-        errors.append(f"{path}.password is required (or provide it in DSN)")
+            if role_entry["dsn"]:
+                try:
+                    parsed_dsn = _parse_dsn_string(role_entry["dsn"])
+                    for key, val in parsed_dsn.items():
+                        if val is not None:
+                            dsn_info[key] = val
+                except Exception as exc:
+                    errors.append(f"{db_entry['name']}.{role_entry['name']}: invalid DSN ({exc})")
 
-    return {
-        "enabled": meta_enabled,
-        "tags": meta_tags,
-        "dsn": dsn,
-    }
+            for field_name, field_value in role_entry["fields"].items():
+                if field_name == "port":
+                    dsn_info["port"] = field_value
+                else:
+                    dsn_info[field_name] = field_value
+
+            missing = [k for k in ("database", "user", "password") if not dsn_info.get(k)]
+            if missing:
+                errors.append(
+                    f"{db_entry['name']}.{role_entry['name']}: missing {', '.join(missing)}"
+                )
+
+            all_tags = set(db_entry["tags"]) | set(role_entry["tags"])
+            role_configs[role_key] = RoleConfig(
+                name=role_key,
+                enabled=bool(role_entry["enabled"]),
+                tags=sorted(all_tags),
+                dsn=dsn_info,
+            )
+
+        if not role_configs:
+            errors.append(f"{db_entry['name']}: define at least one role")
+
+        parsed[db_key] = DatabaseConfig(
+            name=db_key,
+            enabled=bool(db_entry["enabled"]),
+            tags=sorted(db_entry["tags"]),
+            roles=role_configs,
+        )
+
+    return parsed, errors
+
+
+def _env_hint(db_name: str, role: Optional[str] = None) -> str:
+    base = db_name.upper().replace("-", "_")
+    if role:
+        role_part = role.upper().replace("-", "_")
+        return f"MYSQL_{base}__{role_part}__DSN"
+    return f"MYSQL_{base}__<ROLE>__DSN"
 
 
 @dataclass
@@ -414,7 +536,7 @@ class DatabaseManager:
     def available(self, *, tags: Optional[List[str]] = None, include_disabled: bool = False) -> List[str]:
         with self._lock:
             names: List[str] = []
-            for dbname, cfg in self._configs.items():
+            for cfg in self._configs.values():
                 if not include_disabled and not cfg.enabled:
                     continue
                 if tags:
@@ -424,7 +546,7 @@ class DatabaseManager:
                         tagset.update(rc.tags)
                     if not (set(tags) & tagset):
                         continue
-                names.append(dbname)
+                names.append(cfg.name)
             return sorted(names)
 
     def describe(self, *, mask: bool = True) -> Dict[str, Any]:
@@ -449,31 +571,43 @@ class DatabaseManager:
 
     def get(self, db_name: str, role: Optional[str] = None) -> DatabaseRoleProxy:
         with self._lock:
-            if db_name not in self._configs:
-                raise DatabaseNotConfiguredError(f"{db_name}.<role> not configured; add it in MYSQL_CONFIG")
-            cfg = self._configs[db_name]
-            role_name = role or ("default" if "default" in cfg.roles else next(iter(_sorted_role_names(cfg.roles.keys())), None))
-            if role_name is None or role_name not in cfg.roles:
-                raise DatabaseNotConfiguredError(f"{db_name}.{role or 'default'} not configured; add it in MYSQL_CONFIG")
-            key = (db_name, role_name)
+            key_name = (db_name or "").lower()
+            if key_name not in self._configs:
+                raise DatabaseNotConfiguredError(
+                    f"{db_name}.<role> not configured; define {_env_hint(db_name, role)}"
+                )
+            cfg = self._configs[key_name]
+            role_key = role.lower() if role else None
+            if role_key is None:
+                role_key = "default" if "default" in cfg.roles else next(iter(_sorted_role_names(cfg.roles.keys())), None)
+            if role_key is None or role_key not in cfg.roles:
+                missing_role = role or "default"
+                raise DatabaseNotConfiguredError(
+                    f"{db_name}.{missing_role} not configured; define {_env_hint(db_name, missing_role)}"
+                )
+            key = (key_name, role_key)
             proxy = self._proxies.get(key)
             if proxy is None:
-                rc = cfg.roles[role_name]
+                rc = cfg.roles[role_key]
                 if not cfg.enabled or not rc.enabled:
-                    raise DatabaseNotConfiguredError(f"{db_name}.{role_name} is disabled in MYSQL_CONFIG")
-                proxy = DatabaseRoleProxy(self, db_name, role_name, rc, logger=get_logger(f"drun.db.{db_name}.{role_name}"))
+                    raise DatabaseNotConfiguredError(
+                        f"{db_name}.{rc.name} is disabled via MYSQL_* env settings"
+                    )
+                proxy = DatabaseRoleProxy(self, cfg.name, rc.name, rc, logger=get_logger(f"drun.db.{cfg.name}.{rc.name}"))
                 self._proxies[key] = proxy
             return proxy
 
     # Attribute/index access
     def __getattr__(self, db_name: str) -> DatabaseRoleProxy:
         # Directly return default role proxy so that db.main.query() works
-        if db_name not in self._configs:
-            raise AttributeError(db_name)
-        return self.get(db_name, None)
+        try:
+            return self.get(db_name, None)
+        except DatabaseNotConfiguredError as exc:  # pragma: no cover - defensive
+            raise AttributeError(db_name) from exc
 
     def __getitem__(self, db_name: str) -> DatabaseRoleProxy:
-        if db_name not in self._configs:
+        key = db_name.lower()
+        if key not in self._configs:
             raise KeyError(db_name)
         return self.get(db_name, None)
 
@@ -487,9 +621,12 @@ class DatabaseManager:
             self._proxies.clear()
 
     def reload(self, config_str: Optional[str] = None) -> None:
-        config_text = config_str if config_str is not None else os.environ.get("MYSQL_CONFIG", "").strip()
-        if not config_text:
-            # Empty config -> clear
+        if config_str is not None and config_str.strip():
+            source = _parse_env_block(config_str)
+        else:
+            source = {k: v for k, v in os.environ.items() if k.upper().startswith("MYSQL_")}
+
+        if not source:
             with self._lock:
                 old_proxies = list(self._proxies.values())
                 self._proxies.clear()
@@ -504,89 +641,17 @@ class DatabaseManager:
                 self._log.debug("[DB] Config: {}")
             return
 
-        # Parse YAML/JSON via yaml.safe_load (YAML is a superset of JSON)
-        try:
-            raw = yaml.safe_load(config_text)
-        except Exception as e:
-            raise InvalidMySQLConfigError(f"Failed to parse MYSQL_CONFIG: {e}") from e
-
-        if raw is None:
-            raw = {}
-        if not isinstance(raw, Mapping):
-            raise InvalidMySQLConfigError("MYSQL_CONFIG must be a mapping of <db_name>: <roles|list>")
-
-        # Build config
-        errors: List[str] = []
-        parsed: Dict[str, DatabaseConfig] = {}
-
-        for db_name, db_value in raw.items():
-            path_base = str(db_name)
-            enabled = True
-            tags: List[str] = []
-            roles_spec: Any = db_value
-
-            if isinstance(db_value, Mapping):
-                # DB-level meta
-                if "enabled" in db_value and not isinstance(db_value["enabled"], bool):
-                    errors.append(f"{path_base}.enabled must be boolean")
-                else:
-                    enabled = bool(db_value.get("enabled", True))
-                tags_val = db_value.get("tags")
-                if tags_val is not None:
-                    if isinstance(tags_val, list) and all(isinstance(t, (str, int, float)) for t in tags_val):
-                        tags = [str(t) for t in tags_val]
-                    else:
-                        errors.append(f"{path_base}.tags must be a list of strings")
-                # Remaining keys are roles
-                # But support explicit { roles: {...} } if users prefer nesting
-                if "roles" in db_value and isinstance(db_value["roles"], Mapping):
-                    roles_spec = db_value["roles"]
-                else:
-                    # exclude meta keys
-                    roles_spec = {k: v for k, v in db_value.items() if k not in {"enabled", "tags"}}
-
-            # Normalize roles
-            role_map: Dict[str, RoleConfig] = {}
-            if isinstance(roles_spec, list):
-                for idx, entry in enumerate(roles_spec):
-                    role_name = "default" if idx == 0 else f"default_{idx}"
-                    rc_raw = _normalize_role_entry(entry, path=f"{path_base}[{idx}]", errors=errors)
-                    role_map[role_name] = RoleConfig(
-                        name=role_name,
-                        enabled=bool(rc_raw["enabled"]),
-                        tags=list(tags) + list(rc_raw.get("tags", [])),
-                        dsn=rc_raw["dsn"],
-                    )
-            elif isinstance(roles_spec, Mapping):
-                for role_name, entry in roles_spec.items():
-                    rc_raw = _normalize_role_entry(entry, path=f"{path_base}.{role_name}", errors=errors)
-                    role_map[str(role_name)] = RoleConfig(
-                        name=str(role_name),
-                        enabled=bool(rc_raw["enabled"]),
-                        tags=list(tags) + list(rc_raw.get("tags", [])),
-                        dsn=rc_raw["dsn"],
-                    )
-            else:
-                errors.append(f"{path_base}: roles must be an object or a list")
-
-            parsed[db_name] = DatabaseConfig(name=str(db_name), enabled=enabled, tags=tags, roles=role_map)
-
-        # Validate at least one role per DB and default role presence for convenient access
-        for dbname, cfg in parsed.items():
-            if not cfg.roles:
-                errors.append(f"{dbname}: must define at least one role")
+        parsed, errors = _build_config_from_env(source)
 
         if errors:
-            raise InvalidMySQLConfigError("Invalid MYSQL_CONFIG:\n- " + "\n- ".join(errors))
+            raise InvalidMySQLConfigError("Invalid MySQL configuration:\n- " + "\n- ".join(errors))
 
-        # Apply
         with self._lock:
             old_proxies = list(self._proxies.values())
             self._proxies.clear()
             self._configs = parsed
-            # Logging: INFO only counts, DEBUG details
             total_dbs = len(parsed)
-            total_roles = sum(len(c.roles) for c in parsed.values())
+            total_roles = sum(len(cfg.roles) for cfg in parsed.values())
             debug_enabled = self._log.isEnabledFor(logging.DEBUG)
             details = json.dumps(self.describe(mask=True), ensure_ascii=False) if debug_enabled else ""
 

@@ -120,8 +120,9 @@ cp .env.example .env
 # API 基础地址
 BASE_URL=http://110.40.159.145:9099
 
-# MySQL 数据库配置 (端口已更新为 8020)
-MYSQL_CONFIG={"main": {"default": {"dsn": "mysql://root:password@110.40.159.145:8020/ecommerce"}}}
+# MySQL 数据库配置 (端口 8020)
+MYSQL_MAIN__DEFAULT__DSN=mysql://root:password@110.40.159.145:8020/ecommerce
+MYSQL_MAIN__DEFAULT__CHARSET=utf8mb4
 
 # 测试用户凭证
 USER_PASSWORD=Test@123456
@@ -341,7 +342,7 @@ UPDATE users SET role='admin' WHERE username='admin';
 Error: SQL assertion failed
 ```
 **解决方案**:
-1. 确认 `MYSQL_CONFIG` 格式正确
+1. 确认 `MYSQL_*` 环境变量配置正确，例如 `MYSQL_MAIN__DEFAULT__DSN`
 2. 检查数据库连接权限
 3. 验证SQL语句语法
 
@@ -374,7 +375,7 @@ jobs:
       - name: Run Smoke Tests
         env:
           BASE_URL: http://110.40.159.145:9099
-          MYSQL_CONFIG: ${{ secrets.MYSQL_CONFIG }}
+          MYSQL_MAIN__DEFAULT__DSN: ${{ secrets.MYSQL_MAIN_DEFAULT_DSN }}
         run: |
           cd ecommerce-api-test
           drun run testsuites/testsuite_smoke.yaml \
