@@ -1093,12 +1093,10 @@ def run(
     notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="在邮件中附加 HTML 报告（如果启用邮件）", show_default=False),
 ):
     """运行测试用例或测试套件"""
-    # default log file path
+    # default timestamp; set up console logging first (no file) to avoid writing to a wrong file
     ts = time.strftime("%Y%m%d-%H%M%S")
-    system_name = get_system_name()
-    log_component = _sanitize_filename_component(system_name, "run")
-    default_log = log_file or f"logs/{log_component}-{ts}.log"
-    setup_logging(log_level, log_file=default_log)
+    default_log = None  # will be decided after env is loaded
+    setup_logging(log_level, log_file=None)
     log = get_logger("drun.cli")
     # unify httpx logs: default suppress, unless enabled
     import logging as _logging
@@ -1131,6 +1129,14 @@ def run(
     for env_key, env_val in env_store.items():
         if env_key and isinstance(env_val, str) and env_key.upper() == env_key:  # Only uppercase keys (skip lowercase duplicates)
             os.environ.setdefault(env_key, env_val)
+
+    # Now compute system-specific log file after env is loaded (so SYSTEM_NAME/PROJECT_NAME are visible)
+    system_name = get_system_name()
+    log_component = _sanitize_filename_component(system_name, "run")
+    default_log = log_file or f"logs/{log_component}-{ts}.log"
+    # reconfigure logging with file handler now that we know the correct path
+    setup_logging(log_level, log_file=default_log)
+    log = get_logger("drun.cli")
     # Preflight: warn when default env file is missing and no BASE_URL provided anywhere
     from pathlib import Path as _Path
     _env_exists = _Path(env_file).exists() if env_file else False
