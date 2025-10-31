@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, List, Dict
 
 from drun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult
+from drun.utils.config import get_system_name
 
 
 def _json(obj: Any) -> str:
@@ -394,12 +395,16 @@ def _build_case(case: CaseInstanceResult) -> str:
 
 
 def write_html(report: RunReport, outfile: str | Path) -> None:
+    from drun.utils.config import get_system_name
+
     s = report.summary or {}
     gen_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
     # Header + styles (light theme, GitHub-like)
     head_parts = []
-    head_parts.append("""
+    system_name = get_system_name()
+    system_name_html = _escape_html(system_name)
+    head_template = """
 <!doctype html><html lang='zh-CN'><head><meta charset='utf-8' /><meta name='viewport' content='width=device-width, initial-scale=1' />
 <title>Drun 测试报告</title>
 <style>
@@ -705,9 +710,11 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
     window.applyFilters();
   });
 })();</script>
-""")
+"""
+    head_parts.append(head_template.replace("Drun 测试报告", f"{system_name_html} 测试报告"))
     # style tag already closed in the header string above
     head_parts.append("</head><body>\n<div class='wrap'>\n  <div class='header-sticky'>\n    <div class='headbar'>\n      <h1>Drun 测试报告</h1>\n      <div class='meta'>生成时间：" + _escape_html(gen_time) + "</div>\n    </div>\n")
+    head_parts[-1] = head_parts[-1].replace("Drun 测试报告", f"{system_name_html} 测试报告")
     # Summary badges
     total = str(s.get('total', 0))
     passed = str(s.get('passed', 0))
