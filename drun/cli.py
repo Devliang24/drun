@@ -984,7 +984,9 @@ def export_curl(
 
     output = "\n\n".join(out_lines)
     if outfile:
-        Path(outfile).write_text(output, encoding="utf-8")
+        out_path = Path(outfile)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(output, encoding="utf-8")
         typer.echo(f"[EXPORT] Wrote {len(out_lines)} curl commands to {outfile}")
     else:
         typer.echo(output)

@@ -640,12 +640,12 @@ class Runner:
                 body_masked = resp_obj.get("body")
                 if not self.reveal:
                     body_masked = mask_body(body_masked)
-                
+
                 # Build response dict - include streaming fields if present
                 response_dict = {
                     "status_code": resp_obj.get("status_code"),
                 }
-                
+
                 # Check if streaming response
                 if resp_obj.get("is_stream"):
                     response_dict["is_stream"] = True
@@ -664,8 +664,22 @@ class Runner:
                         response_dict["stream_events"] = masked_events
                 else:
                     # Regular response body
-                    response_dict["body"] = body_masked if isinstance(body_masked, (dict, list)) else (str(body_masked)[:2048] if body_masked else None)
-                
+                    if isinstance(body_masked, (dict, list)):
+                        response_dict["body"] = body_masked
+                    elif body_masked is None:
+                        response_dict["body"] = None
+                    elif isinstance(body_masked, (str, bytes)):
+                        if isinstance(body_masked, bytes):
+                            text = body_masked.decode("utf-8", errors="replace")
+                        else:
+                            text = body_masked
+                        response_dict["body"] = text if len(text) <= 2048 else text[:2048] + "..."
+                    elif isinstance(body_masked, (bool, int, float)):
+                        response_dict["body"] = body_masked
+                    else:
+                        text = str(body_masked)
+                        response_dict["body"] = text if len(text) <= 2048 else text[:2048] + "..."
+
                 # Build curl command for the step (always available in report)
                 url_rendered = resp_obj.get("url") or req_rendered.get("path")
                 curl_headers = req_rendered.get("headers") or {}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Iterable, List, Sequence
 
 
@@ -37,42 +38,60 @@ def discover(paths: Sequence[str | Path]) -> List[Path]:
 def match_tags(tags: Iterable[str], expr: str | None) -> bool:
     if not expr:
         return True
-    expr = expr.strip()
+
     tagset = {t.lower() for t in tags}
-    # very small boolean expression parser supporting 'and', 'or', 'not', parentheses omitted
-    # split by space and evaluate left-to-right with 'and' higher precedence than 'or'
-    tokens = expr.lower().replace("(", " ").replace(")", " ").split()
-    # convert tokens to booleans
-    bools: List[bool] = []
-    ops: List[str] = []
-    for tok in tokens:
-        if tok in {"and", "or", "not"}:
-            ops.append(tok)
-        else:
-            bools.append(tok in tagset)
-    # apply 'not'
-    i = 0
-    while i < len(ops):
-        if ops[i] == "not":
-            # negate next boolean
-            if i < len(bools):
-                bools[i] = not bools[i]
-            ops.pop(i)
-        else:
-            i += 1
-    # apply 'and'
-    i = 0
-    while i < len(ops):
-        if ops[i] == "and":
-            if len(bools) >= 2:
-                a = bools.pop(0)
-                b = bools.pop(0)
-                bools.insert(0, a and b)
-            ops.pop(i)
-        else:
-            i += 1
-    # apply 'or'
-    res = False
-    for b in bools:
-        res = res or b
-    return res
+    tokens = [tok.lower() for tok in re.findall(r"\(|\)|and|or|not|[^()\s]+", expr, flags=re.IGNORECASE)]
+    position = 0
+
+    def current() -> str | None:
+        return tokens[position] if position < len(tokens) else None
+
+    def consume(expected: str | None = None) -> str | None:
+        nonlocal position
+        tok = current()
+        if tok is None:
+            return None
+        if expected is not None and tok != expected:
+            return None
+        position += 1
+        return tok
+
+    def parse_expression() -> bool:
+        return parse_or()
+
+    def parse_or() -> bool:
+        value = parse_and()
+        while consume("or") is not None:
+            rhs = parse_and()
+            value = value or rhs
+        return value
+
+    def parse_and() -> bool:
+        value = parse_not()
+        while consume("and") is not None:
+            rhs = parse_not()
+            value = value and rhs
+        return value
+
+    def parse_not() -> bool:
+        if consume("not") is not None:
+            return not parse_not()
+        return parse_primary()
+
+    def parse_primary() -> bool:
+        tok = current()
+        if tok is None:
+            return False
+        if tok == "(":
+            consume("(")
+            value = parse_expression()
+            if consume(")") is None:
+                return False
+            return value
+        consume()
+        return tok in tagset
+
+    result = parse_expression()
+    if position != len(tokens):
+        return False
+    return result
