@@ -26,7 +26,7 @@ from drun.models.report import RunReport
 from drun.reporter.json_reporter import write_json
 from drun.runner.runner import Runner
 from drun.templating.engine import TemplateEngine
-from drun.utils.config import get_system_name
+from drun.utils.config import get_env_clean, get_system_name
 from drun.utils.errors import LoadError
 from drun.utils.logging import setup_logging, get_logger
 
@@ -1324,15 +1324,22 @@ def run(
             build_summary_text,
         )
 
-        channels_spec = notify if notify is not None else os.environ.get("DRUN_NOTIFY", "")
+        env_channels = get_env_clean("DRUN_NOTIFY") or ""
+        channels_spec = notify.strip() if (notify and notify.strip()) else env_channels
         channels = [c.strip().lower() for c in channels_spec.split(",") if c.strip()]
+
+        feishu_webhook = get_env_clean("FEISHU_WEBHOOK")
+        dingtalk_webhook = get_env_clean("DINGTALK_WEBHOOK")
+        smtp_host_env = get_env_clean("SMTP_HOST")
+        mail_to_env = get_env_clean("MAIL_TO")
+
         if not channels:
             auto_channels: List[str] = []
-            if os.environ.get("FEISHU_WEBHOOK"):
+            if feishu_webhook:
                 auto_channels.append("feishu")
-            if os.environ.get("DINGTALK_WEBHOOK"):
+            if dingtalk_webhook:
                 auto_channels.append("dingtalk")
-            if os.environ.get("SMTP_HOST") or os.environ.get("MAIL_TO"):
+            if smtp_host_env or mail_to_env:
                 auto_channels.append("email")
             if auto_channels:
                 log.info("[NOTIFY] Auto-enabling channels from environment: %s", ", ".join(auto_channels))
@@ -1340,8 +1347,10 @@ def run(
         # deduplicate while preserving order
         seen = set()
         channels = [c for c in channels if not (c in seen or seen.add(c))]
-        policy = (notify_only or os.environ.get("DRUN_NOTIFY_ONLY", "failed")).strip().lower()
-        topn = int(os.environ.get("NOTIFY_TOPN", "5") or "5")
+        policy_source = notify_only.strip() if (notify_only and notify_only.strip()) else get_env_clean("DRUN_NOTIFY_ONLY", "failed")
+        policy = (policy_source or "failed").lower()
+        topn_raw = get_env_clean("NOTIFY_TOPN", "5") or "5"
+        topn = int(topn_raw)
 
         log.info("[NOTIFY] channels=%s policy=%s", channels, policy)
 
@@ -1356,43 +1365,44 @@ def run(
             notifiers = []
 
             if "feishu" in channels:
-                fw = os.environ.get("FEISHU_WEBHOOK", "").strip()
+                fw = feishu_webhook or ""
                 if fw:
-                    fs = os.environ.get("FEISHU_SECRET")
-                    fm = os.environ.get("FEISHU_MENTION")
-                    style_raw = os.environ.get("FEISHU_STYLE", "text")
-                    style_clean = style_raw.split("#", 1)[0].strip()
-                    style = (style_clean or "text").lower()
+                    fs = get_env_clean("FEISHU_SECRET")
+                    fm = get_env_clean("FEISHU_MENTION")
+                    style = (get_env_clean("FEISHU_STYLE", "text") or "text").lower()
                     notifiers.append(FeishuNotifier(webhook=fw, secret=fs, mentions=fm, style=style))
                     log.info("[NOTIFY] Feishu notifier created (style=%s)", style)
                 else:
                     log.warning("[NOTIFY] Feishu channel requested but FEISHU_WEBHOOK not configured")
 
             if "email" in channels:
-                host = os.environ.get("SMTP_HOST", "").strip()
+                host = smtp_host_env or ""
                 if host:
                     notifiers.append(
                         EmailNotifier(
                             smtp_host=host,
-                            smtp_port=int(os.environ.get("SMTP_PORT", "465") or 465),
-                            smtp_user=os.environ.get("SMTP_USER"),
-                            smtp_pass=os.environ.get("SMTP_PASS"),
-                            mail_from=os.environ.get("MAIL_FROM"),
-                            mail_to=os.environ.get("MAIL_TO"),
-                            use_ssl=(os.environ.get("SMTP_SSL", "true").lower() != "false"),
-                            attach_html=bool(notify_attach_html or (os.environ.get("NOTIFY_ATTACH_HTML", "").lower() in {"1","true","yes"})),
-                            html_body=(os.environ.get("NOTIFY_HTML_BODY", "true").lower() != "false"),
+                            smtp_port=int(get_env_clean("SMTP_PORT", "465") or 465),
+                            smtp_user=get_env_clean("SMTP_USER"),
+                            smtp_pass=get_env_clean("SMTP_PASS"),
+                            mail_from=get_env_clean("MAIL_FROM"),
+                            mail_to=mail_to_env,
+                            use_ssl=((get_env_clean("SMTP_SSL", "true") or "true").lower() != "false"),
+                            attach_html=bool(
+                                notify_attach_html
+                                or ((get_env_clean("NOTIFY_ATTACH_HTML") or "").lower() in {"1", "true", "yes"})
+                            ),
+                            html_body=((get_env_clean("NOTIFY_HTML_BODY", "true") or "true").lower() != "false"),
                         )
                     )
 
             if "dingtalk" in channels:
-                dw = os.environ.get("DINGTALK_WEBHOOK", "").strip()
+                dw = dingtalk_webhook or ""
                 if dw:
-                    ds = os.environ.get("DINGTALK_SECRET")
-                    mobiles = os.environ.get("DINGTALK_AT_MOBILES", "").strip()
+                    ds = get_env_clean("DINGTALK_SECRET")
+                    mobiles = get_env_clean("DINGTALK_AT_MOBILES") or ""
                     at_mobiles = [m.strip() for m in mobiles.split(",") if m.strip()]
-                    at_all = os.environ.get("DINGTALK_AT_ALL", "").lower() in {"1", "true", "yes"}
-                    style = os.environ.get("DINGTALK_STYLE", "text").lower().strip()
+                    at_all = (get_env_clean("DINGTALK_AT_ALL") or "").lower() in {"1", "true", "yes"}
+                    style = (get_env_clean("DINGTALK_STYLE", "text") or "text").lower()
                     notifiers.append(
                         DingTalkNotifier(webhook=dw, secret=ds, at_mobiles=at_mobiles, at_all=at_all, style=style)
                     )

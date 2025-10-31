@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import os
 import time
 from typing import Optional
 
@@ -12,6 +11,7 @@ import httpx
 from .base import Notifier, NotifyContext
 from .format import build_summary_text, build_text_message
 from drun.models.report import RunReport
+from drun.utils.config import get_env_clean
 
 
 class FeishuNotifier(Notifier):
@@ -42,7 +42,7 @@ class FeishuNotifier(Notifier):
         text = build_summary_text(report, html_path=ctx.html_path, log_path=ctx.log_path, topn=ctx.topn)
         if self.mentions:
             text = f"提醒: {self.mentions}\n\n" + text
-        report_url = os.environ.get("REPORT_URL")
+        report_url = get_env_clean("REPORT_URL")
         if (not report_url) and ctx.html_path and (ctx.html_path.startswith("http://") or ctx.html_path.startswith("https://")):
             report_url = ctx.html_path
         elements = [
@@ -61,7 +61,7 @@ class FeishuNotifier(Notifier):
                 ],
             })
         # 从环境变量读取系统名称，支持 SYSTEM_NAME 或 PROJECT_NAME
-        system_name = os.environ.get("SYSTEM_NAME", os.environ.get("PROJECT_NAME", "Drun 测试结果"))
+        system_name = get_env_clean("SYSTEM_NAME") or get_env_clean("PROJECT_NAME", "Drun 测试结果") or "Drun 测试结果"
         card = {
             "config": {"wide_screen_mode": True},
             "header": {"template": "blue", "title": {"tag": "plain_text", "content": system_name}},
