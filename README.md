@@ -771,7 +771,11 @@ steps:
 生成交互式 HTML 报告：
 
 ```bash
+# 指定文件名
 drun run testcases --html reports/report.html
+
+# 使用默认命名（包含 SYSTEM_NAME）
+drun run testcases --html  # 生成 reports/{system_name}-{timestamp}.html
 ```
 
 截图预览（统一浅色风格）
@@ -884,7 +888,7 @@ allure --version
 export FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 export FEISHU_SECRET=your-secret      # 可选，签名验证
 export FEISHU_STYLE=card              # card 或 text（默认）
-export SYSTEM_NAME=我的测试系统       # 可选，自定义卡片标题（支持 SYSTEM_NAME 或 PROJECT_NAME）
+export SYSTEM_NAME=我的测试系统       # 可选，自定义通知标题和报告名称（支持 SYSTEM_NAME 或 PROJECT_NAME）
 export DRUN_NOTIFY_ONLY=failed        # failed 或 always
 
 # 运行并通知（已配置 FEISHU_WEBHOOK 时可直接运行）
@@ -895,6 +899,7 @@ drun run testcases --notify feishu --env-file .env
 
 **飞书卡片示例**（`FEISHU_STYLE=card`）：
 - 🏷️ **自定义标题**：显示系统名称（来自 `SYSTEM_NAME`，默认 "Drun 测试结果"）
+- 📁 **文件命名**：报告和日志文件名将包含 SYSTEM_NAME（格式：{system_name}-{timestamp}.ext）
 - 📊 **用例统计**：总数、通过、失败、跳过、耗时
 - 🔢 **步骤统计**：总步骤数、通过步骤数、失败步骤数
 - 🚨 **失败步骤详情**：步骤名称、错误消息、耗时（前 5 个）
@@ -912,6 +917,7 @@ export SMTP_USER=noreply@example.com
 export SMTP_PASS=app-password
 export MAIL_FROM=noreply@example.com
 export MAIL_TO=qa@example.com,dev@example.com
+export SYSTEM_NAME=我的测试系统       # 可选，自定义邮件标题和报告名称
 
 # 运行并通知（附带 HTML 报告；已配置 SMTP/MAIL_TO 时可直接运行）
 drun run testcases --notify-attach-html --env-file .env
@@ -935,6 +941,7 @@ export DINGTALK_AT_MOBILES=13800138000,13900139000
 export DINGTALK_AT_ALL=false
 # 可选：消息样式 text/markdown（默认 text）
 export DINGTALK_STYLE=text
+export SYSTEM_NAME=我的测试系统       # 可选，自定义通知标题和报告名称
 
 # 运行并通知（失败才发；已配置 DINGTALK_WEBHOOK 时可直接运行）
 drun run testcases --notify-only failed --env-file .env
@@ -948,6 +955,35 @@ drun run testcases --notify feishu,dingtalk --notify-only always --env-file .env
 说明：
 - 文本内容为测试摘要与失败 TOPN（默认 5）；包含报告和日志路径（若存在）。
 - 配置了 `DINGTALK_SECRET` 时，通知将按钉钉机器人加签规范使用 HMAC-SHA256 进行签名（毫秒级时间戳）。
+
+### 🏷️ 自定义系统名称 (SYSTEM_NAME)
+
+`SYSTEM_NAME` 环境变量可统一控制通知和报告的命名：
+
+```bash
+export SYSTEM_NAME=我的API测试系统
+```
+
+**影响范围**：
+- **通知标题**：飞书卡片标题、钉钉消息标题、邮件主题
+- **报告标题**：HTML 报告页面标题和头部标题
+- **消息内容**：通知消息前缀（"系统名 执行完成"）
+- **文件命名**：默认报告和日志文件名（`{system_name}-{timestamp}.ext`）
+
+**优先级**：`SYSTEM_NAME` > `PROJECT_NAME` > `"Drun"`
+
+**使用示例**：
+```bash
+# .env 文件
+SYSTEM_NAME=电商API测试系统
+BASE_URL=https://api.example.com
+
+# 运行测试
+drun run testcases
+
+# 生成文件：reports/电商api测试系统-20251031-143022.html
+# 通知标题：[电商API测试系统] 测试结果: 0/5 失败
+```
 
 ---
 
@@ -963,9 +999,39 @@ drun run testcases --notify feishu,dingtalk --notify-only always --env-file .env
 
 ## 🔗 CI/CD 集成
 
-为保持 README 精炼，CI 示例已迁移至 docs：
+### 🚀 GitHub Actions 脚手架（推荐）
 
-- GitHub Actions、GitLab CI、Jenkins 示例与最佳实践：docs/CI_CD.md
+Drun 提供了开箱即用的 GitHub Actions 脚手架，一键启用自动化测试和飞书通知：
+
+**快速开始**：
+```bash
+# 1. 启用 CI/CD（已内置在项目中）
+# 2. 配置 GitHub Secrets
+# 在仓库 Settings > Secrets 中添加：
+BASE_URL=https://your-api.example.com
+USER_USERNAME=your_test_user
+USER_PASSWORD=your_test_password
+FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook-url
+SYSTEM_NAME=你的系统名称  # 可选
+
+# 3. 提交代码即可自动触发测试
+```
+
+**核心特性**：
+- ✅ **多 Python 版本**：3.10, 3.11, 3.12 兼容性测试
+- ✅ **业务测试**：自动执行核心业务流程（smoke/critical/p0）
+- ✅ **飞书通知**：测试结果实时推送团队群聊
+- ✅ **HTML 报告**：交互式测试报告自动生成
+- ✅ **安全扫描**：代码安全漏洞自动检测
+- ✅ **定时执行**：每日自动回归测试
+
+**配置文件**：`.github/workflows/test.yml`（可直接使用或自定义）
+
+**详细配置指南**：查看 [docs/github-cicd-scaffold.md](docs/github-cicd-scaffold.md)
+
+### 其他 CI 平台
+
+- GitLab CI、Jenkins 示例与最佳实践：docs/CI_CD.md
 
 ---
 

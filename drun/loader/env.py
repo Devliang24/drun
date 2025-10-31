@@ -110,9 +110,9 @@ def load_environment(env_name: Optional[str], env_file: Optional[str]) -> Dict[s
                 data = _read_kv_file(fp)
             merged.update(data)
 
-    # OS environment passthrough (ENV_* copied; also copy BASE_URL if present)
+    # OS environment passthrough (ENV_* copied; also copy BASE_URL and SYSTEM_NAME if present)
     for k, v in os.environ.items():
-        if k.startswith("ENV_") or k in {"BASE_URL"}:
+        if k.startswith("ENV_") or k in {"BASE_URL", "SYSTEM_NAME", "PROJECT_NAME"}:
             merged[k] = v
 
     # duplicate lowercase keys for convenience

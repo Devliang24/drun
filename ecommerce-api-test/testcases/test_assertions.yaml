@@ -10,6 +10,7 @@ config:
 
 steps:
   # ==================== 基础比较断言 ====================
+
   - name: 基础比较断言示例
     request:
       method: GET
@@ -44,6 +45,8 @@ steps:
       - ge: [$limit_num, "1"]
 
   # ==================== 字符串断言 ====================
+
+
   - name: 字符串断言示例
     request:
       method: POST
@@ -74,6 +77,7 @@ steps:
       - regex: [$user_agent, 'Drun.*v\d+\.\d+']
 
   # ==================== 集合与长度断言 ====================
+
   - name: 集合与长度断言示例
     request:
       method: POST
@@ -107,6 +111,7 @@ steps:
       - len_eq: [$.json.metadata, 2]
 
   # ==================== 批量断言（列表）====================
+
   - name: 批量断言示例 - 模型列表
     # 注意：实际使用时应该用 JSONPath 从响应中提取列表
     # 例如：extract: { all_model_names: "$.data.items[*].model_name" }
@@ -139,6 +144,7 @@ steps:
       - match_regex_all: [$all_model_ids, '^emb-\d{3}$']
 
   # ==================== 复杂场景组合 ====================
+
   - name: 复杂场景组合示例
     request:
       method: GET
@@ -175,6 +181,7 @@ steps:
       - len_eq: [$request_id, 16]
 
   # ==================== JSONPath 提取 + 批量断言 ====================
+
   - name: JSONPath 提取 + 批量断言
     # 注意：实际使用时应该用 JSONPath 从响应中提取列表
     # 例如：extract: { all_usernames: "$.json.users[*].username" }
@@ -221,11 +228,13 @@ steps:
       - len_eq: [$all_emails, 3]
 
   # ==================== 性能和负值断言 ====================
+
   - name: 性能和边界值断言
     request:
       method: GET
       path: /delay/0
     extract:
+      response_time: $elapsed_ms
     validate:
       - eq: [status_code, 200]
       

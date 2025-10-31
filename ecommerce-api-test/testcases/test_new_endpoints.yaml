@@ -10,6 +10,7 @@ config:
 
 steps:
   # 快速商品搜索测试
+
   - name: 快速商品搜索
     request:
       method: POST
@@ -24,6 +25,7 @@ steps:
       - eq: [$.success, true]
 
   # 订单搜索测试
+
   - name: 注册测试用户
     request:
       method: POST
@@ -39,6 +41,7 @@ steps:
     validate:
       - eq: [status_code, 201]
 
+
   - name: 登录获取token
     request:
       method: POST
@@ -53,6 +56,7 @@ steps:
     validate:
       - eq: [status_code, 200]
 
+
   - name: 获取商品并添加到购物车
     request:
       method: GET
@@ -61,6 +65,7 @@ steps:
       product_id: $.data.items[0].id
     validate:
       - eq: [status_code, 200]
+
 
   - name: 使用兼容接口添加商品到购物车
     request:
@@ -74,6 +79,7 @@ steps:
         quantity: 1
     validate:
       - eq: [status_code, 201]
+
 
   - name: 创建订单
     request:
@@ -89,6 +95,7 @@ steps:
     validate:
       - eq: [status_code, 201]
 
+
   - name: 订单结账
     request:
       method: POST
@@ -101,6 +108,7 @@ steps:
     validate:
       - eq: [status_code, 201]
       - eq: [$.success, true]
+
 
   - name: 订单搜索
     request:
@@ -117,6 +125,7 @@ steps:
       - eq: [$.success, true]
 
   # 管理员订单搜索测试
+
   - name: 管理员登录
     request:
       method: POST
@@ -131,6 +140,7 @@ steps:
     validate:
       - eq: [status_code, 200]
 
+
   - name: 管理员订单搜索
     request:
       method: POST
@@ -144,6 +154,7 @@ steps:
     validate:
       - eq: [status_code, 200]
       - eq: [$.success, true]
+
 
   - name: 使用兼容接口移除购物车商品
     request:

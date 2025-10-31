@@ -12,6 +12,7 @@ import httpx
 from .base import Notifier, NotifyContext
 from .format import build_text_message
 from drun.models.report import RunReport
+from drun.utils.config import get_system_name
 
 
 class DingTalkNotifier(Notifier):
@@ -57,7 +58,8 @@ class DingTalkNotifier(Notifier):
                 "isAtAll": self.at_all,
             }
             if self.style == "markdown":
-                title = os.environ.get("DINGTALK_TITLE", "Drun 测试结果")
+                system_name = get_system_name()
+                title = os.environ.get("DINGTALK_TITLE", f"{system_name} 测试结果")
                 payload = {"msgtype": "markdown", "markdown": {"title": title, "text": text}, "at": at_block}
             else:
                 payload = {"msgtype": "text", "text": {"content": text}, "at": at_block}
