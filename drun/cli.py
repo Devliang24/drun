@@ -1360,7 +1360,9 @@ def run(
                 if fw:
                     fs = os.environ.get("FEISHU_SECRET")
                     fm = os.environ.get("FEISHU_MENTION")
-                    style = os.environ.get("FEISHU_STYLE", "text").lower().strip()
+                    style_raw = os.environ.get("FEISHU_STYLE", "text")
+                    style_clean = style_raw.split("#", 1)[0].strip()
+                    style = (style_clean or "text").lower()
                     notifiers.append(FeishuNotifier(webhook=fw, secret=fs, mentions=fm, style=style))
                     log.info("[NOTIFY] Feishu notifier created (style=%s)", style)
                 else:
