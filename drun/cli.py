@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import json
-import sys
 import os
+import re
+import sys
+import time
+import unicodedata
+from importlib import metadata as _im
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import typer
-from importlib import metadata as _im
 import yaml
 
 from drun.loader.collector import discover, match_tags
@@ -23,11 +26,31 @@ from drun.models.report import RunReport
 from drun.reporter.json_reporter import write_json
 from drun.runner.runner import Runner
 from drun.templating.engine import TemplateEngine
-from drun.utils.logging import setup_logging, get_logger
-import time
-
-
+from drun.utils.config import get_system_name
 from drun.utils.errors import LoadError
+from drun.utils.logging import setup_logging, get_logger
+
+
+def _sanitize_filename_component(value: str, fallback: str) -> str:
+    value = (value or "").strip()
+    if not value:
+        return fallback
+    normalized = unicodedata.normalize("NFKC", value)
+    invalid_chars = {'<', '>', ':', '"', '/', '\\', '|', '?', '*'}
+    cleaned_chars = []
+    for ch in normalized.lower():
+        if ord(ch) < 32:
+            cleaned_chars.append("-")
+            continue
+        if ch in invalid_chars:
+            cleaned_chars.append("-")
+            continue
+        cleaned_chars.append(ch)
+    candidate = "".join(cleaned_chars)
+    candidate = re.sub(r"\s+", "-", candidate)
+    candidate = re.sub(r"-{2,}", "-", candidate)
+    candidate = candidate.strip(" .-")
+    return candidate or fallback
 
 
 def _resolve_env_file_alias(value: str) -> tuple[str, bool, List[str]]:
@@ -1072,7 +1095,9 @@ def run(
     """运行测试用例或测试套件"""
     # default log file path
     ts = time.strftime("%Y%m%d-%H%M%S")
-    default_log = log_file or f"logs/run-{ts}.log"
+    system_name = get_system_name()
+    log_component = _sanitize_filename_component(system_name, "run")
+    default_log = log_file or f"logs/{log_component}-{ts}.log"
     setup_logging(log_level, log_file=default_log)
     log = get_logger("drun.cli")
     # unify httpx logs: default suppress, unless enabled
@@ -1264,7 +1289,8 @@ def run(
             s.get("steps_skipped", 0),
         )
 
-    html_target = html or f"reports/report-{ts}.html"
+    html_component = _sanitize_filename_component(system_name, "report")
+    html_target = html or f"reports/{html_component}-{ts}.html"
 
     if report:
         write_json(report_obj, report)
