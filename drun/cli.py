@@ -1836,6 +1836,9 @@ def init_project(
     # GitHub Actions workflow
     _write_template(".github/workflows/test.yml", scaffolds.GITHUB_WORKFLOW_TEMPLATE)
 
+    # GitLab CI pipeline
+    _write_template(".gitlab-ci.yml", scaffolds.GITLAB_CI_TEMPLATE)
+
     # 输出创建的文件列表（tree 风格）
     project_name = name if name else "."
 
@@ -1868,6 +1871,7 @@ def init_project(
         ("├── ", ".github/", "GitHub 配置目录"),
         ("│   └── ", "workflows/", "GitHub Actions 工作流"),
         ("│       └── ", "test.yml", "默认 CI 流水线"),
+        ("├── ", ".gitlab-ci.yml", "GitLab CI 流水线"),
         ("├── ", ".env", "环境变量配置"),
         ("├── ", "drun_hooks.py", "自定义 Hooks 函数"),
         ("├── ", ".gitignore", "Git 忽略规则"),
@@ -1884,7 +1888,7 @@ def init_project(
         else:
             typer.echo(full)
     typer.echo("")
-    typer.echo("9 directories, 18 files")
+    typer.echo("9 directories, 19 files")
 
     if skipped_files:
         typer.echo("")
