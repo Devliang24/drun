@@ -341,6 +341,13 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
                     reordered[key] = value
             step["request"] = reordered
 
+        # Remove unnecessary default fields from request
+        req = step.get("request", {})
+        if "stream" in req and req["stream"] is False:
+            req.pop("stream", None)
+        if "stream_timeout" in req and req.get("stream_timeout") is None:
+            req.pop("stream_timeout", None)
+
         if step_validators:
             step["validate"] = step_validators
 
@@ -1275,6 +1282,12 @@ def run(
                     typer.echo(line)
                 raise typer.Exit(code=2)
             log.info(f"[CASE] Start: {c.config.name or 'Unnamed'} | params={ps}")
+
+            # Print config variables if present
+            if c.config.variables:
+                vars_str = ", ".join(f"{k}={v}" for k, v in c.config.variables.items())
+                log.info(f"[CONFIG] variables: {vars_str}")
+
             res = runner.run_case(c, global_vars=global_vars, params=ps, funcs=funcs, envmap=env_store, source=meta.get("file"))
             log.info(f"[CASE] Result: {res.name} | status={res.status} | duration={res.duration_ms:.1f}ms")
             instance_results.append(res)
