@@ -81,6 +81,36 @@ def strip_escape_quotes(value: str) -> str:
     return result
 
 
+def format_variables_as_json_like(variables: Dict[str, Any]) -> str:
+    """
+    Format variables as JSON-like structure for alignment with _fmt_aligned.
+
+    This function creates a structure that can be properly aligned by _fmt_aligned
+    function, similar to how body/headers are handled.
+
+    Args:
+        variables: Dictionary of variable name-value pairs
+
+    Returns:
+        Multi-line string with JSON-like formatting
+    """
+    if not variables:
+        return ""
+
+    # Create a dict-like structure for JSON formatting
+    vars_dict = {}
+    for k, v in variables.items():
+        vars_dict[k] = strip_escape_quotes(str(v))
+
+    # Use json.dumps for proper JSON formatting with indent=2
+    import json
+    try:
+        return json.dumps(vars_dict, ensure_ascii=False, indent=2)
+    except Exception:
+        # Fallback to simple string representation
+        return str(vars_dict)
+
+
 def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_length: int = 120) -> str:
     """
     Format variables into vertical list display.

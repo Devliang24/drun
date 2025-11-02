@@ -6,7 +6,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from drun.engine.http import HTTPClient
-from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline
+from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline, format_variables_as_json_like
 from drun.models.case import Case
 from drun.models.report import AssertionResult, CaseInstanceResult, RunReport, StepResult
 from drun.models.step import Step
@@ -534,10 +534,9 @@ class Runner:
                     # Print step variables if present
                     step_vars = step.variables or {}
                     if step_vars:
-                        vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
-                        # Log the entire multi-line string at once
-                        # The logging system will handle proper alignment via ColumnFormatter
-                        self.log.info(vars_str)
+                        # Format variables as JSON-like structure for proper alignment
+                        vars_content = format_variables_as_json_like(step_vars)
+                        self.log.info(self._fmt_aligned("STEP", "variables", vars_content))
 
                     # brief request line
                     self.log.info(f"[REQUEST] {req_rendered.get('method','GET')} {req_rendered.get('path')}")
