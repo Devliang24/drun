@@ -14,7 +14,7 @@ import typer
 import yaml
 
 from drun.loader.collector import discover, match_tags
-from drun.loader.yaml_loader import expand_parameters, load_yaml_file, strip_escape_quotes
+from drun.loader.yaml_loader import expand_parameters, load_yaml_file, strip_escape_quotes, format_variables_multiline
 from drun.loader.hooks import get_functions_for
 from drun.loader.env import load_environment
 from drun.models.case import Case
@@ -1289,8 +1289,10 @@ def run(
 
             # Print config variables if present
             if c.config.variables:
-                vars_str = ", ".join(f"{k}={strip_escape_quotes(str(v))}" for k, v in c.config.variables.items())
-                log.info(f"[CONFIG] variables: {vars_str}")
+                vars_str = format_variables_multiline(c.config.variables, "[CONFIG] variables: ")
+                for line in vars_str.split("\n"):
+                    if line.strip():
+                        log.info(line)
 
             res = runner.run_case(c, global_vars=global_vars, params=ps, funcs=funcs, envmap=env_store, source=meta.get("file"))
             log.info(f"[CASE] Result: {res.name} | status={res.status} | duration={res.duration_ms:.1f}ms")
