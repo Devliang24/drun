@@ -101,10 +101,15 @@ def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_
         return prefix.rstrip() if prefix.endswith(": ") else prefix
 
     # Format all variable assignments with escape quotes removed
-    var_assignments = [f"{k}={strip_escape_quotes(str(v))}" for k, v in variables.items()]
+    var_assignments = [f"{k}: {strip_escape_quotes(str(v))}" for k, v in variables.items()]
 
-    # Return vertical list format
-    lines = [prefix.rstrip() + ":"]
+    # Return vertical list format with proper indentation
+    # Remove trailing colon/space from prefix if present, then add single colon
+    clean_prefix = prefix.rstrip()
+    if not clean_prefix.endswith(":"):
+        clean_prefix += ":"
+
+    lines = [clean_prefix]
     for var_assignment in var_assignments:
         lines.append("  " + var_assignment)
 
