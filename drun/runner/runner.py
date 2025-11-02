@@ -492,6 +492,13 @@ class Runner:
 
                 if self.log:
                     self.log.info(f"[STEP] Start: {rendered_step_name}")
+
+                    # Print step variables if present
+                    step_vars = step.variables or {}
+                    if step_vars:
+                        vars_str = ", ".join(f"{k}={v}" for k, v in step_vars.items())
+                        self.log.info(f"[STEP] variables: {vars_str}")
+
                     # brief request line
                     self.log.info(f"[REQUEST] {req_rendered.get('method','GET')} {req_rendered.get('path')}")
                     if req_rendered.get("params") is not None:
