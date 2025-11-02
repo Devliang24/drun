@@ -24,6 +24,33 @@ def _is_testsuite_reference(doc: Dict[str, Any]) -> bool:
     return isinstance(doc, dict) and isinstance(doc.get("testcases"), list)
 
 
+def _escape_template_expressions_in_yaml(raw_text: str) -> str:
+    """
+    Temporarily escape template expressions to ensure safe YAML parsing.
+
+    When template expressions like ${func(...)} appear in arrays/lists,
+    YAML parser may get confused by special characters like parentheses.
+    We wrap such expressions in double quotes to ensure safe parsing.
+    """
+    import re
+
+    # Pattern to match template expressions that need escaping
+    # Look for ${...} patterns that contain parentheses (function calls)
+    pattern = r'\$\{[^}]*\([^)]*\)[^}]*\}'
+
+    def replace_template(match):
+        full_match = match.group(0)
+        # Check if the template expression is already quoted
+        # Look for quotes right before the ${...} pattern
+        start_pos = match.start()
+        if start_pos > 0 and raw_text[start_pos - 1] in ('"', "'"):
+            return full_match
+        # Wrap in double quotes to escape special chars
+        return f'"{full_match}"'
+
+    return re.sub(pattern, replace_template, raw_text)
+
+
 def _normalize_case_dict(d: Dict[str, Any], path: Path | None = None, raw_text: str | None = None) -> Dict[str, Any]:
     dd = dict(d)
     has_top_level_parameters = "parameters" in dd
@@ -123,7 +150,11 @@ def _normalize_case_dict(d: Dict[str, Any], path: Path | None = None, raw_text: 
 def load_yaml_file(path: Path) -> Tuple[List[Case], Dict[str, Any]]:
     try:
         raw = path.read_text(encoding="utf-8")
-        obj = yaml.safe_load(raw) or {}
+        # Pre-process YAML to escape template expressions that may cause parsing issues
+        # When template expressions like ${func(...)} appear in arrays/lists, they may confuse YAML parser
+        # We temporarily wrap them in quotes to ensure safe parsing
+        processed_raw = _escape_template_expressions_in_yaml(raw)
+        obj = yaml.safe_load(processed_raw) or {}
     except Exception as e:
         raise LoadError(f"Failed to parse YAML: {path}: {e}")
 
@@ -236,11 +267,11 @@ def load_yaml_file(path: Path) -> Tuple[List[Case], Dict[str, Any]]:
         raise LoadError("Legacy inline suite ('cases:') is not supported. Please use reference testsuite with 'testcases:'.")
     else:
         # single case file: normalize validators
-        obj = _normalize_case_dict(obj, path=path, raw_text=raw)
+        obj = _normalize_case_dict(obj, path=path, raw_text=processed_raw)
         try:
             case = Case.model_validate(obj)
         except ValidationError as exc:
-            raise LoadError(_format_case_validation_error(exc, obj, path, raw)) from exc
+            raise LoadError(_format_case_validation_error(exc, obj, path, processed_raw)) from exc
         cases.append(case)
 
     meta = {"file": str(path)}
