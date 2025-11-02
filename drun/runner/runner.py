@@ -6,7 +6,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from drun.engine.http import HTTPClient
-from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline, format_variables_as_json_like
+from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline
 from drun.models.case import Case
 from drun.models.report import AssertionResult, CaseInstanceResult, RunReport, StepResult
 from drun.models.step import Step
