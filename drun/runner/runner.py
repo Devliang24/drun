@@ -6,6 +6,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from drun.engine.http import HTTPClient
+from drun.loader.yaml_loader import strip_escape_quotes
 from drun.models.case import Case
 from drun.models.report import AssertionResult, CaseInstanceResult, RunReport, StepResult
 from drun.models.step import Step
@@ -496,7 +497,7 @@ class Runner:
                     # Print step variables if present
                     step_vars = step.variables or {}
                     if step_vars:
-                        vars_str = ", ".join(f"{k}={v}" for k, v in step_vars.items())
+                        vars_str = ", ".join(f"{k}={strip_escape_quotes(str(v))}" for k, v in step_vars.items())
                         self.log.info(f"[STEP] variables: {vars_str}")
 
                     # brief request line

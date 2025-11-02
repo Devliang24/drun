@@ -51,6 +51,37 @@ def _escape_template_expressions_in_yaml(raw_text: str) -> str:
     return re.sub(pattern, replace_template, raw_text)
 
 
+def strip_escape_quotes(value: str) -> str:
+    """
+    Strip escape quotes from template expressions for display purposes.
+
+    When displaying variables, we want to show clean values without the
+    escape quotes that were added during YAML parsing.
+
+    Args:
+        value: The value that may contain escape quotes
+
+    Returns:
+        Value with escape quotes removed if present
+    """
+    import re
+
+    # Pattern to match escaped template expressions: "${...}"
+    # This handles both:
+    # 1. Full value is just a template: "${func()}"
+    # 2. Template is part of a larger string: text_"${func()}" or text_"${func()}"_more
+    pattern = r'"(\$\{[^}]*\})"'
+
+    def replace_escaped_template(match):
+        # Return just the template part without the wrapping quotes
+        return match.group(1)
+
+    # Replace all occurrences of "template" with just template
+    result = re.sub(pattern, replace_escaped_template, value)
+    return result
+
+
+
 def _normalize_case_dict(d: Dict[str, Any], path: Path | None = None, raw_text: str | None = None) -> Dict[str, Any]:
     dd = dict(d)
     has_top_level_parameters = "parameters" in dd
