@@ -85,13 +85,17 @@ def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_
     """
     Format variables into multi-line aligned display.
 
+    This function is designed to work with the ColumnFormatter logging system.
+    It creates a multi-line string where continuation lines are indented
+    to align with the start of the message content.
+
     Args:
         variables: Dictionary of variable name-value pairs
         prefix: The prefix string (e.g., "[CONFIG] variables: ")
         max_line_length: Maximum line length before wrapping (default: 120)
 
     Returns:
-        Multi-line formatted string with proper alignment
+        Multi-line formatted string suitable for logging with alignment
     """
     if not variables:
         return prefix.rstrip() if prefix.endswith(": ") else prefix
@@ -99,12 +103,9 @@ def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_
     # Format all variable assignments
     var_assignments = [f"{k}={strip_escape_quotes(str(v))}" for k, v in variables.items()]
 
-    # Calculate prefix length for alignment
-    prefix_len = len(prefix)
-
     # Check if we can fit all variables on one line with the prefix
     all_vars = ", ".join(var_assignments)
-    if prefix_len + len(all_vars) <= max_line_length:
+    if len(prefix) + len(all_vars) <= max_line_length:
         # Fits on one line
         return prefix + all_vars
 
@@ -113,7 +114,7 @@ def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_
 
     # First line: prefix + as many vars as fit
     first_line_vars = []
-    current_length = prefix_len
+    current_length = len(prefix)
 
     for var in var_assignments:
         # Add 2 for ", " separator (except for first item)
@@ -134,15 +135,16 @@ def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_
     # Add the first line
     lines.append(prefix + ", ".join(first_line_vars))
 
-    # Subsequent lines: space-prefix + as many vars as fit
+    # Subsequent lines: use prefix length for alignment
+    # The ColumnFormatter will add more indentation based on the full log prefix
     for var in remaining_vars:
         var_length = len(var) + 2  # +2 for ", " separator
         if len(lines[-1]) + var_length <= max_line_length:
             # Append to current line
             lines[-1] += ", " + var
         else:
-            # Start a new line
-            lines.append(" " * prefix_len + var)
+            # Start a new line with prefix-length indentation
+            lines.append(" " * len(prefix) + var)
 
     return "\n".join(lines)
 

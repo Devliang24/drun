@@ -55,15 +55,52 @@ class Runner:
 
     def _fmt_json(self, obj: Any) -> str:
         try:
-            return json.dumps(obj, ensure_ascii=False, indent=2)
+            # Process object to strip escape quotes from string values
+            processed_obj = self._strip_escape_quotes_from_obj(obj)
+            return json.dumps(processed_obj, ensure_ascii=False, indent=2)
         except Exception:
             return str(obj)
 
-    @staticmethod
-    def _format_log_value(value: Any, *, prefix_len: int = 0) -> str:
+    def _strip_escape_quotes_from_obj(self, obj: Any) -> Any:
+        """Recursively strip escape quotes from string values in an object.
+
+        This processes JSON-like structures (dict, list, and strings) to remove
+        escape quotes that were added during YAML parsing, making the output
+        cleaner and more readable.
+        """
+        if isinstance(obj, str):
+            # First try strip_escape_quotes for template expressions
+            cleaned = strip_escape_quotes(obj)
+
+            # If the original string had escape quotes and strip_escape_quotes didn't change it,
+            # we need to handle the escaped quotes manually
+            if obj == cleaned and ('\\"' in obj or '\\\'' in obj):
+                # This string has escaped quotes that weren't processed by strip_escape_quotes
+                # Handle common cases:
+                # 1. "value_with_\"escaped_quotes\"" -> value_with_"escaped_quotes"
+                # 2. value_with_\"escaped_quotes (without outer quotes) -> value_with_"escaped_quotes"
+                result = obj
+                # Remove outer quotes if present
+                if result.startswith('"') and result.endswith('"'):
+                    result = result[1:-1]
+                # Unescape inner quotes
+                result = result.replace('\\"', '"').replace("\\'", "'")
+                return result
+
+            return cleaned
+        elif isinstance(obj, dict):
+            return {k: self._strip_escape_quotes_from_obj(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._strip_escape_quotes_from_obj(item) for item in obj]
+        else:
+            return obj
+
+    def _format_log_value(self, value: Any, *, prefix_len: int = 0) -> str:
         if isinstance(value, (dict, list)):
             try:
-                text = json.dumps(value, ensure_ascii=False, indent=2)
+                # Process object to strip escape quotes from string values
+                processed_obj = self._strip_escape_quotes_from_obj(value)
+                text = json.dumps(processed_obj, ensure_ascii=False, indent=2)
                 pad = "\n" + " " * max(prefix_len, 0)
                 return text.replace("\n", pad)
             except Exception:
@@ -498,9 +535,9 @@ class Runner:
                     step_vars = step.variables or {}
                     if step_vars:
                         vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
-                        for line in vars_str.split("\n"):
-                            if line.strip():
-                                self.log.info(line)
+                        # Log the entire multi-line string at once
+                        # The logging system will handle proper alignment via ColumnFormatter
+                        self.log.info(vars_str)
 
                     # brief request line
                     self.log.info(f"[REQUEST] {req_rendered.get('method','GET')} {req_rendered.get('path')}")

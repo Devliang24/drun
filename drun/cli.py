@@ -1290,9 +1290,9 @@ def run(
             # Print config variables if present
             if c.config.variables:
                 vars_str = format_variables_multiline(c.config.variables, "[CONFIG] variables: ")
-                for line in vars_str.split("\n"):
-                    if line.strip():
-                        log.info(line)
+                # Log the entire multi-line string at once
+                # The logging system will handle proper alignment via ColumnFormatter
+                log.info(vars_str)
 
             res = runner.run_case(c, global_vars=global_vars, params=ps, funcs=funcs, envmap=env_store, source=meta.get("file"))
             log.info(f"[CASE] Result: {res.name} | status={res.status} | duration={res.duration_ms:.1f}ms")
