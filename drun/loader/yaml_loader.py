@@ -81,6 +81,72 @@ def strip_escape_quotes(value: str) -> str:
     return result
 
 
+def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_length: int = 120) -> str:
+    """
+    Format variables into multi-line aligned display.
+
+    Args:
+        variables: Dictionary of variable name-value pairs
+        prefix: The prefix string (e.g., "[CONFIG] variables: ")
+        max_line_length: Maximum line length before wrapping (default: 120)
+
+    Returns:
+        Multi-line formatted string with proper alignment
+    """
+    if not variables:
+        return prefix.rstrip() if prefix.endswith(": ") else prefix
+
+    # Format all variable assignments
+    var_assignments = [f"{k}={strip_escape_quotes(str(v))}" for k, v in variables.items()]
+
+    # Calculate prefix length for alignment
+    prefix_len = len(prefix)
+
+    # Check if we can fit all variables on one line with the prefix
+    all_vars = ", ".join(var_assignments)
+    if prefix_len + len(all_vars) <= max_line_length:
+        # Fits on one line
+        return prefix + all_vars
+
+    # Need to split into multiple lines
+    lines = []
+
+    # First line: prefix + as many vars as fit
+    first_line_vars = []
+    current_length = prefix_len
+
+    for var in var_assignments:
+        # Add 2 for ", " separator (except for first item)
+        var_length = len(var) + (2 if first_line_vars else 0)
+        if current_length + var_length <= max_line_length:
+            first_line_vars.append(var)
+            current_length += var_length
+        else:
+            break
+
+    # Ensure first line has at least one variable
+    if not first_line_vars:
+        first_line_vars = [var_assignments[0]]
+        remaining_vars = var_assignments[1:]
+    else:
+        remaining_vars = var_assignments[len(first_line_vars):]
+
+    # Add the first line
+    lines.append(prefix + ", ".join(first_line_vars))
+
+    # Subsequent lines: space-prefix + as many vars as fit
+    for var in remaining_vars:
+        var_length = len(var) + 2  # +2 for ", " separator
+        if len(lines[-1]) + var_length <= max_line_length:
+            # Append to current line
+            lines[-1] += ", " + var
+        else:
+            # Start a new line
+            lines.append(" " * prefix_len + var)
+
+    return "\n".join(lines)
+
+
 
 def _normalize_case_dict(d: Dict[str, Any], path: Path | None = None, raw_text: str | None = None) -> Dict[str, Any]:
     dd = dict(d)
