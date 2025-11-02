@@ -1283,6 +1283,10 @@ def run(
                 raise typer.Exit(code=2)
             log.info(f"[CASE] Start: {c.config.name or 'Unnamed'} | params={ps}")
 
+            # Print base_url if present
+            if c.config.base_url:
+                log.info(f"[CONFIG] base_url: {c.config.base_url}")
+
             # Print config variables if present
             if c.config.variables:
                 vars_str = ", ".join(f"{k}={v}" for k, v in c.config.variables.items())
