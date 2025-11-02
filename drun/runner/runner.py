@@ -534,9 +534,9 @@ class Runner:
                     # Print step variables if present
                     step_vars = step.variables or {}
                     if step_vars:
-                        # Format variables as JSON-like structure for proper alignment
-                        vars_content = format_variables_as_json_like(step_vars)
-                        self.log.info(self._fmt_aligned("STEP", "variables", vars_content))
+                        # Format variables with proper indentation
+                        vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
+                        self.log.info(vars_str)
 
                     # brief request line
                     self.log.info(f"[REQUEST] {req_rendered.get('method','GET')} {req_rendered.get('path')}")
