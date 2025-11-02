@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -120,6 +121,78 @@ class Runner:
         # unsupported check format (body.* no longer supported)
         return None
 
+    def _convert_jmespath_expression(self, expr: str) -> str:
+        """
+        Convert JSONPath-like expression to JMESPath with proper quoting.
+
+        Handles field names with special characters by adding quotes.
+        Examples:
+            "headers.X-Demo-User" -> "headers.\"X-Demo-User\""
+            "json.user-name" -> "json.\"user-name\""
+            "data.normal_field" -> "data.normal_field"
+        """
+        # Split expression by dots, but preserve array access like [0]
+        parts = []
+        i = 0
+        n = len(expr)
+
+        while i < n:
+            if i + 1 < n and expr[i] == '[':
+                # Found array access, find the closing bracket
+                j = expr.find(']', i)
+                if j == -1:
+                    # No closing bracket, treat as regular character
+                    if i == 0:
+                        parts.append(expr[i:])
+                        break
+                    else:
+                        parts.append(expr[i])
+                        i += 1
+                        continue
+
+                # Extract array access part
+                array_part = expr[i:j+1]
+                parts.append(array_part)
+                i = j + 1
+
+                # Skip dot after array access if present
+                if i < n and expr[i] == '.':
+                    i += 1
+            else:
+                # Regular field access, find next dot or array access
+                j = i
+                while j < n and expr[j] != '.' and expr[j] != '[':
+                    j += 1
+
+                field_name = expr[i:j]
+                # Check if field name needs quoting (contains special chars)
+                if re.search(r'[^a-zA-Z0-9_]', field_name):
+                    field_name = f'"{field_name}"'
+                parts.append(field_name)
+
+                if j < n and expr[j] == '.':
+                    i = j + 1
+                else:
+                    i = j
+
+        # Join parts with dots for field access (array parts already include brackets)
+        result = []
+        for i, part in enumerate(parts):
+            if '[' in part and ']' in part:
+                # Array access, don't add dot before it
+                if i > 0:
+                    result[-1] = result[-1] + part
+                else:
+                    result.append(part)
+            else:
+                # Regular field access
+                if i == 0:
+                    result.append(part)
+                else:
+                    result.append('.' + part)
+
+        return ''.join(result)
+
     def _eval_extract(self, expr: Any, resp: Dict[str, Any]) -> Any:
         # Only support string expressions starting with $
         if not isinstance(expr, str):
@@ -177,7 +250,7 @@ class Runner:
         # JSON body via JSONPath-like: $.a.b or $[0].id -> jmespath a.b / [0].id
         body = resp.get("body")
         if e.startswith("$."):
-            jexpr = e[2:]
+            jexpr = self._convert_jmespath_expression(e[2:])
             # For streaming responses, try extracting from full response first
             if resp.get("is_stream"):
                 result = extract_from_body(resp, jexpr)
