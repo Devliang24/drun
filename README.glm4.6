@@ -1,0 +1,2630 @@
+# Drun - 零代码HTTP API测试框架
+
+[![PyPI version](https://badge.fury.io/py/drun.svg)](https://badge.fury.io/py/drun)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI/CD](https://github.com/your-org/drun/workflows/CI/badge.svg)](https://github.com/your-org/drun/actions)
+
+> **Drun** 是一个强大的零代码HTTP API测试框架，让团队使用简单的YAML语法创建、管理和执行API测试，专为现代CI/CD流水线设计。
+
+## ✨ 核心特性
+
+- 🔧 **零代码测试** - 使用YAML语法编写API测试，无需编程知识
+- 📊 **多格式支持** - 支持cURL、Postman、HAR、OpenAPI格式的导入导出
+- 🎯 **数据驱动测试** - CSV参数化测试，支持数据压缩
+- 🔍 **数据库验证** - MySQL SQL断言，确保数据一致性
+- 📱 **企业通知** - 飞书、钉钉、邮件多渠道通知
+- 📈 **丰富报告** - HTML可视化面板、JSON机器可读、Allure集成
+- 🚀 **CI/CD就绪** - 完美集成GitHub Actions、GitLab CI、Jenkins
+- 🔐 **密钥管理** - 自动敏感数据脱敏和安全管理
+
+## 🚀 30秒快速开始
+
+### 1. 安装 Drun
+```bash
+pip install drun
+```
+
+### 2. 创建第一个测试
+```yaml
+# login_test.yaml
+name: 用户登录测试
+steps:
+  - name: 登录接口
+    request:
+      method: POST
+      url: https://api.example.com/auth/login
+      headers:
+        Content-Type: application/json
+      json:
+        username: ${USER_NAME}
+        password: ${USER_PASS}
+    validate:
+      - eq: [status_code, 200]
+      - contains: [body.message, "登录成功"]
+```
+
+### 3. 运行测试
+```bash
+drun run login_test.yaml
+```
+
+就这么简单！无需编写任何代码，即可完成专业的API测试。
+
+---
+
+## 📋 目录
+
+- [安装与配置](#安装与配置)
+- [核心概念](#核心概念)
+- [基础用法](#基础用法)
+- [高级特性](#高级特性)
+- [导入导出功能](#导入导出功能)
+- [测试执行](#测试执行)
+- [报告与通知](#报告与通知)
+- [配置管理](#配置管理)
+- [CI/CD集成](#cicd集成)
+- [实战示例](#实战示例)
+- [故障排除](#故障排除)
+- [API参考](#api参考)
+- [贡献指南](#贡献指南)
+
+---
+
+## 🛠 安装与配置
+
+### 环境要求
+
+- **Python 3.10+**
+- **操作系统**: Windows、macOS、Linux
+
+### 安装方式
+
+#### 方式一：使用 pip（推荐）
+```bash
+pip install drun
+```
+
+#### 方式二：使用 pipx（隔离环境）
+```bash
+pipx install drun
+```
+
+#### 方式三：从源码安装
+```bash
+git clone https://github.com/your-org/drun.git
+cd drun
+pip install -e .
+```
+
+### 验证安装
+
+```bash
+drun --version
+# 输出: drun 2.4.10
+
+drun --help
+# 查看帮助信息
+```
+
+### 初始化配置
+
+创建配置文件 `drun.yaml`：
+```yaml
+# drun.yaml
+base_url: https://api.example.com
+timeout: 30
+variables:
+  USER_NAME: testuser
+  USER_PASS: testpass
+```
+
+---
+
+## 🎯 核心概念
+
+### YAML测试结构
+
+Drun使用基于YAML的DSL（领域特定语言）来定义API测试：
+
+```yaml
+name: 测试用例名称
+description: 测试描述
+tags: [tag1, tag2]
+variables:
+  local_var: local_value
+steps:
+  - name: 步骤1
+    request:
+      # 请求配置
+    validate:
+      # 验证规则
+    extract:
+      # 数据提取
+```
+
+### 测试用例（Case）
+- 包含一个或多个HTTP请求步骤
+- 支持变量定义和标签分类
+- 可设置超时和重试策略
+
+### 测试步骤（Step）
+- 单个HTTP请求的完整定义
+- 包含请求配置、响应验证、数据提取
+- 支持前置和后置钩子函数
+
+### 变量和模板化
+
+- **环境变量**: `${ENV_VAR}` - 从系统环境变量读取
+- **全局变量**: 在配置文件中定义，所有测试共用
+- **局部变量**: 在测试用例中定义，仅当前测试可用
+- **动态变量**: 使用模板函数动态生成
+
+---
+
+## 📚 基础用法
+
+### 简单API测试示例
+
+```yaml
+name: 获取用户信息
+steps:
+  - name: 获取用户详情
+    request:
+      method: GET
+      url: /api/users/${USER_ID}
+      headers:
+        Authorization: Bearer ${ACCESS_TOKEN}
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.id, "${USER_ID}"]
+      - contains: [body.data.username, "test"]
+```
+
+### 多步骤工作流
+
+```yaml
+name: 用户注册登录流程
+variables:
+  username: testuser_${now()}
+  email: ${username}@example.com
+steps:
+  - name: 用户注册
+    request:
+      method: POST
+      url: /api/auth/register
+      json:
+        username: ${username}
+        email: ${email}
+        password: "123456"
+    extract:
+      user_id: body.data.id
+      access_token: body.data.token
+    validate:
+      - eq: [status_code, 201]
+
+  - name: 获取用户信息
+    request:
+      method: GET
+      url: /api/users/${user_id}
+      headers:
+        Authorization: Bearer ${access_token}
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.username, "${username}"]
+```
+
+### 常用断言方法
+
+```yaml
+validate:
+  # 状态码验证
+  - eq: [status_code, 200]
+
+  # 响应体验证
+  - eq: [body.message, "success"]
+  - ne: [body.error, null]
+  - lt: [body.data.count, 100]
+  - gt: [body.data.score, 0]
+  - contains: [body.data.list, "target"]
+  - not_contains: [body.data.message, "error"]
+  - regex: [body.data.phone, "^1[3-9]\d{9}$"]
+  - length_eq: [body.data.items, 10]
+  - is_empty: [body.errors]
+  - is_not_empty: [body.data]
+
+  # JSONPath验证
+  - eq: [body.data.user.profile.name, "张三"]
+  - contains: [body.data.products[*].name, "iPhone"]
+```
+
+### 变量提取和复用
+
+```yaml
+steps:
+  - name: 创建订单
+    request:
+      method: POST
+      url: /api/orders
+      json:
+        product_id: "prod_001"
+        quantity: 2
+    extract:
+      order_id: body.data.id
+      order_number: body.data.number
+      total_amount: body.data.total
+
+  - name: 查询订单详情
+    request:
+      method: GET
+      url: /api/orders/${order_id}
+    validate:
+      - eq: [body.data.number, "${order_number}"]
+      - eq: [body.data.total, "${total_amount}"]
+```
+
+---
+
+## 🔥 高级特性
+
+### CSV数据驱动测试
+
+创建数据文件 `users.csv`：
+```csv
+username,password,role
+admin,admin123,administrator
+user1,user123,user
+user2,user456,user
+```
+
+使用CSV数据：
+```yaml
+name: 批量用户登录测试
+data: users.csv
+steps:
+  - name: 用户登录
+    request:
+      method: POST
+      url: /api/auth/login
+      json:
+        username: ${username}
+        password: ${password}
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.role, "${role}"]
+```
+
+### 数据库验证（SQL断言）
+
+配置数据库连接：
+```yaml
+# drun.yaml
+database:
+  host: localhost
+  port: 3306
+  username: testuser
+  password: testpass
+  database: testdb
+```
+
+SQL断言示例：
+```yaml
+name: 创建订单并验证数据库
+variables:
+  order_amount: 299.99
+steps:
+  - name: 创建订单
+    request:
+      method: POST
+      url: /api/orders
+      json:
+        product_id: "prod_001"
+        amount: ${order_amount}
+    extract:
+      order_id: body.data.id
+
+  - name: 验证数据库记录
+    db_validate:
+      query: "SELECT id, amount, status FROM orders WHERE id = ?"
+      params: ["${order_id}"]
+      expectations:
+        - eq: [id, "${order_id}"]
+        - eq: [amount, ${order_amount}]
+        - eq: [status, "pending"]
+```
+
+### 认证流程处理
+
+#### JWT Token认证
+```yaml
+name: JWT认证测试
+variables:
+  api_key: ${API_KEY}
+  api_secret: ${API_SECRET}
+steps:
+  - name: 获取Token
+    request:
+      method: POST
+      url: /api/auth/token
+      headers:
+        Authorization: Basic ${base64("${api_key}:${api_secret}")}
+    extract:
+      access_token: body.data.access_token
+      refresh_token: body.data.refresh_token
+    validate:
+      - eq: [status_code, 200]
+      - is_not_empty: [access_token]
+
+  - name: 使用Token访问API
+    request:
+      method: GET
+      url: /api/user/profile
+      headers:
+        Authorization: Bearer ${access_token}
+    validate:
+      - eq: [status_code, 200]
+```
+
+#### OAuth2认证
+```yaml
+name: OAuth2认证测试
+steps:
+  - name: 获取授权码
+    request:
+      method: GET
+      url: /oauth/authorize
+      params:
+        response_type: code
+        client_id: ${CLIENT_ID}
+        redirect_uri: ${REDIRECT_URI}
+        scope: "read write"
+    validate:
+      - eq: [status_code, 302]
+      - contains: [headers.location, "code="]
+    extract:
+      auth_code: ${regex(headers.location, "code=([^&]+)")}
+
+  - name: 获取访问令牌
+    request:
+      method: POST
+      url: /oauth/token
+      headers:
+        Content-Type: application/x-www-form-urlencoded
+      data:
+        grant_type: authorization_code
+        code: ${auth_code}
+        client_id: ${CLIENT_ID}
+        client_secret: ${CLIENT_SECRET}
+        redirect_uri: ${REDIRECT_URI}
+    extract:
+      access_token: body.data.access_token
+    validate:
+      - eq: [status_code, 200]
+```
+
+### 模板函数参考
+
+```yaml
+variables:
+  # 时间函数
+  current_time: ${now()}
+  timestamp: ${timestamp()}
+  formatted_date: ${strftime("%Y-%m-%d")}
+
+  # 随机函数
+  random_id: ${uuid4()}
+  random_int: ${randint(1, 100)}
+  random_choice: ${choice(["A", "B", "C"])}
+
+  # 字符串函数
+  random_string: ${random_string(10)}
+  base64_encoded: ${base64("hello")}
+  base64_decoded: ${base64_decode(${base64_encoded})}
+  url_encoded: ${urlencode("hello world")}
+
+  # JSON处理
+  json_extracted: ${json_extract('{"name": "test"}', "name")}
+
+  # 环境变量
+  env_value: ${env("HOME")}
+
+  # 文件操作
+  file_content: ${file("/path/to/file.txt")}
+```
+
+### SSE流式传输支持
+
+```yaml
+name: SSE流式API测试
+steps:
+  - name: 连接SSE流
+    request:
+      method: GET
+      url: /api/events/stream
+      headers:
+        Accept: text/event-stream
+      stream: true
+      timeout: 30
+    validate:
+      - contains: [body, "data:"]
+      - contains: [body, "event:"]
+    extract:
+      first_event: ${regex(body, "data: (.+)")}
+```
+
+---
+
+## 📁 导入导出功能
+
+### 支持的格式
+
+Drun支持多种测试文件格式的导入导出：
+
+- ✅ **cURL命令** - 从命令行curl转换为测试用例
+- ✅ **Postman Collection** - 迁移现有Postman测试
+- ✅ **HAR文件** - 从浏览器网络流量转换为测试
+- ✅ **OpenAPI/Swagger** - 从API规范生成测试
+- ✅ **导出为cURL** - 从测试生成curl命令用于调试
+
+### cURL导入示例
+
+```bash
+# 导入单个cURL命令
+drun import curl --from "curl -X POST https://api.example.com/users -H 'Content-Type: application/json' -d '{\"name\":\"test\"}'"
+
+# 导入多个cURL命令
+drun import curl --file curl_commands.txt
+```
+
+### Postman导入示例
+
+```bash
+# 导入Postman Collection
+drun import postman --file my_collection.json
+
+# 导入特定文件夹
+drun import postman --file my_collection.json --folder "API Tests"
+```
+
+### HAR文件导入
+
+```bash
+# 从HAR文件生成测试
+drun import har --file network_traffic.har
+
+# 过滤特定域名
+drun import har --file network_traffic.har --domain "api.example.com"
+```
+
+### OpenAPI规范导入
+
+```bash
+# 从OpenAPI规范生成测试
+drun import openapi --file swagger.yaml
+
+# 生成特定端点的测试
+drun import openapi --file swagger.yaml --endpoint "/users"
+```
+
+### 导出功能
+
+```bash
+# 导出为cURL命令（用于调试）
+drun export curl --test-file login_test.yaml
+
+# 导出为Postman Collection
+drun export postman --test-dir tests/ --output my_collection.json
+```
+
+### 迁移指南
+
+#### 从Postman迁移到Drun
+
+1. **导出Postman Collection**
+2. **使用Drun导入**
+```bash
+drun import postman --file my_collection.json --output-dir tests/
+```
+3. **优化测试用例**
+- 添加变量和模板函数
+- 配置环境-specific设置
+- 添加数据库验证
+
+#### 从cURL迁移到Drun
+
+1. **收集cURL命令**
+2. **批量导入**
+```bash
+drun import curl --file api_tests.txt --output-dir tests/
+```
+3. **增强测试**
+- 添加断言验证
+- 配置数据驱动
+- 设置通知规则
+
+---
+
+## ⚡ 测试执行
+
+### 运行单个测试
+
+```bash
+# 基本执行
+drun run login_test.yaml
+
+# 显示详细输出
+drun run login_test.yaml --verbose
+
+# 指定环境
+drun run login_test.yaml --env production
+
+# 超时设置
+drun run login_test.yaml --timeout 60
+```
+
+### 批量执行和标签过滤
+
+```bash
+# 运行目录下所有测试
+drun run tests/
+
+# 按标签过滤
+drun run tests/ --tags "smoke"
+drun run tests/ --tags "regression AND NOT slow"
+drun run tests/ --tags "api OR web"
+
+# 排除特定标签
+drun run tests/ --exclude "manual,integration"
+
+# 并行执行
+drun run tests/ --parallel 4
+```
+
+### 失败重试和策略
+
+```bash
+# 失败重试
+drun run tests/ --retry 3
+
+# 延迟重试
+drun run tests/ --retry 3 --retry-delay 5
+
+# 仅对特定错误重试
+drun run tests/ --retry-on "timeout,connection_error"
+```
+
+### 测试报告生成
+
+```bash
+# 生成HTML报告
+drun run tests/ --report-html reports/test-report.html
+
+# 生成JSON报告
+drun run tests/ --report-json reports/test-report.json
+
+# 生成Allure报告
+drun run tests/ --report-allure reports/allure-results
+
+# 同时生成多种格式
+drun run tests/ --report-html reports/ --report-json reports/ --report-allure reports/
+```
+
+### 环境特定测试
+
+```bash
+# 开发环境测试
+drun run tests/ --env development
+
+# 测试环境测试
+drun run tests/ --env testing
+
+# 生产环境测试（谨慎使用）
+drun run tests/ --env production --dry-run
+```
+
+### 测试选择和过滤
+
+```bash
+# 按文件名模式
+drun run tests/ --pattern "*_test.yaml"
+
+# 按测试名称
+drun run tests/ --name "用户登录测试"
+
+# 组合过滤
+drun run tests/ --tags "smoke" --pattern "*api*" --env testing
+```
+
+---
+
+## 📊 报告与通知
+
+### 多格式报告
+
+#### HTML可视化报告
+- 📊 **测试结果概览** - 通过率、执行时间、状态分布
+- 📈 **性能指标** - 响应时间统计、性能趋势
+- 🔍 **详细日志** - 请求响应详情、错误堆栈
+- 📱 **响应式设计** - 支持移动端查看
+
+#### JSON机器可读报告
+```json
+{
+  "summary": {
+    "total": 50,
+    "passed": 45,
+    "failed": 5,
+    "duration": 120.5,
+    "pass_rate": 0.9
+  },
+  "tests": [
+    {
+      "name": "用户登录测试",
+      "status": "passed",
+      "duration": 2.3,
+      "steps": [...]
+    }
+  ]
+}
+```
+
+#### Allure报告集成
+```bash
+# 生成Allure报告
+drun run tests/ --report-allure allure-results
+
+# 查看报告
+allure serve allure-results
+```
+
+### 企业通知配置
+
+#### 飞书（Lark）通知
+```yaml
+# drun.yaml
+notifications:
+  feishu:
+    webhook_url: ${FEISHU_WEBHOOK_URL}
+    on_failure: true
+    on_success: false
+    mention_users: ["user_id_1", "user_id_2"]
+```
+
+#### 钉钉（DingTalk）通知
+```yaml
+notifications:
+  dingtalk:
+    webhook_url: ${DINGTALK_WEBHOOK_URL}
+    secret: ${DINGTALK_SECRET}
+    on_failure: true
+    on_success: false
+    at_mobiles: ["13800138000"]
+```
+
+#### 邮件通知
+```yaml
+notifications:
+  email:
+    smtp_server: smtp.gmail.com
+    smtp_port: 587
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_PASSWORD}
+    from: "test-report@company.com"
+    to: ["team@company.com", "qa@company.com"]
+    subject: "API测试报告 - ${date}"
+```
+
+### 报告定制
+
+#### 自定义HTML模板
+```yaml
+# drun.yaml
+reporting:
+  html:
+    template: custom_template.html
+    include_request_body: true
+    include_response_body: true
+    max_body_size: 1024
+```
+
+#### 报告内容过滤
+```yaml
+reporting:
+  filters:
+    exclude_successful: false
+    exclude_slow: true
+    slow_threshold: 10.0
+    include_tags: ["api", "integration"]
+```
+
+### 性能指标
+
+#### 响应时间统计
+```yaml
+validate:
+  # 响应时间断言
+  - lt: [response_time, 2.0]  # 小于2秒
+  - between: [response_time, 0.5, 3.0]  # 0.5-3秒之间
+
+  # 性能阈值
+  performance_threshold:
+    response_time: 2.0
+    response_time_p90: 5.0
+    response_time_p95: 8.0
+```
+
+#### 性能趋势分析
+- 📊 **历史对比** - 与历史测试结果对比
+- 📈 **趋势识别** - 性能变化趋势
+- ⚠️ **异常检测** - 自动识别性能异常
+
+---
+
+## ⚙️ 配置管理
+
+### 环境变量
+
+```bash
+# API配置
+export DRUN_BASE_URL="https://api.example.com"
+export DRUN_API_KEY="your-api-key"
+
+# 数据库配置
+export DRUN_DB_HOST="localhost"
+export DRUN_DB_USER="testuser"
+export DRUN_DB_PASS="testpass"
+
+# 通知配置
+export FEISHU_WEBHOOK_URL="https://open.feishu.cn/..."
+export DINGTALK_WEBHOOK_URL="https://oapi.dingtalk.com/..."
+```
+
+### 配置文件结构
+
+#### 主配置文件 `drun.yaml`
+```yaml
+# 全局配置
+base_url: ${DRUN_BASE_URL}
+timeout: 30
+max_redirects: 5
+verify_ssl: true
+
+# 变量定义
+variables:
+  api_version: v1
+  default_headers:
+    Content-Type: application/json
+    User-Agent: Drun/2.4.10
+
+# 环境配置
+environments:
+  development:
+    base_url: http://localhost:8000
+    debug: true
+  testing:
+    base_url: https://api-test.example.com
+    timeout: 60
+  production:
+    base_url: https://api.example.com
+    timeout: 30
+    verify_ssl: true
+
+# 数据库配置
+database:
+  host: ${DRUN_DB_HOST}
+  port: 3306
+  username: ${DRUN_DB_USER}
+  password: ${DRUN_DB_PASS}
+  database: testdb
+  charset: utf8mb4
+
+# 通知配置
+notifications:
+  feishu:
+    webhook_url: ${FEISHU_WEBHOOK_URL}
+    on_failure: true
+  email:
+    smtp_server: smtp.gmail.com
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_PASSWORD}
+
+# 报告配置
+reporting:
+  html:
+    include_request_body: true
+    include_response_body: false
+  json:
+    pretty_print: true
+  allure:
+    include_tags: true
+```
+
+### 数据库设置
+
+#### MySQL配置
+```yaml
+database:
+  # 基本连接配置
+  host: localhost
+  port: 3306
+  username: dbuser
+  password: dbpass
+  database: testdb
+
+  # 连接池配置
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+
+  # 字符集和时区
+  charset: utf8mb4
+  timezone: "+08:00"
+
+  # SSL配置
+  ssl_ca: /path/to/ca.pem
+  ssl_cert: /path/to/cert.pem
+  ssl_key: /path/to/key.pem
+```
+
+#### 多数据库配置
+```yaml
+databases:
+  primary:
+    host: db-primary.example.com
+    database: maindb
+  readonly:
+    host: db-readonly.example.com
+    database: maindb
+    readonly: true
+  cache:
+    host: redis.example.com
+    port: 6379
+    type: redis
+```
+
+### 密钥管理
+
+#### 敏感数据脱敏
+```yaml
+# 自动脱敏配置
+secret_masking:
+  enabled: true
+  patterns:
+    - pattern: "password[\"\']:\\s*[\"\']([^\"\']+)[\"\']"
+      replacement: "password: \"***\""
+    - pattern: "token[\"\']:\\s*[\"\']([^\"\']+)[\"\']"
+      replacement: "token: \"***\""
+    - pattern: "api_key[\"\']:\\s*[\"\']([^\"\']+)[\"\']"
+      replacement: "api_key: \"***\""
+
+# 手动标记敏感字段
+secrets:
+  - password
+  - token
+  - api_key
+  - secret_key
+  - access_token
+```
+
+#### 环境变量优先级
+```yaml
+# 配置优先级（从高到低）：
+# 1. 命令行参数
+# 2. 环境变量
+# 3. 测试文件中的variables
+# 4. drun.yaml配置文件
+# 5. 默认值
+
+# 示例：配置覆盖
+base_url: "https://default.api.com"  # 默认值
+# 环境变量 DRUN_BASE_URL 会覆盖上面的值
+# 命令行 --base-url 会覆盖所有配置
+```
+
+---
+
+## 🔄 CI/CD集成
+
+### GitHub Actions示例
+
+```yaml
+# .github/workflows/api-tests.yml
+name: API Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'  # 每天凌晨2点运行
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        environment: [development, staging]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install drun
+
+    - name: Run API tests
+      env:
+        DRUN_BASE_URL: ${{ secrets.API_BASE_URL_${{ matrix.environment }} }}
+        DRUN_API_KEY: ${{ secrets.API_KEY }}
+        FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+      run: |
+        drun run tests/ \
+          --env ${{ matrix.environment }} \
+          --report-html reports/ \
+          --report-json reports/ \
+          --parallel 4
+
+    - name: Upload test reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-reports-${{ matrix.environment }}
+        path: reports/
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        drun notify feishu \
+          --webhook ${{ secrets.FEISHU_WEBHOOK_URL }} \
+          --message "🚨 API测试失败: ${{ github.repository }} in ${{ matrix.environment }}"
+```
+
+### GitLab CI示例
+
+```yaml
+# .gitlab-ci.yml
+stages:
+  - test
+  - report
+  - notify
+
+variables:
+  DRUN_VERSION: "2.4.10"
+
+api_tests:
+  stage: test
+  image: python:3.11-slim
+
+  parallel:
+    matrix:
+      - ENVIRONMENT: [development, staging, production]
+
+  script:
+    - pip install drun==$DRUN_VERSION
+    - drun run tests/ \
+        --env $ENVIRONMENT \
+        --report-html reports/ \
+        --report-json reports/
+
+  artifacts:
+    when: always
+    paths:
+      - reports/
+    reports:
+      junit: reports/junit.xml
+    expire_in: 1 week
+
+  only:
+    - main
+    - develop
+    - merge_requests
+
+test_report:
+  stage: report
+  image: alpine:latest
+  dependencies:
+    - api_tests
+
+  script:
+    - echo "Generating test summary..."
+    - ls -la reports/
+
+  only:
+    - main
+
+notify_failure:
+  stage: notify
+  image: curlimages/curl:latest
+  dependencies:
+    - api_tests
+
+  script:
+    - |
+      curl -X POST "$FEISHU_WEBHOOK_URL" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "msg_type": "text",
+          "content": {
+            "text": "🚨 GitLab CI API测试失败\n项目: $CI_PROJECT_NAME\n分支: $CI_COMMIT_REF_NAME\n环境: $ENVIRONMENT"
+          }
+        }'
+
+  when: on_failure
+  only:
+    - main
+```
+
+### Jenkins集成
+
+```groovy
+// Jenkinsfile
+pipeline {
+    agent any
+
+    environment {
+        DRUN_BASE_URL = credentials('api-base-url')
+        API_KEY = credentials('api-key')
+        FEISHU_WEBHOOK = credentials('feishu-webhook')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Setup') {
+            steps {
+                sh 'pip install drun'
+            }
+        }
+
+        stage('Run Tests') {
+            parallel {
+                stage('Development Tests') {
+                    steps {
+                        sh """
+                            drun run tests/ \
+                                --env development \
+                                --report-html reports/dev/ \
+                                --report-json reports/dev/
+                        """
+                    }
+                }
+
+                stage('Staging Tests') {
+                    steps {
+                        sh """
+                            drun run tests/ \
+                                --env staging \
+                                --report-html reports/staging/ \
+                                --report-json reports/staging/
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Publish Reports') {
+            steps {
+                publishHTML([
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'reports',
+                    reportFiles: 'index.html',
+                    reportName: 'API Test Report'
+                ])
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'reports/**/*', fingerprint: true
+        }
+
+        failure {
+            sh """
+                curl -X POST "$FEISHU_WEBHOOK" \
+                    -H "Content-Type: application/json" \
+                    -d '{"msg_type":"text","content":{"text":"🚨 Jenkins API测试失败"}}'
+            """
+        }
+
+        success {
+            echo 'API tests completed successfully!'
+        }
+    }
+}
+```
+
+### Docker使用
+
+#### Dockerfile示例
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 安装Drun
+RUN pip install drun
+
+# 复制测试文件
+COPY tests/ ./tests/
+COPY drun.yaml ./drun.yaml
+
+# 创建报告目录
+RUN mkdir -p reports
+
+# 设置入口点
+ENTRYPOINT ["drun"]
+CMD ["run", "tests/", "--report-html", "reports/"]
+```
+
+#### Docker Compose示例
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  drun-tests:
+    build: .
+    environment:
+      - DRUN_BASE_URL=http://api-service:8000
+      - DRUN_DB_HOST=mysql
+      - FEISHU_WEBHOOK_URL=${FEISHU_WEBHOOK_URL}
+    volumes:
+      - ./reports:/app/reports
+    depends_on:
+      - api-service
+      - mysql
+    command: ["run", "tests/", "--report-html", "reports/"]
+
+  api-service:
+    image: your-api:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql://user:pass@mysql:3306/testdb
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpass
+      - MYSQL_DATABASE=testdb
+      - MYSQL_USER=testuser
+      - MYSQL_PASSWORD=testpass
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
+```
+
+---
+
+## 🎯 实战示例
+
+### 电商API测试场景
+
+完整的电商系统API测试示例，涵盖用户管理、商品浏览、购物车、订单处理等核心业务流程。
+
+#### 项目结构
+```
+ecommerce-api-tests/
+├── drun.yaml              # 全局配置
+├── data/
+│   ├── users.csv          # 测试用户数据
+│   ├── products.csv       # 商品数据
+│   └── orders.csv         # 订单数据
+├── tests/
+│   ├── user/              # 用户模块测试
+│   │   ├── register.yaml
+│   │   ├── login.yaml
+│   │   └── profile.yaml
+│   ├── product/           # 商品模块测试
+│   │   ├── list.yaml
+│   │   ├── detail.yaml
+│   │   └── search.yaml
+│   ├── cart/              # 购物车测试
+│   │   ├── add.yaml
+│   │   ├── update.yaml
+│   │   └── checkout.yaml
+│   └── order/             # 订单模块测试
+│       ├── create.yaml
+│       ├── pay.yaml
+│       └── list.yaml
+└── reports/               # 测试报告
+```
+
+#### 用户注册登录流程
+```yaml
+# tests/user/register.yaml
+name: 用户注册流程测试
+description: 测试用户注册的完整流程，包括参数验证、重复注册检查
+tags: [user, registration, smoke]
+data: data/users.csv
+
+variables:
+  client_id: ${CLIENT_ID}
+  client_secret: ${CLIENT_SECRET}
+
+steps:
+  - name: 发送短信验证码
+    request:
+      method: POST
+      url: /api/auth/sms/send
+      headers:
+        Content-Type: application/json
+      json:
+        phone: "${phone}"
+        type: "register"
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.message, "验证码发送成功"]
+      - is_not_empty: [body.data.request_id]
+
+  - name: 验证手机号是否已注册
+    request:
+      method: GET
+      url: /api/user/check-phone
+      params:
+        phone: "${phone}"
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.exists, false]
+
+  - name: 用户注册
+    request:
+      method: POST
+      url: /api/auth/register
+      headers:
+        Content-Type: application/json
+      json:
+        username: "${username}"
+        password: "${password}"
+        phone: "${phone}"
+        sms_code: "123456"  # 测试环境固定验证码
+        client_id: ${client_id}
+        client_secret: ${client_secret}
+    extract:
+      user_id: body.data.user.id
+      access_token: body.data.access_token
+      refresh_token: body.data.refresh_token
+    validate:
+      - eq: [status_code, 201]
+      - eq: [body.message, "注册成功"]
+      - is_not_empty: [user_id]
+      - is_not_empty: [access_token]
+      - eq: [body.data.user.username, "${username}"]
+      - eq: [body.data.user.phone, "${phone}"]
+
+  - name: 验证数据库用户记录
+    db_validate:
+      query: "SELECT id, username, phone, status, created_at FROM users WHERE id = ?"
+      params: ["${user_id}"]
+      expectations:
+        - eq: [id, "${user_id}"]
+        - eq: [username, "${username}"]
+        - eq: [phone, "${phone}"]
+        - eq: [status, "active"]
+        - is_not_empty: [created_at]
+
+  - name: 获取用户详细信息
+    request:
+      method: GET
+      url: /api/user/profile
+      headers:
+        Authorization: "Bearer ${access_token}"
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.id, "${user_id}"]
+      - eq: [body.data.username, "${username}"]
+      - contains: [body.data.roles, "user"]
+```
+
+#### 商品浏览和搜索
+```yaml
+# tests/product/list.yaml
+name: 商品列表测试
+description: 测试商品列表获取、筛选、排序等功能
+tags: [product, catalog, smoke]
+
+variables:
+  page_size: 20
+  category_id: 1
+
+steps:
+  - name: 获取商品列表（第一页）
+    request:
+      method: GET
+      url: /api/products
+      params:
+        page: 1
+        size: ${page_size}
+        category_id: ${category_id}
+    extract:
+      total_count: body.data.total
+      first_product_id: body.data.items[0].id
+      first_product_name: body.data.items[0].name
+      first_product_price: body.data.items[0].price
+    validate:
+      - eq: [status_code, 200]
+      - is_not_empty: [body.data.items]
+      - ge: [body.data.total, 0]
+      - le: [len(body.data.items), ${page_size}]
+      - is_not_empty: [first_product_id]
+
+  - name: 获取商品详情
+    request:
+      method: GET
+      url: /api/products/${first_product_id}
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.id, "${first_product_id}"]
+      - eq: [body.data.name, "${first_product_name}"]
+      - eq: [body.data.price, ${first_product_price}]
+      - is_not_empty: [body.data.description]
+      - is_not_empty: [body.data.images]
+
+  - name: 商品搜索（按关键词）
+    request:
+      method: GET
+      url: /api/products/search
+      params:
+        q: "手机"
+        page: 1
+        size: 10
+        sort: "price_asc"
+    extract:
+      search_results: body.data.items
+      min_price: body.data.items[0].price
+      max_price: body.data.items[-1].price
+    validate:
+      - eq: [status_code, 200]
+      - is_not_empty: [search_results]
+      - le: [len(search_results), 10]
+      # 验证价格排序（升序）
+      - le: [min_price, max_price]
+
+  - name: 商品筛选（按价格区间）
+    request:
+      method: GET
+      url: /api/products
+      params:
+        category_id: ${category_id}
+        min_price: 100
+        max_price: 1000
+        page: 1
+        size: 20
+    validate:
+      - eq: [status_code, 200]
+      - custom_validate: |
+          for item in response.json()['data']['items']:
+              if not (100 <= item['price'] <= 1000):
+                  raise AssertionError(f"商品价格 {item['price']} 不在100-1000范围内")
+```
+
+#### 购物车完整流程
+```yaml
+# tests/cart/add.yaml
+name: 购物车操作测试
+description: 测试添加商品到购物车、修改数量、删除等操作
+tags: [cart, e2e, regression]
+
+variables:
+  product_id: "prod_001"
+  quantity: 2
+  new_quantity: 5
+
+steps:
+  - name: 用户登录获取Token
+    request:
+      method: POST
+      url: /api/auth/login
+      json:
+        username: ${TEST_USERNAME}
+        password: ${TEST_PASSWORD}
+    extract:
+      access_token: body.data.access_token
+      user_id: body.data.user.id
+    validate:
+      - eq: [status_code, 200]
+      - is_not_empty: [access_token]
+
+  - name: 获取购物车（初始状态）
+    request:
+      method: GET
+      url: /api/cart
+      headers:
+        Authorization: "Bearer ${access_token}"
+    extract:
+      initial_cart_count: body.data.total_items
+      initial_cart_total: body.data.total_amount
+    validate:
+      - eq: [status_code, 200]
+      - ge: [initial_cart_count, 0]
+
+  - name: 添加商品到购物车
+    request:
+      method: POST
+      url: /api/cart/items
+      headers:
+        Authorization: "Bearer ${access_token}"
+        Content-Type: application/json
+      json:
+        product_id: ${product_id}
+        quantity: ${quantity}
+    extract:
+      cart_item_id: body.data.item_id
+      updated_cart_count: body.data.total_items
+      updated_cart_total: body.data.total_amount
+    validate:
+      - eq: [status_code, 201]
+      - is_not_empty: [cart_item_id]
+      - eq: [updated_cart_count, ${initial_cart_count + quantity}]
+      - gt: [updated_cart_total, initial_cart_total]
+
+  - name: 修改购物车商品数量
+    request:
+      method: PUT
+      url: /api/cart/items/${cart_item_id}
+      headers:
+        Authorization: "Bearer ${access_token}"
+        Content-Type: application/json
+      json:
+        quantity: ${new_quantity}
+    extract:
+      final_cart_count: body.data.total_items
+      final_cart_total: body.data.total_amount
+    validate:
+      - eq: [status_code, 200]
+      - eq: [final_cart_count, ${initial_cart_count + new_quantity}]
+      - gt: [final_cart_total, updated_cart_total]
+
+  - name: 获取购物车详情
+    request:
+      method: GET
+      url: /api/cart
+      headers:
+        Authorization: "Bearer ${access_token}"
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.total_items, ${final_cart_count}]
+      - eq: [body.data.total_amount, ${final_cart_total}]
+      # 验证购物车中包含添加的商品
+      - custom_validate: |
+          items = response.json()['data']['items']
+          target_item = None
+          for item in items:
+              if item['product_id'] == product_id:
+                  target_item = item
+                  break
+          assert target_item is not None, "购物车中未找到添加的商品"
+          assert target_item['quantity'] == new_quantity, f"商品数量不正确: {target_item['quantity']} != {new_quantity}"
+
+  - name: 删除购物车商品
+    request:
+      method: DELETE
+      url: /api/cart/items/${cart_item_id}
+      headers:
+        Authorization: "Bearer ${access_token}"
+    validate:
+      - eq: [status_code, 204]
+
+  - name: 验证商品已从购物车删除
+    request:
+      method: GET
+      url: /api/cart
+      headers:
+        Authorization: "Bearer ${access_token}"
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.total_items, ${initial_cart_count}]
+      - custom_validate: |
+          items = response.json()['data']['items']
+          for item in items:
+              assert item['product_id'] != product_id, "商品未从购物车中删除"
+```
+
+#### 订单创建和支付流程
+```yaml
+# tests/order/create.yaml
+name: 订单创建支付测试
+description: 测试从购物车到订单创建、支付的完整流程
+tags: [order, payment, e2e, critical]
+
+variables:
+  shipping_address: "北京市朝阳区测试地址123号"
+  payment_method: "alipay"
+
+steps:
+  - name: 用户登录
+    request:
+      method: POST
+      url: /api/auth/login
+      json:
+        username: ${TEST_USERNAME}
+        password: ${TEST_PASSWORD}
+    extract:
+      access_token: body.data.access_token
+      user_id: body.data.user.id
+    validate:
+      - eq: [status_code, 200]
+
+  - name: 准备购物车（添加商品）
+    request:
+      method: POST
+      url: /api/cart/items
+      headers:
+        Authorization: "Bearer ${access_token}"
+        Content-Type: application/json
+      json:
+        product_id: "prod_001"
+        quantity: 2
+    validate:
+      - eq: [status_code, 201]
+
+  - name: 获取购物车信息
+    request:
+      method: GET
+      url: /api/cart
+      headers:
+        Authorization: "Bearer ${access_token}"
+    extract:
+      cart_items: body.data.items
+      cart_total: body.data.total_amount
+      cart_count: body.data.total_items
+    validate:
+      - eq: [status_code, 200]
+      - gt: [cart_count, 0]
+      - gt: [cart_total, 0]
+
+  - name: 创建订单
+    request:
+      method: POST
+      url: /api/orders
+      headers:
+        Authorization: "Bearer ${access_token}"
+        Content-Type: application/json
+      json:
+        items: ${cart_items}
+        shipping_address: ${shipping_address}
+        payment_method: ${payment_method}
+        coupon_code: ""  # 不使用优惠券
+    extract:
+      order_id: body.data.order.id
+      order_number: body.data.order.order_number
+      order_amount: body.data.order.total_amount
+      payment_url: body.data.payment.url
+    validate:
+      - eq: [status_code, 201]
+      - is_not_empty: [order_id]
+      - is_not_empty: [order_number]
+      - eq: [order_amount, ${cart_total}]
+      - is_not_empty: [payment_url]
+
+  - name: 验证数据库订单记录
+    db_validate:
+      query: "SELECT id, order_number, user_id, total_amount, status, payment_status FROM orders WHERE id = ?"
+      params: ["${order_id}"]
+      expectations:
+        - eq: [id, "${order_id}"]
+        - eq: [order_number, "${order_number}"]
+        - eq: [user_id, "${user_id}"]
+        - eq: [total_amount, ${order_amount}]
+        - eq: [status, "pending"]
+        - eq: [payment_status, "unpaid"]
+
+  - name: 获取订单详情
+    request:
+      method: GET
+      url: /api/orders/${order_id}
+      headers:
+        Authorization: "Bearer ${access_token}"
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.id, "${order_id}"]
+      - eq: [body.data.order_number, "${order_number}"]
+      - eq: [body.data.shipping_address, ${shipping_address}]
+      - eq: [body.data.payment_method, ${payment_method}]
+      - eq: [len(body.data.items), len(${cart_items})]
+
+  - name: 模拟支付成功（测试环境）
+    request:
+      method: POST
+      url: /api/payment/mock-success
+      headers:
+        Authorization: "Bearer ${access_token}"
+        Content-Type: application/json
+      json:
+        order_id: ${order_id}
+        payment_method: ${payment_method}
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.message, "支付成功"]
+
+  - name: 验证订单支付状态
+    request:
+      method: GET
+      url: /api/orders/${order_id}
+      headers:
+        Authorization: "Bearer ${access_token}"
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.status, "paid"]
+      - eq: [body.data.payment_status, "paid"]
+      - is_not_empty: [body.data.paid_at]
+
+  - name: 验证数据库订单状态更新
+    db_validate:
+      query: "SELECT status, payment_status, paid_at FROM orders WHERE id = ?"
+      params: ["${order_id}"]
+      expectations:
+        - eq: [status, "paid"]
+        - eq: [payment_status, "paid"]
+        - is_not_empty: [paid_at]
+
+  - name: 验证购物车已清空
+    request:
+      method: GET
+      url: /api/cart
+      headers:
+        Authorization: "Bearer ${access_token}"
+    validate:
+      - eq: [status_code, 200]
+      - eq: [body.data.total_items, 0]
+      - eq: [body.data.total_amount, 0]
+```
+
+### 最佳实践
+
+#### 1. 测试数据管理
+```yaml
+# 使用数据驱动测试
+name: 多商品库存检查
+data: data/products.csv
+variables:
+  api_endpoint: /api/products/{product_id}/stock
+
+# CSV文件结构：
+# product_id,expected_stock,category
+# prod_001,100,electronics
+# prod_002,50,clothing
+```
+
+#### 2. 环境配置管理
+```yaml
+# drun.yaml
+environments:
+  dev:
+    base_url: http://localhost:8000
+    debug: true
+  test:
+    base_url: https://api-test.example.com
+    timeout: 60
+  prod:
+    base_url: https://api.example.com
+    timeout: 30
+    verify_ssl: true
+```
+
+#### 3. 错误处理和重试
+```yaml
+name: 不稳定接口测试
+steps:
+  - name: 调用可能超时的接口
+    request:
+      method: GET
+      url: /api/slow-endpoint
+      timeout: 10
+    retry:
+      max_attempts: 3
+      delay: 2
+      backoff: exponential
+    validate:
+      - eq: [status_code, 200]
+```
+
+#### 4. 性能测试集成
+```yaml
+name: 接口性能测试
+steps:
+  - name: 高频请求测试
+    request:
+      method: GET
+      url: /api/fast-endpoint
+    performance:
+      max_response_time: 1.0  # 最大响应时间1秒
+      p90_response_time: 0.5  # 90分位响应时间0.5秒
+      min_throughput: 100     # 最小吞吐量100req/s
+    validate:
+      - eq: [status_code, 200]
+```
+
+---
+
+## 🔧 故障排除
+
+### 常见问题和解决方案
+
+#### 1. 连接超时问题
+```yaml
+# 问题：请求经常超时
+# 解决方案：调整超时配置
+
+# drun.yaml
+timeout: 60  # 全局超时设置
+connect_timeout: 10  # 连接超时
+read_timeout: 30  # 读取超时
+
+# 或在特定请求中设置
+steps:
+  - name: 慢接口测试
+    request:
+      method: POST
+      url: /api/slow-endpoint
+      timeout: 120  # 特定请求超时
+```
+
+#### 2. SSL证书验证失败
+```yaml
+# 问题：SSL证书验证失败
+# 解决方案：配置SSL设置
+
+# drun.yaml
+verify_ssl: false  # 仅测试环境使用
+
+# 或指定CA证书
+ssl_ca_cert: /path/to/ca.pem
+
+# 忽略特定域名的SSL验证
+ssl_verify_domains:
+  - "*.test.example.com"
+```
+
+#### 3. JSON路径解析错误
+```yaml
+# 问题：JSON路径表达式错误
+# 解决方案：使用正确的JSONPath语法
+
+validate:
+  # ❌ 错误写法
+  # - eq: [body.data.user.name, "value"]
+
+  # ✅ 正确写法
+  - eq: [body.data.user.name, "value"]
+
+  # 复杂路径使用JMESPath
+  - eq: [body.data.items[0].product.name, "iPhone"]
+
+  # 使用contains检查数组元素
+  - contains: [body.data.items[*].id, "prod_001"]
+```
+
+#### 4. 数据库连接问题
+```bash
+# 问题：数据库连接失败
+# 解决方案：检查数据库配置
+
+# 检查数据库连接
+drun db-check
+
+# 测试数据库查询
+drun db-query "SELECT 1" --dry-run
+
+# 常见配置问题
+database:
+  # ❌ 错误：使用localhost但容器内无法解析
+  # host: localhost
+
+  # ✅ 正确：使用容器名或IP
+  host: mysql  # Docker容器名
+  # 或
+  host: 192.168.1.100  # 具体IP
+
+  # 检查端口和认证
+  port: 3306
+  username: ${DB_USER}
+  password: ${DB_PASS}
+  database: ${DB_NAME}
+```
+
+#### 5. 变量替换失败
+```yaml
+# 问题：变量没有正确替换
+# 解决方案：检查变量定义和引用
+
+# drun.yaml
+variables:
+  # ❌ 错误：变量名包含特殊字符
+  # user-name: "value"
+
+  # ✅ 正确：使用下划线
+  user_name: "value"
+
+  # 环境变量引用
+  base_url: ${API_BASE_URL}  # 确保环境变量存在
+  fallback: ${UNDEFINED_VAR:-"default_value"}  # 提供默认值
+
+# 测试文件中
+steps:
+  - name: 测试
+    request:
+      url: ${base_url}/api/users  # 正确引用
+      # ❌ 错误：未定义的变量
+      # url: ${undefined_var}/api/users
+```
+
+#### 6. 并发执行问题
+```bash
+# 问题：并发执行时出现竞争条件
+# 解决方案：合理配置并发数和资源隔离
+
+# 限制并发数
+drun run tests/ --parallel 2
+
+# 使用资源锁
+drun run tests/ --parallel 2 --lock-file /tmp/drun.lock
+
+# 分组执行避免资源冲突
+drun run tests/user/ --parallel 1
+drun run tests/order/ --parallel 1
+```
+
+### 调试技巧
+
+#### 1. 启用详细日志
+```bash
+# 显示详细输出
+drun run test.yaml --verbose
+
+# 显示HTTP请求和响应详情
+drun run test.yaml --debug
+
+# 只显示失败测试的详细信息
+drun run tests/ --verbose --failed-only
+```
+
+#### 2. 单步调试
+```yaml
+# 使用dry-run检查配置
+drun run test.yaml --dry-run
+
+# 运行单个步骤进行调试
+steps:
+  - name: 调试步骤
+    request:
+      method: GET
+      url: /api/debug
+    debug: true  # 启用调试模式
+    validate:
+      - eq: [status_code, 200]
+```
+
+#### 3. 导出cURL命令
+```bash
+# 导出测试为cURL命令用于手动调试
+drun export curl --test-file test.yaml
+
+# 在命令行手动执行
+curl -X POST https://api.example.com/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"test"}'
+```
+
+### 性能优化
+
+#### 1. 减少请求数量
+```yaml
+# 使用批量接口
+steps:
+  - name: ❌ 多次单个请求
+    request:
+      method: GET
+      url: /api/users/1
+  - name: 获取用户2
+    request:
+      method: GET
+      url: /api/users/2
+
+  - name: ✅ 批量请求
+    request:
+      method: GET
+      url: /api/users?ids=1,2,3
+```
+
+#### 2. 复用连接
+```yaml
+# drun.yaml
+http:
+  keep_alive: true
+  connection_pool_size: 10
+  max_connections: 50
+```
+
+#### 3. 合理使用并发
+```bash
+# 根据接口性能调整并发数
+drun run fast-api-tests/ --parallel 10
+drun run slow-api-tests/ --parallel 2
+```
+
+### 错误参考
+
+#### HTTP状态码错误
+| 状态码 | 常见原因 | 解决方案 |
+|--------|----------|----------|
+| 400 | 请求参数错误 | 检查请求体格式和必填字段 |
+| 401 | 认证失败 | 检查Token是否过期或正确 |
+| 403 | 权限不足 | 检查用户权限配置 |
+| 404 | 资源不存在 | 检查URL路径和资源ID |
+| 429 | 请求频率限制 | 降低请求频率或增加延迟 |
+| 500 | 服务器内部错误 | 检查服务端日志 |
+
+#### Drun特定错误
+| 错误信息 | 原因 | 解决方案 |
+|----------|------|----------|
+| `Variable not found` | 变量未定义 | 检查变量定义和作用域 |
+| `JSON parse error` | JSON格式错误 | 验证JSON语法 |
+| `Database connection failed` | 数据库连接失败 | 检查数据库配置和网络 |
+| `Template syntax error` | 模板语法错误 | 检查模板表达式语法 |
+| `File not found` | 文件路径错误 | 检查文件路径是否正确 |
+
+---
+
+## 📖 API参考
+
+### 命令行界面
+
+#### 基本命令
+```bash
+# 查看版本
+drun --version
+
+# 查看帮助
+drun --help
+
+# 查看子命令帮助
+drun run --help
+drun import --help
+```
+
+#### 测试执行命令
+```bash
+# drun run - 执行API测试
+drun run [OPTIONS] TEST_PATH
+
+# 选项：
+#   --env, -e TEXT          指定环境 (development, testing, production)
+#   --tags TEXT            标签过滤，支持表达式: "smoke AND NOT slow"
+#   --exclude TEXT         排除标签
+#   --parallel, -p INTEGER 并发执行数量
+#   --timeout INTEGER      超时时间（秒）
+#   --retry INTEGER        失败重试次数
+#   --retry-delay INTEGER  重试延迟（秒）
+#   --verbose, -v          详细输出
+#   --debug                调试模式
+#   --dry-run              预运行，不发送实际请求
+#   --report-html PATH     生成HTML报告
+#   --report-json PATH     生成JSON报告
+#   --report-allure PATH   生成Allure报告
+#   --pattern TEXT         文件名模式匹配
+#   --name TEXT            测试名称匹配
+
+# 示例：
+drun run tests/
+drun run tests/ --env testing --tags "smoke"
+drun run test.yaml --verbose --report-html reports/
+drun run tests/ --parallel 4 --retry 2
+```
+
+#### 导入命令
+```bash
+# drun import - 导入其他格式的测试
+drun import [OPTIONS] COMMAND
+
+# 支持的格式：
+#   curl       从cURL命令导入
+#   postman    从Postman Collection导入
+#   har        从HAR文件导入
+#   openapi    从OpenAPI规范导入
+
+# cURL导入示例：
+drun import curl --from "curl -X POST https://api.example.com/users"
+drun import curl --file curl_commands.txt --output tests/
+
+# Postman导入示例：
+drun import postman --file collection.json --output tests/
+drun import postman --file collection.json --folder "API Tests"
+
+# HAR导入示例：
+drun import har --file traffic.har --domain "api.example.com"
+
+# OpenAPI导入示例：
+drun import openapi --file swagger.yaml --endpoint "/users"
+```
+
+#### 导出命令
+```bash
+# drun export - 导出测试为其他格式
+drun export [OPTIONS] FORMAT
+
+# 支持的格式：
+#   curl       导出为cURL命令
+#   postman    导出为Postman Collection
+
+# 示例：
+drun export curl --test-file test.yaml
+drun export postman --test-dir tests/ --output collection.json
+```
+
+#### 通知命令
+```bash
+# drun notify - 发送通知
+drun notify [OPTIONS] CHANNEL
+
+# 支持的渠道：
+#   feishu      飞书通知
+#   dingtalk    钉钉通知
+#   email       邮件通知
+
+# 示例：
+drun notify feishu --webhook $WEBHOOK_URL --message "测试完成"
+drun notify dingtalk --webhook $WEBHOOK_URL --message "测试失败"
+```
+
+#### 数据库命令
+```bash
+# drun db-check - 检查数据库连接
+drun db-check
+
+# drun db-query - 执行数据库查询
+drun db-query "SELECT COUNT(*) FROM users" --dry-run
+```
+
+### YAML语法参考
+
+#### 测试文件结构
+```yaml
+# 必填字段
+name: "测试用例名称"                    # 测试用例名称
+steps:                               # 测试步骤列表
+
+# 可选字段
+description: "测试描述"                # 测试描述
+tags: ["tag1", "tag2"]               # 标签
+timeout: 30                          # 超时时间（秒）
+retry: 3                             # 重试次数
+variables:                           # 局部变量
+  var_name: "var_value"
+data: "data.csv"                     # 数据驱动文件
+setup:                               # 前置钩子
+  command: "echo 'setup'"
+teardown:                            # 后置钩子
+  command: "echo 'teardown'"
+```
+
+#### 请求配置
+```yaml
+steps:
+  - name: "步骤名称"
+    request:
+      method: "GET"                  # HTTP方法: GET, POST, PUT, DELETE, etc.
+      url: "/api/users"              # 请求URL
+      params:                        # URL参数
+        key: "value"
+      headers:                       # 请求头
+        Content-Type: "application/json"
+        Authorization: "Bearer ${token}"
+      data: "string data"            # 表单数据
+      json:                          # JSON数据
+        key: "value"
+      files:                         # 文件上传
+        file: "/path/to/file"
+      timeout: 30                    # 请求超时
+      verify_ssl: true               # SSL验证
+      allow_redirects: true          # 允许重定向
+      stream: false                  # 流式传输
+      proxies:                       # 代理配置
+        http: "http://proxy:8080"
+        https: "https://proxy:8080"
+```
+
+#### 验证规则
+```yaml
+validate:
+  # 状态码验证
+  - eq: [status_code, 200]           # 等于
+  - ne: [status_code, 404]           # 不等于
+  - lt: [status_code, 500]           # 小于
+  - le: [status_code, 500]           # 小于等于
+  - gt: [status_code, 100]           # 大于
+  - ge: [status_code, 200]           # 大于等于
+
+  # 响应体验证
+  - eq: [body.message, "success"]    # 等于
+  - ne: [body.error, null]           # 不等于
+  - contains: [body.data.list, "item"]  # 包含
+  - not_contains: [body.message, "error"]  # 不包含
+  - regex: [body.data.phone, "^1[3-9]\d{9}$"]  # 正则匹配
+  - length_eq: [body.data.items, 10]  # 长度等于
+  - is_empty: [body.errors]          # 为空
+  - is_not_empty: [body.data]        # 不为空
+
+  # 自定义验证
+  - custom_validate: |
+      if response.json()['data']['count'] > 100:
+          raise AssertionError("数量超过限制")
+```
+
+#### 数据提取
+```yaml
+extract:
+  # 简单值提取
+  user_id: body.data.id              # 提取用户ID
+  token: body.data.access_token      # 提取Token
+
+  # 复杂表达式提取
+  username: body.data.user.profile.name
+  first_item: body.data.items[0]
+
+  # 正则表达式提取
+  auth_code: ${regex(headers.location, "code=([^&]+)")}
+
+  # 模板函数提取
+  timestamp: ${timestamp()}
+  random_id: ${uuid4()}
+```
+
+#### 数据库验证
+```yaml
+db_validate:
+  query: "SELECT id, status FROM orders WHERE id = ?"  # SQL查询
+  params: ["${order_id}"]                              # 查询参数
+  expectations:                                        # 期望结果
+    - eq: [id, "${order_id}"]
+    - eq: [status, "paid"]
+```
+
+### 模板函数
+
+#### 时间函数
+```yaml
+variables:
+  current_time: ${now()}                    # 当前时间戳
+  formatted_time: ${strftime("%Y-%m-%d %H:%M:%S")}  # 格式化时间
+  timestamp: ${timestamp()}                 # Unix时间戳
+  iso_time: ${isoformat()}                  # ISO格式时间
+```
+
+#### 随机函数
+```yaml
+variables:
+  uuid: ${uuid4()}                         # UUID v4
+  random_int: ${randint(1, 100)}          # 随机整数
+  random_float: ${randfloat(0.0, 1.0)}    # 随机浮点数
+  random_choice: ${choice(["A", "B", "C"])}  # 随机选择
+  random_string: ${random_string(10)}     # 随机字符串
+```
+
+#### 字符串函数
+```yaml
+variables:
+  base64_encoded: ${base64("hello")}      # Base64编码
+  base64_decoded: ${base64_decode("aGVsbG8=")}  # Base64解码
+  url_encoded: ${urlencode("hello world")}  # URL编码
+  url_decoded: ${urldecode("hello+world")}   # URL解码
+  md5_hash: ${md5("hello")}               # MD5哈希
+  sha256_hash: ${sha256("hello")}         # SHA256哈希
+```
+
+#### JSON处理函数
+```yaml
+variables:
+  json_extract: ${json_extract('{"name":"test"}', "name")}  # JSON提取
+  to_json: ${to_json({"key": "value"})}                   # 转JSON
+  from_json: ${from_json('{"key":"value"}')}               # 从JSON解析
+```
+
+#### 环境变量函数
+```yaml
+variables:
+  home_dir: ${env("HOME")}                              # 环境变量
+  fallback: ${env("UNDEFINED_VAR", "default_value")}    # 带默认值
+```
+
+#### 文件操作函数
+```yaml
+variables:
+  file_content: ${file("/path/to/file.txt")}  # 读取文件
+  file_exists: ${file_exists("/path/to/file")}  # 检查文件存在
+```
+
+### 断言操作符
+
+#### 比较操作符
+| 操作符 | 说明 | 示例 |
+|--------|------|------|
+| `eq` | 等于 | `eq: [body.status, "success"]` |
+| `ne` | 不等于 | `ne: [body.error, null]` |
+| `lt` | 小于 | `lt: [body.count, 100]` |
+| `le` | 小于等于 | `le: [body.age, 18]` |
+| `gt` | 大于 | `gt: [body.score, 60]` |
+| `ge` | 大于等于 | `ge: [body.price, 0]` |
+
+#### 字符串操作符
+| 操作符 | 说明 | 示例 |
+|--------|------|------|
+| `contains` | 包含 | `contains: [body.message, "success"]` |
+| `not_contains` | 不包含 | `not_contains: [body.error, "critical"]` |
+| `regex` | 正则匹配 | `regex: [body.phone, "^1[3-9]\d{9}$"]` |
+| `starts_with` | 以...开头 | `starts_with: [body.url, "https://"]` |
+| `ends_with` | 以...结尾 | `ends_with: [body.email, "@example.com"]` |
+
+#### 集合操作符
+| 操作符 | 说明 | 示例 |
+|--------|------|------|
+| `length_eq` | 长度等于 | `length_eq: [body.items, 10]` |
+| `length_gt` | 长度大于 | `length_gt: [body.users, 0]` |
+| `length_lt` | 长度小于 | `length_lt: [body.errors, 5]` |
+| `is_empty` | 为空 | `is_empty: [body.errors]` |
+| `is_not_empty` | 不为空 | `is_not_empty: [body.data]` |
+| `contains_all` | 包含所有元素 | `contains_all: [body.tags, ["tag1", "tag2"]]` |
+
+#### 类型操作符
+| 操作符 | 说明 | 示例 |
+|--------|------|------|
+| `is_null` | 为null | `is_null: [body.error]` |
+| `is_not_null` | 不为null | `is_not_null: [body.data]` |
+| `is_true` | 为true | `is_true: [body.success]` |
+| `is_false` | 为false | `is_false: [body.error]` |
+| `is_number` | 为数字 | `is_number: [body.count]` |
+| `is_string` | 为字符串 | `is_string: [body.name]` |
+| `is_array` | 为数组 | `is_array: [body.items]` |
+| `is_object` | 为对象 | `is_object: [body.data]` |
+
+---
+
+## 🤝 贡献指南
+
+### 开发环境搭建
+
+#### 1. 克隆项目
+```bash
+git clone https://github.com/your-org/drun.git
+cd drun
+```
+
+#### 2. 创建虚拟环境
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+# 或
+venv\Scripts\activate     # Windows
+```
+
+#### 3. 安装开发依赖
+```bash
+pip install -e ".[dev]"
+```
+
+#### 4. 运行测试
+```bash
+pytest tests/
+```
+
+### 代码风格指南
+
+#### Python代码风格
+- 遵循 **PEP 8** Python代码规范
+- 使用 **Black** 进行代码格式化
+- 使用 **isort** 进行导入排序
+- 使用 **flake8** 进行代码检查
+
+```bash
+# 格式化代码
+black drun/
+isort drun/
+
+# 代码检查
+flake8 drun/
+```
+
+#### YAML测试文件风格
+- 使用 **2个空格** 进行缩进
+- 字符串值使用 **双引号**
+- 注释使用 `#` 符号
+- 保持文件结构清晰
+
+```yaml
+# ✅ 好的风格
+name: "用户登录测试"
+description: "测试用户登录功能"
+tags: ["user", "auth", "smoke"]
+
+steps:
+  - name: "发送登录请求"
+    request:
+      method: POST
+      url: /api/auth/login
+      json:
+        username: ${USERNAME}
+        password: ${PASSWORD}
+    validate:
+      - eq: [status_code, 200]
+      - is_not_empty: [body.token]
+
+# ❌ 避免的风格
+name: '用户登录测试'
+steps:
+- name: "登录"
+  request:
+    method: 'POST'
+```
+
+### 提交规范
+
+#### 提交信息格式
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+#### 类型说明
+- `feat`: 新功能
+- `fix`: 修复bug
+- `docs`: 文档更新
+- `style`: 代码格式调整
+- `refactor`: 重构
+- `test`: 测试相关
+- `chore`: 构建过程或辅助工具的变动
+
+#### 示例
+```bash
+git commit -m "feat(core): 添加数据库验证功能
+
+- 支持MySQL SQL断言
+- 添加连接池配置
+- 实现查询结果缓存
+
+Closes #123"
+```
+
+### PR提交流程
+
+#### 1. 创建功能分支
+```bash
+git checkout -b feature/database-validation
+```
+
+#### 2. 开发和测试
+```bash
+# 编写代码
+# 运行测试
+pytest tests/
+# 运行集成测试
+drun run tests/fixtures/
+```
+
+#### 3. 提交代码
+```bash
+git add .
+git commit -m "feat: 添加数据库验证功能"
+git push origin feature/database-validation
+```
+
+#### 4. 创建Pull Request
+- 在GitHub上创建PR
+- 填写PR模板
+- 等待代码审查
+- 根据反馈修改代码
+
+#### 5. PR检查清单
+- [ ] 代码通过所有测试
+- [ ] 添加了必要的测试用例
+- [ ] 更新了相关文档
+- [ ] 代码风格符合规范
+- [ ] 提交信息符合规范
+- [ ] 没有合并冲突
+
+### 测试指南
+
+#### 单元测试
+```python
+# tests/test_runner.py
+import pytest
+from drun.runner import TestRunner
+
+class TestTestRunner:
+    def test_run_single_test(self):
+        runner = TestRunner()
+        result = runner.run_test("test.yaml")
+        assert result.status == "passed"
+
+    def test_variable_substitution(self):
+        runner = TestRunner()
+        # 测试变量替换逻辑
+```
+
+#### 集成测试
+```yaml
+# tests/fixtures/integration_test.yaml
+name: 集成测试
+steps:
+  - name: 测试API
+    request:
+      method: GET
+      url: ${TEST_API_URL}/health
+    validate:
+      - eq: [status_code, 200]
+```
+
+#### 性能测试
+```python
+# tests/test_performance.py
+import time
+from drun.runner import TestRunner
+
+def test_performance():
+    runner = TestRunner()
+    start_time = time.time()
+    runner.run_batch("tests/")
+    duration = time.time() - start_time
+    assert duration < 60  # 60秒内完成
+```
+
+### 文档贡献
+
+#### 文档类型
+- **API文档**: 接口使用说明
+- **用户指南**: 使用教程和最佳实践
+- **开发文档**: 架构设计和开发指南
+- **示例文档**: 完整的使用示例
+
+#### 文档规范
+- 使用 **Markdown** 格式
+- 代码片段指定语言类型
+- 添加适当的链接和锚点
+- 保持文档与代码同步
+
+### 问题报告
+
+#### Bug报告模板
+```markdown
+## Bug描述
+简要描述bug现象
+
+## 复现步骤
+1. 执行命令: `drun run test.yaml`
+2. 观察输出:
+3. 期望行为:
+
+## 环境信息
+- OS: [e.g. Ubuntu 20.04]
+- Python版本: [e.g. 3.11]
+- Drun版本: [e.g. 2.4.10]
+
+## 附加信息
+- 配置文件内容
+- 测试文件内容
+- 错误日志
+```
+
+#### 功能请求模板
+```markdown
+## 功能描述
+简要描述希望添加的功能
+
+## 使用场景
+描述在什么场景下需要这个功能
+
+## 解决方案
+描述希望如何实现这个功能
+
+## 替代方案
+描述考虑过的其他解决方案
+```
+
+### 社区参与
+
+#### 参与方式
+- 🐛 **报告Bug**: 发现问题及时反馈
+- 💡 **功能建议**: 提出改进建议
+- 📖 **文档改进**: 完善文档内容
+- 🧪 **测试反馈**: 分享测试经验
+- 🔄 **代码贡献**: 参与代码开发
+
+#### 联系方式
+- **GitHub Issues**: [项目Issues页面]
+- **讨论区**: [GitHub Discussions]
+- **邮件列表**: dev@drun.example.com
+- **即时聊天**: [Slack/Discord频道]
+
+---
+
+## 📄 许可证与致谢
+
+### 许可证
+
+本项目采用 **MIT许可证** - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+### 核心贡献者
+
+- **[@maintainer1](https://github.com/maintainer1)** - 项目创建者和主要维护者
+- **[@contributor1](https://github.com/contributor1)** - 核心功能开发
+- **[@contributor2](https://github.com/contributor2)** - 文档和示例完善
+
+### 致谢
+
+特别感谢以下项目和贡献者：
+
+- **[httpx](https://github.com/encode/httpx)** - 现代HTTP客户端库
+- **[Pydantic](https://github.com/pydantic/pydantic)** - 数据验证库
+- **[JMESPath](https://github.com/jmespath/jmespath.py)** - JSON查询语言
+- **[PyYAML](https://github.com/yaml/pyyaml)** - YAML解析库
+- **[Rich](https://github.com/Textualize/rich)** - 富文本终端输出
+- **[Typer](https://github.com/tiangolo/typer)** - 现代CLI框架
+
+### 用户反馈
+
+感谢所有提供反馈和建议的用户，你们的意见让Drun变得更好！
+
+### 更新日志
+
+#### v2.4.10 (2024-01-15)
+- ✨ 新增SSE流式传输支持
+- 🔧 优化数据库配置，简化环境变量设置
+- 🐛 修复标签过滤的复杂表达式解析
+- 📚 完善电商API测试示例
+
+#### v2.4.8 (2024-01-01)
+- 🚀 性能优化，提升并发执行效率
+- 📊 增强HTML报告功能
+- 🔐 改进敏感数据脱敏机制
+- 🐛 修复变量作用域问题
+
+#### v2.4.6 (2023-12-15)
+- 📱 新增钉钉通知支持
+- 🔄 改进重试机制，支持指数退避
+- 📝 完善错误提示信息
+- 🧪 增加更多模板函数
+
+#### 完整更新日志
+查看 [CHANGELOG.md](CHANGELOG.md) 了解详细的版本更新历史。
+
+---
+
+## 🌟 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=your-org/drun&type=Date)](https://star-history.com/#your-org/drun&Date)
+
+如果Drun对您有帮助，请给我们一个 ⭐ Star！
+
+---
+
+## 📞 联系我们
+
+- **项目主页**: https://github.com/your-org/drun
+- **文档网站**: https://drun.example.com
+- **PyPI页面**: https://pypi.org/project/drun/
+- **问题反馈**: https://github.com/your-org/drun/issues
+- **功能建议**: https://github.com/your-org/drun/discussions
+
+---
+
+**💖 让API测试变得简单而强大！**
+
+*Drun - 零代码HTTP API测试框架*
