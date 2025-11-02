@@ -1170,7 +1170,7 @@ def run(
     # confusing behavior (e.g., `-k auth` ignored if ENV has AUTH/auth).
     # That heuristic is removed to ensure explicit filters are respected.
     # Discover files
-    typer.echo(f"Filter expression: {k!r}")
+    log.info(f"[FILTER] expression: {k!r}")
     files = discover([path])
     if not files:
         from pathlib import Path as _Path
