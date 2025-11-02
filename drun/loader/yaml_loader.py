@@ -136,8 +136,17 @@ def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_
         clean_prefix += ":"
 
     lines = [clean_prefix]
+    # Calculate indentation to align with the colon in the prefix
+    colon_pos = clean_prefix.find(":")
+    if colon_pos != -1:
+        # Align variables with the colon position
+        indentation = " " * (colon_pos + 1)  # +1 to align after the colon
+    else:
+        # Fallback to 2-space indentation if no colon found
+        indentation = "  "
+
     for var_assignment in var_assignments:
-        lines.append("  " + var_assignment)
+        lines.append(indentation + var_assignment)
 
     return "\n".join(lines)
 
