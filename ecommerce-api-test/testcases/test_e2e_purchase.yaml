@@ -4,7 +4,7 @@ config:
   tags: [e2e, critical, sql]
   variables:
     test_username: e2e_user_${short_uid(8)}
-    test_email: e2e_${short_uid(8)}@example.com
+    test_email: "e2e_${short_uid(8)}@example.com"
     test_password: ${ENV(USER_PASSWORD)}
     test_fullname: E2E Test User
     test_address: 789 E2E Test Road, E2E City, EC 99999

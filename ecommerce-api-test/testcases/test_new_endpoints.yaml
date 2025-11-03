@@ -4,7 +4,7 @@ config:
   tags: [new-endpoints, regression]
   variables:
     test_username: new_user_${short_uid(8)}
-    test_email: new_${short_uid(8)}@example.com
+    test_email: "new_${short_uid(8)}@example.com"
     test_password: ${ENV(USER_PASSWORD)}
     test_address: ${ENV(SHIPPING_ADDRESS)}
 

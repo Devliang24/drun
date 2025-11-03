@@ -56,7 +56,7 @@ steps:
         User-Agent: Drun-Test-Client/v1.0
       body:
         username: $expected_username
-        email: test@example.com
+        "email: test@example.com"
         description: This is a test user account
     extract:
       response_json: $.json
@@ -203,13 +203,13 @@ steps:
       body:
         users:
           - username: alice
-            email: alice@example.com
+            "email: alice@example.com"
             role: admin
           - username: bob
-            email: bob@example.com
+            "email: bob@example.com"
             role: member
           - username: carol
-            email: carol@example.com
+            "email: carol@example.com"
             role: member
     validate:
       - eq: [status_code, 200]

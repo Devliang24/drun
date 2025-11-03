@@ -4,7 +4,7 @@ config:
   tags: [auth, smoke, regression]
   variables:
     unique_username: user_${short_uid(8)}
-    unique_email: ${short_uid(8)}@example.com
+    unique_email: "${short_uid(8)}@example.com"
     test_password: ${ENV(USER_PASSWORD)}
     test_fullname: Test User ${short_uid(4)}
     test_address: ${ENV(SHIPPING_ADDRESS)}

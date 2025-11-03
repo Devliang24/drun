@@ -4,7 +4,7 @@ config:
   tags: [admin, security, regression]
   variables:
     regular_username: regular_${short_uid(8)}
-    regular_email: regular_${short_uid(8)}@example.com
+    regular_email: "regular_${short_uid(8)}@example.com"
     admin_username: ${ENV(ADMIN_USERNAME)}
     admin_password: ${ENV(ADMIN_PASSWORD)}
     test_password: ${ENV(USER_PASSWORD)}

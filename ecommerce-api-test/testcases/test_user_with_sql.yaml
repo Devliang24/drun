@@ -4,7 +4,7 @@ config:
   tags: [user, sql, standard]
   variables:
     test_username: sqluser_${short_uid(8)}
-    test_email: sqluser_${short_uid(8)}@example.com
+    test_email: "sqluser_${short_uid(8)}@example.com"
     test_password: ${ENV(USER_PASSWORD)}
 
 steps:

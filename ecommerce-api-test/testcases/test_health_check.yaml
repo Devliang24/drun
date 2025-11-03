@@ -41,10 +41,15 @@ steps:
       - eq: [status_code, 200]
       - eq: [$.success, true]
 
-  - name: 公开接口 - 获取商品列表
+  - name: 公开接口 - 快速商品搜索
     request:
-      method: GET
-      path: /api/v1/products/
+      method: POST
+      path: /api/v1/products/quick-search
+      headers:
+        Content-Type: application/json
+      body:
+        q: "*"
+        limit: 10
     validate:
       - eq: [status_code, 200]
       - eq: [$.success, true]
