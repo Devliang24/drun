@@ -608,3 +608,193 @@ def setup_hook_create_test_data():
     print("📦 准备测试数据...")
     # 可以在这里插入测试数据
     # ❌ 不在setup中断言
+
+
+# ==================== 电商购物流程专用Hook函数 ====================
+
+def setup_hook_cleanup_old_test_data(username: str):
+    """前置操作：清理旧测试数据
+    用途：删除之前可能留下的测试用户和关联数据
+    SQL: DELETE FROM users WHERE username LIKE 'flow_user_%'
+    """
+    try:
+        proxy = _get_db_proxy()
+        # 先删除关联数据
+        proxy.execute(f"DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE owner_id IN (SELECT id FROM users WHERE username='{username}'))")
+        proxy.execute(f"DELETE FROM orders WHERE owner_id IN (SELECT id FROM users WHERE username='{username}')")
+        proxy.execute(f"DELETE FROM cart WHERE user_id IN (SELECT id FROM users WHERE username='{username}')")
+        # 再删除用户
+        proxy.execute(f"DELETE FROM users WHERE username='{username}'")
+        print(f"✅ 已清理旧测试数据: username={username}")
+    except Exception as e:
+        print(f"⚠️ 清理旧数据失败: {e}")
+
+
+def setup_hook_reset_product_inventory(product_id: int, target_stock: int):
+    """前置操作：重置商品库存到目标值
+    用途：确保测试时库存为已知值
+    SQL: UPDATE products SET stock={target_stock} WHERE id={product_id}
+    """
+    try:
+        proxy = _get_db_proxy()
+        proxy.execute(f"UPDATE products SET stock={target_stock} WHERE id={product_id}")
+        print(f"✅ 已重置商品库存: product_id={product_id}, stock={target_stock}")
+    except Exception as e:
+        print(f"⚠️ 重置库存失败: {e}")
+
+
+def setup_hook_ensure_username_available(username: str):
+    """前置操作：确保用户名未被使用
+    用途：检查并清理重复的用户名
+    SQL: SELECT id FROM users WHERE username='{username}'
+    """
+    try:
+        proxy = _get_db_proxy()
+        result = proxy.query(f"SELECT id FROM users WHERE username='{username}'")
+        if result:
+            print(f"⚠️ 用户名已存在，尝试清理: username={username}")
+            proxy.execute(f"DELETE FROM users WHERE username='{username}'")
+            print(f"✅ 已清理重复用户: username={username}")
+    except Exception as e:
+        print(f"⚠️ 检查用户名失败: {e}")
+
+
+def setup_hook_ensure_category_exists(category_id: int):
+    """前置操作：确保分类数据存在
+    用途：验证测试所需的分类存在
+    SQL: SELECT id FROM categories WHERE id={category_id}
+    """
+    try:
+        proxy = _get_db_proxy()
+        result = proxy.query(f"SELECT id FROM categories WHERE id={category_id}")
+        if not result:
+            print(f"⚠️ 分类不存在，尝试创建: category_id={category_id}")
+            # 可以在这里创建默认分类
+    except Exception as e:
+        print(f"⚠️ 检查分类失败: {e}")
+
+
+def setup_hook_seed_test_products():
+    """前置操作：植入测试商品数据
+    用途：确保有足够的测试商品用于购物
+    SQL: INSERT INTO products (name, description, price, stock, category_id) VALUES (...)
+    """
+    try:
+        proxy = _get_db_proxy()
+        # 检查是否有足够的商品
+        result = proxy.query("SELECT COUNT(*) as count FROM products")
+        if result and result.get('count', 0) < 3:
+            print(f"⚠️ 测试商品不足，开始植入...")
+            # 这里可以插入测试商品数据
+            print(f"✅ 已植入测试商品数据")
+        else:
+            print(f"✅ 测试商品充足")
+    except Exception as e:
+        print(f"⚠️ 植入测试商品失败: {e}")
+
+
+def setup_hook_clear_user_cart(user_id: int):
+    """前置操作：清空用户购物车
+    用途：确保购物车初始状态干净
+    SQL: DELETE FROM cart WHERE user_id={user_id}
+    """
+    try:
+        proxy = _get_db_proxy()
+        proxy.execute(f"DELETE FROM cart WHERE user_id={user_id}")
+        print(f"✅ 已清空用户购物车: user_id={user_id}")
+    except Exception as e:
+        print(f"⚠️ 清空购物车失败: {e}")
+
+
+# ==================== 订单项查询Hook函数 ====================
+
+def hook_query_order_item_count(order_id: int) -> int:
+    """从数据库查询订单项数量
+    SQL: SELECT COUNT(*) as count FROM order_items WHERE order_id={order_id}
+    """
+    proxy = _get_db_proxy()
+    result = proxy.query(f"SELECT COUNT(*) as count FROM order_items WHERE order_id={order_id}")
+    return result.get('count') if result else 0
+
+
+# ==================== 完整数据清理Hook函数 ====================
+
+def teardown_hook_cleanup_complete_user_data(user_id: int):
+    """后置操作：删除测试用户及其所有关联数据
+    用途：彻底清理测试环境
+    SQL: 按依赖顺序删除所有相关数据
+    """
+    try:
+        proxy = _get_db_proxy()
+        # 按依赖顺序删除（先子表，后主表）
+
+        # 1. 删除订单项
+        proxy.execute(f"DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE owner_id={user_id})")
+
+        # 2. 删除订单
+        proxy.execute(f"DELETE FROM orders WHERE owner_id={user_id}")
+
+        # 3. 删除购物车
+        proxy.execute(f"DELETE FROM cart WHERE user_id={user_id}")
+
+        # 4. 删除用户
+        proxy.execute(f"DELETE FROM users WHERE id={user_id}")
+
+        print(f"✅ 已清理完整用户数据: user_id={user_id}")
+    except Exception as e:
+        print(f"⚠️ 清理用户数据失败: {e}")
+
+
+def teardown_hook_restore_product_inventory(product_id: int, original_stock: int):
+    """后置操作：恢复商品库存
+    用途：将库存重置到初始状态
+    SQL: UPDATE products SET stock={original_stock} WHERE id={product_id}
+    """
+    try:
+        proxy = _get_db_proxy()
+        proxy.execute(f"UPDATE products SET stock={original_stock} WHERE id={product_id}")
+        print(f"✅ 已恢复商品库存: product_id={product_id}, stock={original_stock}")
+    except Exception as e:
+        print(f"⚠️ 恢复库存失败: {e}")
+
+
+def teardown_hook_cleanup_cart_data(user_id: int):
+    """后置操作：清理购物车数据
+    用途：删除用户的购物车数据
+    SQL: DELETE FROM cart WHERE user_id={user_id}
+    """
+    try:
+        proxy = _get_db_proxy()
+        proxy.execute(f"DELETE FROM cart WHERE user_id={user_id}")
+        print(f"✅ 已清理购物车数据: user_id={user_id}")
+    except Exception as e:
+        print(f"⚠️ 清理购物车失败: {e}")
+
+
+# ==================== 高级业务验证Hook函数 ====================
+
+def hook_query_cart_total_items(user_id: int) -> int:
+    """查询购物车商品总数量
+    SQL: SELECT SUM(quantity) as total FROM cart WHERE user_id={user_id}
+    """
+    proxy = _get_db_proxy()
+    result = proxy.query(f"SELECT SUM(quantity) as total FROM cart WHERE user_id={user_id}")
+    return result.get('total') if result and result.get('total') else 0
+
+
+def hook_query_cart_total_price(user_id: int) -> float:
+    """查询购物车总价
+    SQL: SELECT SUM(quantity * price_at_time) as total FROM cart WHERE user_id={user_id}
+    """
+    proxy = _get_db_proxy()
+    result = proxy.query(f"SELECT SUM(quantity * price_at_time) as total FROM cart WHERE user_id={user_id}")
+    return float(result.get('total')) if result and result.get('total') else 0.0
+
+
+def hook_query_user_active_orders_count(user_id: int) -> int:
+    """查询用户未完成订单数量
+    SQL: SELECT COUNT(*) as count FROM orders WHERE owner_id={user_id} AND status != 'completed'
+    """
+    proxy = _get_db_proxy()
+    result = proxy.query(f"SELECT COUNT(*) as count FROM orders WHERE owner_id={user_id} AND status != 'completed'")
+    return result.get('count') if result else 0

@@ -1,0 +1,283 @@
+config:
+  name: Complete E-commerce Shopping Flow Test
+  base_url: ${ENV(BASE_URL)}
+  tags: [e2e, business, complete-flow]
+  variables:
+    test_username: flow_user_${short_uid(8)}
+    test_email: "flow_user_${short_uid(8)}@example.com"
+    test_password: ${ENV(USER_PASSWORD)}
+    shipping_address: "Flow Test Street 123, Flow City, FC 12345"
+
+steps:
+  # ==================== Phase 1: Test Environment Setup ====================
+
+  - name: Phase1-Prepare test environment and data
+    setup_hooks:
+      # Pre-action: cleanup old test data
+      - ${setup_hook_cleanup_old_test_data($test_username)}
+      # Pre-action: reset product inventory to initial state
+      - ${setup_hook_reset_product_inventory(1, 100)}
+      - ${setup_hook_reset_product_inventory(2, 50)}
+      - ${setup_hook_reset_product_inventory(3, 75)}
+    request:
+      method: GET
+      path: /health
+    validate:
+      - eq: [status_code, 200]
+
+  # ==================== Phase 2: User Authentication ====================
+
+  - name: Phase2-User registration
+    setup_hooks:
+      # Pre-action: ensure username is available
+      - ${setup_hook_ensure_username_available($test_username)}
+    request:
+      method: POST
+      path: /api/v1/auth/register
+      headers:
+        Content-Type: application/json
+      body:
+        username: $test_username
+        email: $test_email
+        password: $test_password
+        full_name: "Flow Test User"
+        shipping_address: $shipping_address
+    extract:
+      user_id: $.data.id
+      registered_username: $.data.username
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.data.username, $test_username]
+      - eq: [$.data.email, $test_email]
+
+  - name: Phase3-User login
+    request:
+      method: POST
+      path: /api/v1/auth/login
+      headers:
+        Content-Type: application/json
+      body:
+        username: $test_username
+        password: $test_password
+    extract:
+      token: $.data.access_token
+    validate:
+      - eq: [status_code, 200]
+      - ne: [$.data.access_token, null]
+
+  # ==================== Phase 3: Product Browsing ====================
+
+  - name: Phase4-Browse product categories
+    setup_hooks:
+      # Pre-action: ensure category data exists
+      - ${setup_hook_ensure_category_exists(1)}
+    request:
+      method: GET
+      path: /api/v1/categories/
+    extract:
+      categories: $.data
+      electronics_category_id: $.data[0].id
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$.data, []]
+
+  - name: Phase5-Search products
+    setup_hooks:
+      # Pre-action: ensure test product data exists
+      - ${setup_hook_seed_test_products()}
+    request:
+      method: POST
+      path: /api/v1/products/search
+      headers:
+        Content-Type: application/json
+      body:
+        search: "test product"
+        limit: 10
+    extract:
+      products: $.data.items
+      first_product_id: $.data.items[0].id
+      first_product_name: $.data.items[0].name
+      first_product_price: $.data.items[0].price
+      first_product_stock: $.data.items[0].stock
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$.data.total, 0]
+
+  - name: Phase6-View product details
+    request:
+      method: GET
+      path: /api/v1/products/$first_product_id
+    extract:
+      product_detail: $.data
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.id, $first_product_id]
+      - eq: [$.data.name, $first_product_name]
+
+  # ==================== Phase 4: Shopping Cart Management ====================
+
+  - name: Phase7-Clear shopping cart
+    setup_hooks:
+      # Pre-action: ensure cart initial state is clean
+      - ${setup_hook_clear_user_cart($user_id)}
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+
+  - name: Phase8-Add product to cart
+    request:
+      method: POST
+      path: /api/v1/cart/items
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        product_id: $first_product_id
+        quantity: 2
+    extract:
+      cart_item_id: $.data.cart_item_id
+    validate:
+      - eq: [status_code, 201]
+
+  - name: Phase9-Update cart item quantity
+    request:
+      method: PUT
+      path: /api/v1/cart/items/$first_product_id
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        quantity: 3
+    validate:
+      - eq: [status_code, 200]
+
+  - name: Phase10-View cart details
+    request:
+      method: GET
+      path: /api/v1/cart/
+      headers:
+        Authorization: Bearer $token
+    extract:
+      cart_total_items: $.data.total_items
+      cart_total_price: $.data.total_price
+      cart_items: $.data.items
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.total_items, 3]
+      - gt: [$.data.total_price, 0]
+
+  # ==================== Phase 5: Order Creation ====================
+
+  - name: Phase11-Create order
+    request:
+      method: POST
+      path: /api/v1/orders/
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        shipping_address: $shipping_address
+    extract:
+      order_id: $.data.order_id
+      order_status: $.data.status
+      order_total: $.data.total_price
+    validate:
+      - eq: [status_code, 201]
+      - eq: [$.data.status, "pending"]
+
+  - name: Phase12-Verify order details
+    variables:
+      # Query order details from database
+      db_order_status: ${hook_query_order_status($order_id)}
+      db_order_total: ${hook_query_order_total_price($order_id)}
+      db_order_items_count: ${hook_query_order_item_count($order_id)}
+    request:
+      method: GET
+      path: /api/v1/orders/$order_id
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.data.order_id, $order_id]
+      # Full SQL assertion: verify API matches database
+      - eq: [$.data.status, $db_order_status]
+      - eq: [$.data.total_price, $db_order_total]
+
+  # ==================== Phase 6: Business Logic Verification ====================
+
+  - name: Phase13-Verify inventory deduction
+    variables:
+      # Query reduced stock from database
+      db_product_stock_after: ${hook_query_product_stock($first_product_id)}
+      original_stock: 100
+      expected_stock: ${original_stock - 3}
+    request:
+      method: GET
+      path: /api/v1/products/$first_product_id
+    validate:
+      - eq: [status_code, 200]
+      # Verify business logic: stock correctly deducted
+      - eq: [$.data.stock, $expected_stock]
+
+  - name: Phase14-Verify user order list
+    variables:
+      first_order_id: $.data.items[0].order_id
+    request:
+      method: POST
+      path: /api/v1/orders/search
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        limit: 10
+    extract:
+      user_orders: $.data.items
+    validate:
+      - eq: [status_code, 200]
+      # Verify new order is in list
+      - len_eq: [$user_orders, 1]
+      - eq: [$first_order_id, $order_id]
+
+  - name: Phase15-Final data consistency check
+    variables:
+      # Query complete order info from database
+      db_username: ${hook_query_user_username($user_id)}
+      db_user_email: ${hook_query_user_email($user_id)}
+      db_order_items_count_final: ${hook_query_order_item_count($order_id)}
+    request:
+      method: GET
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer $token
+    validate:
+      - eq: [status_code, 200]
+      # Verify user info is correct
+      - eq: [$.data.username, $db_username]
+      - eq: [$.data.email, $db_user_email]
+
+  # ==================== Phase 7: Data Cleanup ====================
+
+  - name: Phase16-Final test data cleanup
+    teardown_hooks:
+      # Post-action: delete test user and all associated data
+      - ${teardown_hook_cleanup_complete_user_data($user_id)}
+      # Post-action: restore product inventory
+      - ${teardown_hook_restore_product_inventory($first_product_id, 100)}
+      # Post-action: clear shopping cart
+      - ${teardown_hook_cleanup_cart_data($user_id)}
+    request:
+      method: POST
+      path: /api/v1/orders/search
+      headers:
+        Authorization: Bearer $token
+        Content-Type: application/json
+      body:
+        limit: 10
+    validate:
+      - eq: [status_code, 200]
+      # Verify orders have been properly cleaned
+      - len_eq: [$.data.items, 0]
