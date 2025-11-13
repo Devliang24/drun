@@ -1732,7 +1732,7 @@ def init_project(
     - logs/: 日志输出目录
     - .env: 环境配置
     - drun_hooks.py: Hooks 函数
-    - README.md: 快速上手文档
+    # README.md: 快速上手文档（已删除）
 
     示例:
         drun init                    # 在当前目录初始化
@@ -1754,7 +1754,7 @@ def init_project(
         target_dir = Path.cwd()
 
     # 检查是否已存在关键文件
-    key_files = ["testcases", ".env", "drun_hooks.py", ".gitignore", "README.md"]
+    key_files = ["testcases", ".env", "drun_hooks.py", ".gitignore"]
     existing_files = [f for f in key_files if (target_dir / f).exists()]
 
     if existing_files and not force:
@@ -1863,8 +1863,8 @@ def init_project(
     # .gitignore
     _write_template(".gitignore", scaffolds.GITIGNORE_TEMPLATE)
 
-    # README.md
-    _write_template("README.md", scaffolds.README_TEMPLATE)
+    # README.md - 已删除，不再生成项目文档
+    # _write_template("README.md", scaffolds.README_TEMPLATE)
 
     # GitHub Actions workflow
     _write_template(".github/workflows/test.yml", scaffolds.GITHUB_WORKFLOW_TEMPLATE)
@@ -1889,7 +1889,7 @@ def init_project(
         ("├── ", "data/", ""),
         ("│   └── ", "users.csv", "CSV 参数数据示例"),
         ("├── ", "converts/", ""),
-        ("│   ├── ", "README.md", "格式转换完整指南"),
+        # ("│   ├── ", "README.md", "格式转换完整指南"),
         ("│   ├── ", "curl/", ""),
         ("│   │   └── ", "sample.curl", "cURL 命令示例"),
         ("│   ├── ", "postman/", ""),
@@ -1908,7 +1908,7 @@ def init_project(
         ("├── ", ".env", "环境变量配置"),
         ("├── ", "drun_hooks.py", "自定义 Hooks 函数"),
         ("├── ", ".gitignore", "Git 忽略规则"),
-        ("└── ", "README.md", "项目文档"),
+        # ("└── ", "README.md", "项目文档"),
     ]
 
     pad = max(len(prefix + entry) for prefix, entry, desc in tree_entries if desc) + 8

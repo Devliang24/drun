@@ -731,7 +731,7 @@ CONVERTS_README = """# 格式转换目录
 
 ```
 converts/
-├── README.md                      # 本文档
+# └── README.md                    # 本文档（已删除）
 ├── curl/
 │   └── sample.curl                # cURL 命令示例（3 个命令）
 ├── postman/
@@ -943,7 +943,7 @@ drun convert-openapi converts/openapi/sample_openapi.json \\
 
 - 完整转换指南: [docs/FORMAT_CONVERSION.md](../docs/FORMAT_CONVERSION.md)
 - CLI 参数详解: [docs/CLI.md](../docs/CLI.md)
-- 项目主文档: [README.md](../README.md)
+# - 项目主文档: [README.md](../README.md) - 已删除
 
 ## 需要帮助？
 
@@ -1369,12 +1369,12 @@ README_TEMPLATE = """# Drun API 测试项目
 │   └── users.csv           # CSV 参数数据
 ├── converts/               # 格式转换源文件
 │   ├── sample.curl         # cURL 命令示例
-│   └── README.md           # 转换命令说明
+│   # └── README.md         # 转换命令说明（已删除）
 ├── reports/                # HTML/JSON 报告输出
 ├── logs/                   # 日志文件输出
 ├── .env                    # 环境变量配置
 ├── drun_hooks.py           # 自定义 Hooks 函数
-└── README.md               # 本文档
+# └── README.md             # 本文档（已删除）
 ```
 
 ## 🚀 快速开始
@@ -1571,7 +1571,7 @@ drun convert recording.har \\
   --outfile testcases/from_har.yaml
 ```
 
-更多转换选项请查看 `converts/README.md`。
+# 更多转换选项请查看 `converts/README.md` - 已删除。
 
 ## 🏷️ 标签管理
 
