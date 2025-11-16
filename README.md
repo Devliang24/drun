@@ -1,261 +1,233 @@
-# Drun - Zero-Code HTTP API Testing Framework
+# Drun — Zero‑code HTTP API Test Runner
 
-[![Version](https://img.shields.io/badge/version-3.5.0-blue.svg)](https://github.com/Devliang24/drun)
-[![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://python.org)
-[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+Minimal, fast CLI to write and run HTTP API tests in YAML. Drun focuses on practical DX: a small YAML DSL, dollar‑style templating, solid logs and HTML reports, import/export from common tools, and lightweight notifications.
 
-Drun is a **zero-code HTTP API testing framework** designed for modern CI/CD pipelines. Write powerful API tests using simple YAML configuration - no programming required.
+## Features
 
-## 🚀 Core Features
+- YAML test cases with a compact DSL: config, steps, extract, validate, hooks
+- Dollar‑style templating: `$var`, `${func(...)}`, environment access via `ENV(NAME[, default])`
+- Powerful validators: `eq/ne/lt/le/gt/ge/contains/not_contains/regex/in/not_in/len_eq/contains_all/match_regex_all`
+- Data‑driven tests via CSV under `config.parameters`
+- Hooks before/after each step and per case/suite (Python functions in `drun_hooks.py`)
+- HTTP engine built on httpx; supports JSON, headers, query, auth (basic/bearer), files, timeouts
+- Streaming (SSE) support with per‑event extraction and assertions
+- Tag filtering, fast collector, helpful `check` and `fix` commands for YAML
+- Reports: JSON and clean single‑file HTML; optional Allure results
+- Import: curl/HAR/Postman/OpenAPI → YAML; Export: YAML → curl
+- Optional notifications: Feishu, DingTalk, Email (config via env vars)
 
-- **Zero-Code Testing** - Write tests in declarative YAML, no coding needed
-- **Multi-Format Conversion** - Import from cURL, Postman, HAR, OpenAPI
-- **Rich Assertions** - 15+ operators (eq, ne, contains, regex, etc.)
-- **Variable Extraction** - Chain data between API calls
-- **Data-Driven Testing** - CSV parameterization support
-- **Stream Testing** - SSE and streaming API support
-- **Enterprise Reports** - HTML, JSON, Allure formats
-- **CI/CD Ready** - GitHub Actions, GitLab CI integration
-
-## 📦 Installation
+## Installation
 
 ```bash
 pip install drun
 ```
 
-Or install from source:
+Requirements: Python 3.10+.
+
+## Quick start
+
+Initialize a project scaffold (folders, examples, hooks, CI stubs):
 
 ```bash
-git clone https://github.com/Devliang24/drun.git
-cd drun
-pip install -e .
+drun init my-api-test
+cd my-api-test
 ```
 
-## ⚡ Quick Start
+Create a `.env` with your base URL and any variables used by tests:
 
-Create your first test in 3 simple steps:
-
-### 1. Create a test file
-
-`test_api.yaml`:
-```yaml
-name: API Health Check
-config:
-  base_url: https://httpbin.org
-  tags: [smoke]
-
-steps:
-  - name: Check API status
-    request:
-      method: GET
-      path: /ip
-    validate:
-      - contains: [$.origin, "."]
-
-  - name: Test JSON response
-    request:
-      method: GET
-      path: /json
-    validate:
-      - eq: [$.slideshow.author, "Yours Truly"]
+```dotenv
+BASE_URL=https://httpbin.org
+USER_USERNAME=test_user
+USER_PASSWORD=test_pass
 ```
 
-### 2. Run the test
+Run a sample case and generate an HTML report:
 
 ```bash
-drun run test_api.yaml
+drun run testcases/test_api_health.yaml --html reports/report.html --mask-secrets
 ```
 
-### 3. Generate HTML report
-
-```bash
-drun run test_api.yaml --html report.html
-```
-
-## 📝 Basic Usage
-
-### Variable Extraction
+### Example case (YAML)
 
 ```yaml
-name: User API Test
 config:
-  base_url: https://httpbin.org
+  name: Demo: HTTP basics
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, smoke]
+  variables:
+    test_data: test_value_${uuid()}
+    user_agent: Drun-Test-Client
 
 steps:
-  - name: Create user
+  - name: GET with query params
+    request:
+      method: GET
+      path: /get?page=1&limit=10
+      headers:
+        User-Agent: $user_agent
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.args.page, "1"]
+      - eq: [$.args.limit, "10"]
+      - contains: [headers.Content-Type, application/json]
+
+  - name: POST JSON and extract
     request:
       method: POST
-      url: /post
-      body:
-        name: "John Doe"
-        email: "john@example.com"
-    extract:
-      - user_id: $.json.id
-      - token: $.json.token
-
-  - name: Get user details
-    request:
-      method: GET
-      path: /anything/${user_id}
+      path: /post
       headers:
-        Authorization: Bearer ${token}
+        Content-Type: application/json
+      body:
+        username: ${ENV(USER_USERNAME)}
+        data: $test_data
+        timestamp: ${now()}
+    extract:
+      posted_data: $.json.data
+      posted_username: $.json.username
     validate:
-      - eq: [$.json.name, "John Doe"]
-```
+      - eq: [status_code, 200]
+      - eq: [$.json.username, test_user]
+      - eq: [$.json.data, $test_data]
 
-### Assertions
-
-```yaml
-steps:
-  - name: Validate response
+  - name: Basic auth
     request:
       method: GET
-      path: /api/users
+      path: /basic-auth/${ENV(USER_USERNAME)}/${ENV(USER_PASSWORD)}
+      auth:
+        type: basic
+        username: ${ENV(USER_USERNAME)}
+        password: ${ENV(USER_PASSWORD)}
     validate:
-      - eq: [$.status, "success"]           # Equal
-      - ne: [$.error, null]                 # Not equal
-      - contains: [$.message, "users"]      # Contains substring
-      - gt: [$.count, 0]                    # Greater than
-      - len_eq: [$.users, 5]                # Array length equals
+      - eq: [status_code, 200]
+      - eq: [$.authenticated, true]
 ```
 
-## 🔄 Format Conversion (Highlight Feature)
-
-Convert your existing API assets to Drun tests:
-
-### From cURL
-```bash
-# Convert single cURL command
-drun convert request.curl --outfile test.yaml
-
-# Convert with placeholders for variables
-drun convert api_calls.curl --placeholders --split-output
-```
-
-### From Postman
-```bash
-# Convert Postman Collection
-drun convert collection.json --split-output --suite-out testsuite.yaml
-
-# With environment variables
-drun convert collection.json --postman-env environment.json
-```
-
-### From OpenAPI
-```bash
-# Convert OpenAPI spec
-drun convert-openapi api.json --split-output --base-url https://api.example.com
-```
-
-## 📊 Reports & Notifications
-
-### Generate Reports
-```bash
-# HTML report
-drun run tests/ --html reports/report.html
-
-# JSON report (for CI/CD)
-drun run tests/ --report reports/run.json
-
-# Allure report
-drun run tests/ --allure-results allure-results/
-```
-
-### Notifications
-Configure notifications in `.env`:
-```env
-# Feishu
-FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
-
-# DingTalk
-DINGTALK_WEBHOOK=https://oapi.dingtalk.com/robot/send?access_token=xxx
-
-# Email
-SMTP_HOST=smtp.example.com
-SMTP_USER=noreply@example.com
-MAIL_TO=team@example.com
-```
-
-Run with notifications:
-```bash
-drun run tests/ --notify feishu --html report.html
-```
-
-## 🏷️ Tag Management
-
-Organize and run specific tests using tags:
+### Data‑driven (CSV) example
 
 ```yaml
-name: User Management Test
 config:
-  tags: [users, regression]
-```
-
-```bash
-# Run smoke tests only
-drun run tests/ -k "smoke"
-
-# Run regression but not slow tests
-drun run tests/ -k "regression and not slow"
-
-# Complex expressions
-drun run tests/ -k "(smoke or critical) and not flaky"
-```
-
-## 🔧 Advanced Features
-
-### CSV Parameterization
-```yaml
-name: Test Multiple Users
-config:
+  name: Users from CSV
+  base_url: ${ENV(BASE_URL)}
   parameters:
     - csv:
         path: data/users.csv
+        strip: true
 
 steps:
-  - name: Login as ${username}
+  - name: Register $username
     request:
       method: POST
-      path: /login
+      path: /anything/register
+      headers: { Content-Type: application/json }
       body:
-        username: ${username}
-        password: ${password}
+        username: $username
+        email: $email
+        password: $password
+        role: $role
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$.json.username, $username]
 ```
 
-### Hooks
-Create `drun_hooks.py`:
-```python
-import time
+### Streaming (SSE) example
 
-def generate_timestamp():
-    return str(int(time.time()))
-
-def setup_auth(hook_ctx):
-    token = authenticate()
-    hook_ctx["auth_token"] = token
-```
-
-Use in tests:
 ```yaml
 config:
-  setup_hooks:
-    - setup_auth
-  variables:
-    timestamp: ${generate_timestamp()}
+  base_url: https://api.example.com
+
+steps:
+  - name: Chat stream
+    request:
+      method: POST
+      path: /v1/chat/completions
+      headers: { Authorization: Bearer ${ENV(API_KEY, "demo-key")} }
+      body:
+        model: gpt-3.5-turbo
+        messages: [{ role: user, content: "Hello" }]
+        stream: true
+      stream: true
+      stream_timeout: 30
+    extract:
+      first_content: $.stream_events[0].data.choices[0].delta.content
+      event_count: $.stream_summary.event_count
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$event_count, 0]
+      - lt: [$elapsed_ms, 30000]
 ```
 
-## 📄 License
+## Templating and hooks
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- Use `$var` or `${expr}` anywhere in strings, dicts, or lists; expressions are evaluated safely (no Jinja).
+- Built‑ins: `now()`, `uuid()`, `random_int(a,b)`, `base64_encode(x)`, `hmac_sha256(key,msg)`, and `ENV(NAME[,default])`.
+- Define your own helpers/hooks in `drun_hooks.py` (auto‑discovered next to your YAML):
 
-## 🆘 Support
+```python
+def setup_hook_sign_request(request: dict, variables: dict = None, env: dict = None) -> dict:
+    # add HMAC signature and timestamp headers
+    ...
+    return {"last_signature": "..."}
+```
 
-- 📖 **Documentation**: [GitHub Wiki](https://github.com/Devliang24/drun/wiki)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/Devliang24/drun/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/Devliang24/drun/discussions)
+Use in YAML:
 
----
+```yaml
+steps:
+  - name: Signed call
+    setup_hooks:
+      - ${setup_hook_sign_request($request)}
+    request:
+      method: POST
+      path: /api/secure
+```
 
-**⭐ If this project helps you, give us a star!**
+## CLI overview
 
-*Zero-code testing, making API testing simpler*
+- Run tests: `drun run PATH [-k TAG_EXPR] [--vars k=v ...] [--env-file <path|alias>] [--html out.html] [--report out.json] [--allure-results dir] [--mask-secrets] [--response-headers]`  
+  Tips: `-k` supports boolean expressions like `smoke and not slow`. `--env-file` accepts shortcuts like `dev` resolving to `.env/dev`, `.env.dev`, `.env.dev.yaml`, etc. You can also set `DRUN_ENV=dev` to load `env/dev.yaml`.
+- List tags: `drun tags PATH`
+- Syntax/style check (no run): `drun check PATH`
+- Auto‑fix YAML (spacing, move hooks into config, replace request.url→path): `drun fix PATH [--only-spacing|--only-hooks]`
+- Import to YAML (auto by suffix): `drun convert INFILE(.curl|.har|.json) [--outfile | --into FILE] [--split-output] [--base-url URL] [--case-name NAME] [--postman-env ENV.json] [--redact hdr1,hdr2] [--placeholders] [--suite-out SUITE.yaml]`
+- Import OpenAPI: `drun convert-openapi SPEC.(json|yaml) [--outfile FILE] [--base-url URL] [--case-name NAME] [--tags a,b] [--split-output] [--redact ...] [--placeholders]`
+- Export curl: `drun export curl PATH [--case-name NAME] [--steps 1,3-5] [--multiline/--one-line] [--shell sh|ps] [--redact hdrs] [--with-comments] [--outfile out.curl]`
+- Scaffold project: `drun init [NAME] [--force]`
+- Version: `drun --version`
+
+## Environment and variables
+
+- `.env` (key=value) is loaded by default; override with `--env-file`. You may pass a short alias (e.g. `dev`) and Drun will resolve common locations: `.env/dev`, `.env.dev`, `.env.dev.yaml`, `env/dev.yaml`, etc.
+- Named YAML environments can be selected via `DRUN_ENV=<name>` and placed under `env/<name>.yaml` (supports structure: `{ base_url, headers, variables: {...} }`).
+- OS env passthrough: any `ENV_*`, plus `BASE_URL`, `SYSTEM_NAME`, `PROJECT_NAME` are merged.
+
+## Reports and notifications
+
+- Outputs an HTML report by default (to `reports/<system>-<timestamp>.html`) and optional JSON via `--report`.
+- Allure: `--allure-results <dir>` produces results for `allure generate`.
+- Notifications (best effort): enable with `--notify feishu,email,dingtalk` (or set `DRUN_NOTIFY`).
+  Env keys (examples):
+  - Feishu: `FEISHU_WEBHOOK`, `FEISHU_SECRET`, `FEISHU_MENTION`
+  - DingTalk: `DINGTALK_WEBHOOK`, `DINGTALK_SECRET`, `DINGTALK_AT_MOBILES`, `DINGTALK_AT_ALL`
+  - Email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `MAIL_TO`, `SMTP_SSL`, `NOTIFY_ATTACH_HTML`
+
+## Authoring rules and tips
+
+- Use `request.path` (not `url`) for endpoints; provide `config.base_url` or `BASE_URL` for relative paths.
+- JSON payload field is `body` (not `json`).
+- Checks and extracts must use dollar‑style selectors on the response: `status_code`, `headers.*`, `$`/`$.path[0].field`, `$elapsed_ms`. The old `body.*` form is not supported.
+- JSON extraction uses a JSONPath‑like syntax mapped to JMESPath under the hood; order‑agnostic helpers like `sort/sort_by` are disabled in expressions to keep assertions explicit.
+- Secret handling: logs show raw values by default; prefer `--mask-secrets` in CI.
+
+## Converters (import/export)
+
+- Convert `curl` files or stdin, HAR sessions, Postman collections (with optional environment), or OpenAPI specs into Drun YAML.
+- Redaction and placeholders: `--redact Authorization,Cookie` masks sensitive headers; `--placeholders` lifts secrets into `config.variables` and references them as `$var`.
+
+## Development
+
+- Codebase is pure Python with Typer CLI and Pydantic models.
+- Run from source: `python -m drun.cli --version` or install in editable mode.
+
+## License
+
+MIT. See `LICENSE`.
