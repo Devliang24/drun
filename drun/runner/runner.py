@@ -398,9 +398,10 @@ class Runner:
 
         # Evaluate case-level variables once to fix values across steps
         base_vars_raw: Dict[str, Any] = {**(case.config.variables or {}), **(params or {})}
-        rendered_base = self._render(base_vars_raw, {}, funcs, envmap)
-        if not isinstance(rendered_base, dict):
-            rendered_base = base_vars_raw
+        # Resolve sequentially so variables can reference earlier ones
+        rendered_base = {}
+        for key, value in base_vars_raw.items():
+            rendered_base[key] = self._render(value, rendered_base, funcs, envmap)
         ctx = VarContext(rendered_base)
         client = self._build_client(case)
 
