@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 _No unreleased changes._
 
+## [3.5.1] - 2025-11-16
+
+### Fixed
+- **配置变量顺序解析**：修复 `config.variables` 中变量无法相互引用的问题。之前所有变量使用空上下文同时解析，导致类似 `username: testuser_${user_id}_${timestamp}` 的表达式无法找到依赖变量。现改为顺序解析，后面的变量可以引用前面已解析的值，支持变量间依赖关系。
+
 ## [2.3.3] - 2025-10-29
 
 ### Changed
