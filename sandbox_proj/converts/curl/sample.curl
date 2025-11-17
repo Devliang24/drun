@@ -1,0 +1,20 @@
+# 示例 1: GET 请求（带查询参数）
+curl -X GET 'https://api.example.com/api/v1/products?category=electronics&limit=10' \
+  -H 'Accept: application/json'
+
+# 示例 2: POST 请求（带 JSON body 和认证）
+curl -X POST 'https://api.example.com/api/v1/auth/login' \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  --data-raw '{
+    "username": "test_user",
+    "password": "test_pass123"
+  }'
+
+# 示例 3: 带 Authorization header 的 GET 请求
+curl -X GET 'https://api.example.com/api/v1/users/me' \
+  -H 'Accept: application/json' \
+  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+
+# 转换命令示例:
+# drun convert converts/curl/sample.curl --outfile testcases/from_curl.yaml --redact Authorization --placeholders

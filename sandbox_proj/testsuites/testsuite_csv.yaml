@@ -1,0 +1,7 @@
+config:
+  name: 数据驱动示例套件
+  tags: [csv, demo]
+
+testcases:
+  - name: CSV 参数化注册
+    testcase: testcases/test_import_users.yaml
