@@ -651,11 +651,17 @@ class Runner:
                             
                             # Show progressive content if available
                             if progressive_content:
-                                for chunk in progressive_content:
-                                    idx = chunk.get("index", 0)
-                                    time_ms = chunk.get("timestamp_ms", 0)
-                                    content = chunk.get("content", "")
-                                    self.log.info(f"[STREAM] Chunk {idx} ({time_ms:.0f}ms): {repr(content)}")
+                                # Show each event that contains content with full JSON structure
+                                chunk_num = 0
+                                for event in stream_events:
+                                    event_data = event.get("data")
+                                    if event_data and isinstance(event_data, dict):
+                                        choices = event_data.get("choices", [])
+                                        if choices and len(choices) > 0:
+                                            delta = choices[0].get("delta", {})
+                                            if delta.get("content"):
+                                                chunk_num += 1
+                                                self.log.info(self._fmt_aligned("STREAM", f"Chunk {chunk_num}", self._fmt_json(event)))
                                 
                                 # Show final summary
                                 if progressive_content:
