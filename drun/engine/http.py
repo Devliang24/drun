@@ -32,61 +32,60 @@ class HTTPClient:
         raw_chunks: List[str] = []
         
         try:
-            with response:
-                current_event: Dict[str, Any] = {}
-                current_data_lines: List[str] = []
+            current_event: Dict[str, Any] = {}
+            current_data_lines: List[str] = []
+            
+            for line in response.iter_lines():
+                current_time_ms = (time.perf_counter() - start_time) * 1000.0
+                raw_chunks.append(line + "\n")
                 
-                for line in response.iter_lines():
-                    current_time_ms = (time.perf_counter() - start_time) * 1000.0
-                    raw_chunks.append(line + "\n")
-                    
-                    # Empty line marks end of event
-                    if not line or line.strip() == "":
-                        if current_data_lines:
-                            # Join data lines and try to parse as JSON
-                            data_str = "\n".join(current_data_lines)
-                            
-                            # Handle [DONE] marker
-                            if data_str.strip() == "[DONE]":
-                                events.append({
-                                    "index": len(events),
-                                    "timestamp_ms": current_time_ms,
-                                    "event": current_event.get("event", "done"),
-                                    "data": None
-                                })
-                            else:
-                                # Try to parse as JSON
-                                try:
-                                    data_obj = json.loads(data_str)
-                                except json.JSONDecodeError:
-                                    data_obj = data_str
-                                
-                                events.append({
-                                    "index": len(events),
-                                    "timestamp_ms": current_time_ms,
-                                    "event": current_event.get("event", "message"),
-                                    "data": data_obj
-                                })
-                            
-                            # Reset for next event
-                            current_event = {}
-                            current_data_lines = []
-                        continue
-                    
-                    # Parse SSE fields
-                    if ":" in line:
-                        field, _, value = line.partition(":")
-                        field = field.strip()
-                        value = value.lstrip()
+                # Empty line marks end of event
+                if not line or line.strip() == "":
+                    if current_data_lines:
+                        # Join data lines and try to parse as JSON
+                        data_str = "\n".join(current_data_lines)
                         
-                        if field == "data":
-                            current_data_lines.append(value)
-                        elif field == "event":
-                            current_event["event"] = value
-                        elif field == "id":
-                            current_event["id"] = value
-                        elif field == "retry":
-                            current_event["retry"] = value
+                        # Handle [DONE] marker
+                        if data_str.strip() == "[DONE]":
+                            events.append({
+                                "index": len(events),
+                                "timestamp_ms": current_time_ms,
+                                "event": current_event.get("event", "done"),
+                                "data": None
+                            })
+                        else:
+                            # Try to parse as JSON
+                            try:
+                                data_obj = json.loads(data_str)
+                            except json.JSONDecodeError:
+                                data_obj = data_str
+                            
+                            events.append({
+                                "index": len(events),
+                                "timestamp_ms": current_time_ms,
+                                "event": current_event.get("event", "message"),
+                                "data": data_obj
+                            })
+                        
+                        # Reset for next event
+                        current_event = {}
+                        current_data_lines = []
+                    continue
+                
+                # Parse SSE fields
+                if ":" in line:
+                    field, _, value = line.partition(":")
+                    field = field.strip()
+                    value = value.lstrip()
+                    
+                    if field == "data":
+                        current_data_lines.append(value)
+                    elif field == "event":
+                        current_event["event"] = value
+                    elif field == "id":
+                        current_event["id"] = value
+                    elif field == "retry":
+                        current_event["retry"] = value
         
         except Exception as e:
             # Add error event if stream parsing fails
