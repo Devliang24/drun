@@ -1,0 +1,16 @@
+config:
+  name: API 健康检查
+  base_url: ${ENV(BASE_URL)}
+  tags: [smoke, health]
+
+steps:
+  - name: 检查服务状态
+    request:
+      method: GET
+      path: /get
+    extract:
+      response_url: $.url
+    validate:
+      - eq: [status_code, 200]
+      - contains: [headers.Content-Type, application/json]
+      - eq: [$.url, $response_url]

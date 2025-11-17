@@ -1,0 +1,50 @@
+# Drun GitLab CI pipeline
+# Configure CI/CD variables (Project > Settings > CI/CD > Variables):
+#   BASE_URL, USER_USERNAME, USER_PASSWORD, FEISHU_WEBHOOK, REPORT_URL, SYSTEM_NAME (optional)
+
+stages:
+  - test
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_COMMIT_BRANCH
+      when: always
+    - when: never
+
+variables:
+  PYTHON_DEFAULT_VERSION: "3.11"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+tests:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  parallel:
+    matrix:
+      - PYTHON_VERSION: "3.10"
+      - PYTHON_VERSION: "3.11"
+      - PYTHON_VERSION: "3.12"
+  before_script:
+    - python --version
+    - python -m pip install --upgrade pip
+    - pip install -e .
+  script:
+    - export ACTIVE_PY="${PYTHON_VERSION:-$PYTHON_DEFAULT_VERSION}"
+    - mkdir -p reports logs
+    - drun check testcases || true
+    - |
+      export SYSTEM_NAME="${SYSTEM_NAME:-Drun CI}"
+      drun run testcases         -k "smoke or critical"         --html "reports/report-${ACTIVE_PY}.html"         --report "reports/report-${ACTIVE_PY}.json"         --log-file "logs/run-${ACTIVE_PY}.log"         --mask-secrets         --notify feishu         --notify-only failed
+  artifacts:
+    when: always
+    paths:
+      - reports/
+      - logs/
+    expire_in: 1 week

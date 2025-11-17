@@ -1,0 +1,63 @@
+name: Drun CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  PYTHON_DEFAULT_VERSION: "3.11"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Validate YAML testcases
+        run: drun check testcases || true
+
+      - name: Run smoke tests
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          USER_USERNAME: ${{ secrets.USER_USERNAME }}
+          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          SYSTEM_NAME: ${{ secrets.SYSTEM_NAME || 'Drun CI' }}
+          REPORT_URL: ${{ secrets.REPORT_URL }}
+        run: |
+          drun run testcases             -k "smoke or critical"             --html reports/report-${{ matrix.python-version }}.html             --report reports/report-${{ matrix.python-version }}.json             --log-file logs/run-${{ matrix.python-version }}.log             --mask-secrets             --notify feishu             --notify-only failed
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: drun-reports-${{ matrix.python-version }}
+          path: |
+            reports/
+            logs/

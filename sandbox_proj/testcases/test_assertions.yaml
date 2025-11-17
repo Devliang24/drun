@@ -1,0 +1,246 @@
+config:
+  name: 断言操作符完整示例
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, assertions]
+  variables:
+    expected_username: test_user
+    max_response_time: 2000
+    min_items: 5
+    search_keyword: embedding
+
+steps:
+  # ==================== 基础比较断言 ====================
+  - name: 基础比较断言示例
+    request:
+      method: GET
+      path: /get?page=1&limit=10
+      headers:
+        User-Agent: Drun-Test-Client
+    extract:
+      page_num: $.args.page
+      limit_num: $.args.limit
+    validate:
+      # eq: 等于
+      - eq: [status_code, 200]
+      - eq: [$page_num, "1"]
+      - eq: [$.args.limit, "10"]
+      
+      # ne: 不等于
+      - ne: [status_code, 404]
+      - ne: [$limit_num, "20"]
+      
+      # lt: 小于
+      - lt: [$elapsed_ms, $max_response_time]
+      - lt: [$page_num, "10"]
+      
+      # le: 小于等于
+      - le: [status_code, 299]
+      - le: [$limit_num, "10"]
+      
+      # gt: 大于
+      - gt: [status_code, 100]
+      - gt: [$elapsed_ms, 0]
+      
+      # ge: 大于等于
+      - ge: [status_code, 200]
+      - ge: [$limit_num, "1"]
+
+  # ==================== 字符串断言 ====================
+  - name: 字符串断言示例
+    request:
+      method: POST
+      path: /anything
+      headers:
+        Content-Type: application/json
+        User-Agent: Drun-Test-Client/v1.0
+      body:
+        username: $expected_username
+        email: test@example.com
+        description: This is a test user account
+    extract:
+      response_json: $.json
+      user_agent: $.headers.User-Agent
+    validate:
+      # contains: 包含子字符串
+      - contains: [headers.Content-Type, application/json]
+      - contains: [$user_agent, Drun-Test-Client]
+      - contains: [$.json.description, test user]
+      
+      # not_contains: 不包含子字符串
+      - not_contains: [$.json.username, admin]
+      - not_contains: [$.json.email, .cn]
+      
+      # regex: 正则表达式匹配
+      - regex: [$.json.email, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$']
+      - regex: [$.json.username, '^[a-z_]+$']
+      - regex: [$user_agent, 'Drun.*v\d+\.\d+']
+
+  # ==================== 集合与长度断言 ====================
+  - name: 集合与长度断言示例
+    request:
+      method: POST
+      path: /anything
+      body:
+        tags: [python, testing, automation, api]
+        permissions: [read, write, delete]
+        metadata:
+          count: 42
+          active: true
+    extract:
+      tags_list: $.json.tags
+      permissions: $.json.permissions
+      tag_count: $.json.tags
+      first_permission: $.json.permissions[0]
+    validate:
+      # in: 值在列表中
+      - in: [python, $tags_list]
+      - in: [testing, $tags_list]
+      - in:
+          - $first_permission
+          - [read, write, admin]
+      
+      # not_in: 值不在列表中
+      - not_in: [java, $tags_list]
+      - not_in: [admin, $permissions]
+      
+      # len_eq: 长度等于
+      - len_eq: [$tags_list, 4]
+      - len_eq: [$permissions, 3]
+      - len_eq: [$.json.metadata, 2]
+
+  # ==================== 批量断言（列表）====================
+  - name: 批量断言示例 - 模型列表
+    # 注意：实际使用时应该用 JSONPath 从响应中提取列表
+    # 例如：extract: { all_model_names: "$.data.items[*].model_name" }
+    # 这里为了演示，使用预定义的变量
+    variables:
+      all_model_names:
+        - Deepexi-Embedding-V1
+        - Deepexi-Embedding-V2
+        - Deepexi-Embedding-V3
+      all_model_ids:
+        - emb-001
+        - emb-002
+        - emb-003
+    request:
+      method: GET
+      path: /anything/models
+      params:
+        category: embedding
+        vendor: deepexi
+    validate:
+      - eq: [status_code, 200]
+      
+      # contains_all: 列表中所有元素都包含指定字符串
+      - contains_all: [$all_model_names, Deepexi]
+      - contains_all: [$all_model_names, Embedding]
+      - contains_all: [$all_model_ids, emb-]
+      
+      # match_regex_all: 列表中所有元素都匹配正则表达式
+      - match_regex_all: [$all_model_names, '^Deepexi-Embedding-V\d+$']
+      - match_regex_all: [$all_model_ids, '^emb-\d{3}$']
+
+  # ==================== 复杂场景组合 ====================
+  - name: 复杂场景组合示例
+    request:
+      method: GET
+      path: /get
+      params:
+        search: $search_keyword
+        page: 1
+        page_size: 20
+      headers:
+        Accept: application/json
+        X-Request-ID: ${short_uid(16)}
+    extract:
+      items_list: $.args
+      request_id: $.headers.X-Request-ID
+    validate:
+      # 状态码检查
+      - eq: [status_code, 200]
+      - ge: [status_code, 200]
+      - lt: [status_code, 300]
+      
+      # 响应时间检查
+      - lt: [$elapsed_ms, 3000]
+      - gt: [$elapsed_ms, 0]
+      
+      # Content-Type 检查
+      - contains: [headers.Content-Type, application/json]
+      - not_contains: [headers.Content-Type, text/html]
+      
+      # 参数回显检查
+      - eq: [$.args.search, $search_keyword]
+      - regex: [$.args.page, '^\d+$']
+      - regex: [$.args.page_size, '^\d+$']
+      
+      # Request ID 格式检查
+      - regex: [$request_id, '^[a-f0-9]{16}$']
+      - len_eq: [$request_id, 16]
+
+  # ==================== JSONPath 提取 + 批量断言 ====================
+  - name: JSONPath 提取 + 批量断言
+    # 注意：实际使用时应该用 JSONPath 从响应中提取列表
+    # 例如：extract: { all_usernames: "$.json.users[*].username" }
+    # 这里为了演示，使用预定义的变量模拟提取的数据
+    variables:
+      # 模拟从响应中提取的用户名列表
+      all_usernames:
+        - alice
+        - bob
+        - carol
+      # 模拟从响应中提取的邮箱列表
+      all_emails:
+        - alice@example.com
+        - bob@example.com
+        - carol@example.com
+    request:
+      method: POST
+      path: /anything/api/users
+      body:
+        users:
+          - username: alice
+            email: alice@example.com
+            role: admin
+          - username: bob
+            email: bob@example.com
+            role: member
+          - username: carol
+            email: carol@example.com
+            role: member
+    validate:
+      - eq: [status_code, 200]
+      
+      # 验证所有用户名都是小写字母
+      - match_regex_all: [$all_usernames, '^[a-z]+$']
+      
+      # 验证所有邮箱格式正确
+      - match_regex_all: [$all_emails, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$']
+      
+      # 验证所有邮箱都来自 example.com 域
+      - contains_all: [$all_emails, example.com]
+      
+      # 验证列表长度
+      - len_eq: [$all_usernames, 3]
+      - len_eq: [$all_emails, 3]
+
+  # ==================== 性能和负值断言 ====================
+  - name: 性能和边界值断言
+    request:
+      method: GET
+      path: /delay/0
+    extract:
+      response_time: $elapsed_ms
+    validate:
+      - eq: [status_code, 200]
+      
+      # 性能断言
+      - lt: [$response_time, 1000]    # 响应时间 < 1秒
+      - gt: [$response_time, 0]       # 响应时间 > 0
+      - le: [$response_time, 1000]    # 响应时间 <= 1秒
+      - ge: [$response_time, 0]       # 响应时间 >= 0
+      
+      # 状态码范围
+      - ge: [status_code, 200]
+      - lt: [status_code, 300]
+      - ne: [status_code, 204]
