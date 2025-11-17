@@ -410,6 +410,10 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
   .panel .p-head .actions { display:flex; gap:6px; }
   .panel pre, .panel table { margin:0; padding:10px; overflow:auto; max-height: 360px; }
   .panel[data-section='curl'] pre { white-space: pre; overflow-x: auto; word-break: normal; }
+  /* Fixed height for request and response body panels */
+  .panel[data-section='request-body'] pre,
+  .panel[data-section='response-body'] pre,
+  .panel[data-section='response-body'] .view-content { height: 360px; min-height: 360px; overflow-y: auto; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   th { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; text-align: left; font-weight: 600; }
   td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; word-break: break-word; }
