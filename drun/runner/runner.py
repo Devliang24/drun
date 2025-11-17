@@ -642,17 +642,36 @@ class Runner:
                         self.log.info(self._fmt_aligned("RESP", "headers", self._fmt_json(hdrs)))
                     
                     if is_stream:
-                        # For streaming, show summary instead of full events
+                        # For streaming, show progressive content instead of full events
                         stream_events = resp_obj.get("stream_events", [])
+                        progressive_content = resp_obj.get("progressive_content", [])
+                        
                         if stream_events:
                             self.log.info(f"[STREAM] {len(stream_events)} events received")
-                            # Show first and last events
-                            if len(stream_events) > 0:
-                                first_event = stream_events[0]
-                                self.log.info(self._fmt_aligned("STREAM", "first event", self._fmt_json(first_event)))
-                            if len(stream_events) > 1:
-                                last_event = stream_events[-1]
-                                self.log.info(self._fmt_aligned("STREAM", "last event", self._fmt_json(last_event)))
+                            
+                            # Show progressive content if available
+                            if progressive_content:
+                                for chunk in progressive_content:
+                                    idx = chunk.get("index", 0)
+                                    time_ms = chunk.get("timestamp_ms", 0)
+                                    content = chunk.get("content", "")
+                                    self.log.info(f"[STREAM] Chunk {idx} ({time_ms:.0f}ms): {repr(content)}")
+                                
+                                # Show final summary
+                                if progressive_content:
+                                    final_chunk = progressive_content[-1]
+                                    final_content = final_chunk.get("content", "")
+                                    final_time = final_chunk.get("timestamp_ms", 0)
+                                    self.log.info(f"[STREAM] 完成 ({final_time:.0f}ms)，最终内容：")
+                                    self.log.info(final_content)
+                            else:
+                                # Fallback: show first and last events if progressive content not available
+                                if len(stream_events) > 0:
+                                    first_event = stream_events[0]
+                                    self.log.info(self._fmt_aligned("STREAM", "event[0]", self._fmt_json(first_event)))
+                                if len(stream_events) > 1:
+                                    last_event = stream_events[-1]
+                                    self.log.info(self._fmt_aligned("STREAM", f"event[{len(stream_events)-1}]", self._fmt_json(last_event)))
                     else:
                         # Regular response body logging
                         body_preview = resp_obj.get("body")

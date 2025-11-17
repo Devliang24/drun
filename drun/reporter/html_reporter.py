@@ -113,50 +113,15 @@ def _build_stream_response_panel(response_map: Dict[str, Any]) -> str:
         "</span>"
     )
     
-    # Build View 1: Events list
-    events_html_list = []
-    for idx, event in enumerate(stream_events):
-        event_data = event.get("data")
-        event_type = event.get("event", "message")
-        event_time = event.get("timestamp_ms", 0)
-        is_final = (idx == len(stream_events) - 1)
-        is_done = event_data is None or str(event_data) == "[DONE]"
-        
-        if is_done:
-            event_json = "[DONE]"
-        else:
-            event_json = _json(event_data)
-        
-        final_class = " final" if is_final else ""
-        done_badge = " done" if is_done else ""
-        
-        events_html_list.append(
-            f"<div class='event-item{final_class}'>"
-            f"<div class='event-meta'>"
-            f"<span class='event-num'>#{idx+1}</span>"
-            f"<span class='event-time'>+{event_time:.0f}ms</span>"
-            f"<span class='event-badge{done_badge}'>{_escape_html(event_type)}</span>"
-            f"</div>"
-            f"<pre data-raw=\"{_escape_html(event_json)}\"><code>{_escape_html(event_json)}</code></pre>"
-            f"</div>"
-        )
-    
-    events_view = (
-        "<div class='view-content' data-view='events'>"
-        "<div class='stream-events'>"
-        + "".join(events_html_list)
-        + "</div></div>"
-    )
-    
-    # Build View 2: Merged content
+    # Build View 1: Merged content
     merged_content = _extract_merged_content(stream_events)
     merged_view = (
-        "<div class='view-content' data-view='merged' style='display:none;'>"
+        "<div class='view-content' data-view='merged'>"
         f"<pre data-raw=\"{_escape_html(merged_content)}\"><code>{_escape_html(merged_content)}</code></pre>"
         "</div>"
     )
     
-    # Build View 3: Raw SSE
+    # Build View 2: Raw SSE
     raw_text = "".join(raw_chunks) if raw_chunks else "(无原始数据)"
     raw_view = (
         "<div class='view-content' data-view='raw' style='display:none;'>"
@@ -164,7 +129,7 @@ def _build_stream_response_panel(response_map: Dict[str, Any]) -> str:
         "</div>"
     )
     
-    # Build View 4: JSON array
+    # Build View 3: JSON array
     json_array = _json(stream_events)
     json_view = (
         "<div class='view-content' data-view='json' style='display:none;'>"
@@ -184,9 +149,7 @@ def _build_stream_response_panel(response_map: Dict[str, Any]) -> str:
         f"</div>"
         # Tab bar
         "<div class='view-tabs'>"
-        "<button class='tab-btn active' data-view='events' onclick=\"window.switchView && window.switchView(this, 'events')\">"
-        "<span class='tab-icon'>📋</span> 事件列表</button>"
-        "<button class='tab-btn' data-view='merged' onclick=\"window.switchView && window.switchView(this, 'merged')\">"
+        "<button class='tab-btn active' data-view='merged' onclick=\"window.switchView && window.switchView(this, 'merged')\">"
         "<span class='tab-icon'>📝</span> 合并内容</button>"
         "<button class='tab-btn' data-view='raw' onclick=\"window.switchView && window.switchView(this, 'raw')\">"
         "<span class='tab-icon'>🔧</span> 原始 SSE</button>"
@@ -194,7 +157,6 @@ def _build_stream_response_panel(response_map: Dict[str, Any]) -> str:
         "<span class='tab-icon'>{ }</span> JSON 数组</button>"
         "</div>"
         # View contents
-        + events_view
         + merged_view
         + raw_view
         + json_view
