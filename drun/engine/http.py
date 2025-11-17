@@ -104,10 +104,31 @@ class HTTPClient:
             "last_chunk_ms": events[-1]["timestamp_ms"] if events else 0
         }
         
+        # Extract progressive content for display (OpenAI format)
+        progressive_content = []
+        accumulated = ""
+        for event in events:
+            data = event.get("data")
+            if data and isinstance(data, dict):
+                # Try to extract content from OpenAI streaming format
+                choices = data.get("choices", [])
+                if choices and isinstance(choices, list) and len(choices) > 0:
+                    delta = choices[0].get("delta", {})
+                    if isinstance(delta, dict):
+                        content = delta.get("content", "")
+                        if content:  # Only record non-empty content
+                            accumulated += content
+                            progressive_content.append({
+                                "index": len(progressive_content) + 1,
+                                "timestamp_ms": event.get("timestamp_ms", 0),
+                                "content": accumulated
+                            })
+        
         return {
             "stream_events": events,
             "stream_raw_chunks": raw_chunks,
-            "stream_summary": summary
+            "stream_summary": summary,
+            "progressive_content": progressive_content
         }
 
     def request(self, req: Dict[str, Any]) -> Dict[str, Any]:
