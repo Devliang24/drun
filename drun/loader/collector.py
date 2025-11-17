@@ -23,11 +23,15 @@ def _search_in_test_dirs(filename: str) -> Path | None:
     """Search for a file in testcases/ and testsuites/ directories.
     
     Args:
-        filename: The filename to search for (e.g., 'test_api_health.yaml' or 'test_api_health')
+        filename: The filename to search for (must include .yaml or .yml extension)
     
     Returns:
         Path to the found file, or None if not found
     """
+    # Only accept filenames with .yaml or .yml extension
+    if not (filename.endswith('.yaml') or filename.endswith('.yml')):
+        return None
+    
     search_dirs = ['testcases', 'testsuites']
     
     for base_dir in search_dirs:
@@ -35,34 +39,15 @@ def _search_in_test_dirs(filename: str) -> Path | None:
         if not base_path.exists():
             continue
         
-        # Try exact match first
-        candidates = [
-            base_path / filename,
-        ]
-        
-        # If filename doesn't have extension, try adding .yaml and .yml
-        if not filename.endswith('.yaml') and not filename.endswith('.yml'):
-            candidates.extend([
-                base_path / f"{filename}.yaml",
-                base_path / f"{filename}.yml",
-            ])
-        
-        for candidate in candidates:
-            if candidate.exists() and _is_valid_name(candidate):
-                return candidate
+        # Try direct path first
+        candidate = base_path / filename
+        if candidate.exists() and _is_valid_name(candidate):
+            return candidate
         
         # Recursive search if not found at root level
-        if filename.endswith('.yaml') or filename.endswith('.yml'):
-            # Already has extension, search as-is
-            matches = list(base_path.rglob(filename))
-            if matches and _is_valid_name(matches[0]):
-                return matches[0]
-        else:
-            # No extension, try both
-            for ext in ['.yaml', '.yml']:
-                matches = list(base_path.rglob(f"{filename}{ext}"))
-                if matches and _is_valid_name(matches[0]):
-                    return matches[0]
+        matches = list(base_path.rglob(filename))
+        if matches and _is_valid_name(matches[0]):
+            return matches[0]
     
     return None
 
