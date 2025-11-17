@@ -47,6 +47,15 @@ Run a sample case and generate an HTML report:
 drun run testcases/test_api_health.yaml --html reports/report.html --mask-secrets
 ```
 
+You can also use simplified filenames (automatically searches in `testcases/` and `testsuites/` directories):
+
+```bash
+# These are all equivalent
+drun run test_api_health.yaml
+drun run test_api_health
+drun run testcases/test_api_health.yaml
+```
+
 ### Example case (YAML)
 
 ```yaml
@@ -184,7 +193,8 @@ steps:
 ## CLI overview
 
 - Run tests: `drun run PATH [-k TAG_EXPR] [--vars k=v ...] [--env-file <path|alias>] [--html out.html] [--report out.json] [--allure-results dir] [--mask-secrets] [--response-headers]`  
-  Tips: `-k` supports boolean expressions like `smoke and not slow`. `--env-file` accepts shortcuts like `dev` resolving to `.env/dev`, `.env.dev`, `.env.dev.yaml`, etc. You can also set `DRUN_ENV=dev` to load `env/dev.yaml`.
+  Tips: `-k` supports boolean expressions like `smoke and not slow`. `--env-file` accepts shortcuts like `dev` resolving to `.env/dev`, `.env.dev`, `.env.dev.yaml`, etc. You can also set `DRUN_ENV=dev` to load `env/dev.yaml`.  
+  PATH can be a directory, full file path, or simplified filename (e.g., `test_api.yaml` or `test_api`) - the tool will automatically search in `testcases/` and `testsuites/` directories.
 - List tags: `drun tags PATH`
 - Syntax/style check (no run): `drun check PATH`
 - Auto‑fix YAML (spacing, move hooks into config, replace request.url→path): `drun fix PATH [--only-spacing|--only-hooks]`

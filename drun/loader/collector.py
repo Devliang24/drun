@@ -19,10 +19,71 @@ def _is_valid_name(path: Path) -> bool:
     return False
 
 
+def _search_in_test_dirs(filename: str) -> Path | None:
+    """Search for a file in testcases/ and testsuites/ directories.
+    
+    Args:
+        filename: The filename to search for (e.g., 'test_api_health.yaml' or 'test_api_health')
+    
+    Returns:
+        Path to the found file, or None if not found
+    """
+    search_dirs = ['testcases', 'testsuites']
+    
+    for base_dir in search_dirs:
+        base_path = Path(base_dir)
+        if not base_path.exists():
+            continue
+        
+        # Try exact match first
+        candidates = [
+            base_path / filename,
+        ]
+        
+        # If filename doesn't have extension, try adding .yaml and .yml
+        if not filename.endswith('.yaml') and not filename.endswith('.yml'):
+            candidates.extend([
+                base_path / f"{filename}.yaml",
+                base_path / f"{filename}.yml",
+            ])
+        
+        for candidate in candidates:
+            if candidate.exists() and _is_valid_name(candidate):
+                return candidate
+        
+        # Recursive search if not found at root level
+        if filename.endswith('.yaml') or filename.endswith('.yml'):
+            # Already has extension, search as-is
+            matches = list(base_path.rglob(filename))
+            if matches and _is_valid_name(matches[0]):
+                return matches[0]
+        else:
+            # No extension, try both
+            for ext in ['.yaml', '.yml']:
+                matches = list(base_path.rglob(f"{filename}{ext}"))
+                if matches and _is_valid_name(matches[0]):
+                    return matches[0]
+    
+    return None
+
+
 def discover(paths: Sequence[str | Path]) -> List[Path]:
     found: List[Path] = []
     for p in paths:
         pp = Path(p)
+        
+        # If path doesn't exist, try smart search in testcases/testsuites directories
+        if not pp.exists():
+            # Check if it's a simple filename (no path separators)
+            path_str = str(p)
+            if '/' not in path_str and '\\' not in path_str:
+                # Search in testcases and testsuites directories
+                found_file = _search_in_test_dirs(path_str)
+                if found_file:
+                    found.append(found_file)
+                    continue
+        
+        # Original logic remains unchanged
         if pp.is_dir():
             for f in sorted(pp.rglob("*.yml")):
                 if _is_valid_name(f):
