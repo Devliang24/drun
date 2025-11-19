@@ -27,12 +27,14 @@ class Runner:
         log_debug: bool = False,
         reveal_secrets: bool = True,
         log_response_headers: bool = True,
+        persist_env_file: str = ".env",
     ) -> None:
         self.log = log
         self.failfast = failfast
         self.log_debug = log_debug
         self.reveal = reveal_secrets
         self.log_response_headers = log_response_headers
+        self.persist_env_file = persist_env_file
         self.templater = TemplateEngine()
 
     def _render(self, data: Any, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None) -> Any:
@@ -700,6 +702,37 @@ class Runner:
                     ctx.set_base(var, val)
                     if self.log:
                         self.log.info(f"[EXTRACT] {var} = {val!r} from {expr}")
+                
+                # Auto-persist extracted variables to env file
+                if extracts:
+                    from pathlib import Path
+                    from drun.utils.env_writer import (
+                        write_env_variable,
+                        write_yaml_variable,
+                        to_env_var_name
+                    )
+                    
+                    env_path = Path(self.persist_env_file)
+                    is_yaml = env_path.suffix.lower() in {'.yaml', '.yml'}
+                    
+                    for var_name, value in extracts.items():
+                        try:
+                            env_key = to_env_var_name(var_name)
+                            
+                            if is_yaml:
+                                write_yaml_variable(str(env_path), var_name, value)
+                            else:
+                                write_env_variable(str(env_path), var_name, value)
+                            
+                            if self.log:
+                                self.log.info(
+                                    f"[PERSIST] {var_name} → {env_key} = {value!r} "
+                                    f"(已写入 {self.persist_env_file})"
+                                )
+                        except Exception as e:
+                            if self.log:
+                                self.log.warning(f"[PERSIST] 写入失败 {var_name}: {e}")
+                
                 # Update variables after extraction so validate can use them
                 variables = ctx.get_merged(global_vars)
 
