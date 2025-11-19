@@ -1083,6 +1083,7 @@ def run(
     allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
     log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
     env_file: Optional[str] = typer.Option(None, "--env-file", help=".env 文件路径（默认 .env）"),
+    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env 或使用 --env-file 的文件）"),
     log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（默认 logs/run-<ts>.log）"),
     httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
     reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="在日志和报告中显示敏感字段明文（password、tokens）", show_default=True),
@@ -1229,6 +1230,9 @@ def run(
             typer.echo(line)
         raise typer.Exit(code=2)
 
+    # Determine persist env file (priority: --persist-env > --env-file > .env)
+    persist_file = persist_env or env_file or ".env"
+    
     # Execute
     runner = Runner(
         log=log,
@@ -1236,6 +1240,7 @@ def run(
         log_debug=(log_level.upper() == "DEBUG"),
         reveal_secrets=reveal_secrets,
         log_response_headers=response_headers,
+        persist_env_file=persist_file,
     )
     templater = TemplateEngine()
     instance_results = []
