@@ -60,9 +60,7 @@ def write_env_variable(file_path: str, key: str, value: Any) -> None:
     if key_found:
         lines[key_line_index] = new_line
     else:
-        # 追加到末尾（如果文件为空或最后一行不为空，先加空行）
-        if lines and lines[-1].strip():
-            lines.append("")
+        # 追加到末尾（不添加额外空行）
         lines.append(new_line)
     
     # 原子写入
