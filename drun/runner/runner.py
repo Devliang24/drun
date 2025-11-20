@@ -703,6 +703,14 @@ class Runner:
                     if self.log:
                         self.log.info(f"[EXTRACT] {var} = {val!r} from {expr}")
                 
+                # Update to memory environment variables (for immediate use in subsequent cases)
+                if extracts and envmap is not None:
+                    from drun.utils.env_writer import to_env_var_name
+                    for var_name, value in extracts.items():
+                        env_key = to_env_var_name(var_name)
+                        envmap[env_key] = value
+                        envmap[var_name] = value
+                
                 # Auto-persist extracted variables to env file
                 if extracts:
                     from pathlib import Path
