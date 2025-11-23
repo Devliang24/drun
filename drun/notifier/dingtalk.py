@@ -9,7 +9,7 @@ from typing import List, Optional
 import httpx
 
 from .base import Notifier, NotifyContext
-from .format import build_text_message
+from .format import build_text_message, build_markdown_message
 from drun.models.report import RunReport
 from drun.utils.config import get_env_clean, get_system_name
 
@@ -66,13 +66,18 @@ class DingTalkNotifier(Notifier):
                 if ctx.html_path.startswith("http://") or ctx.html_path.startswith("https://"):
                     report_url = ctx.html_path
             
-            # 构建消息内容
+            # 构建消息内容 - 根据 style 选择不同的格式
             html_path_display = report_url if report_url else ctx.html_path
-            text = build_text_message(report, html_path=html_path_display, log_path=ctx.log_path, topn=ctx.topn)
             
-            # 如果是 Markdown 格式且有报告 URL，添加可点击链接
-            if self.style == "markdown" and report_url:
-                text = text + f"\n\n[📊 查看详细报告]({report_url})"
+            if self.style == "markdown":
+                # 使用 Markdown 格式
+                text = build_markdown_message(report, html_path=html_path_display, log_path=ctx.log_path, topn=ctx.topn)
+                # 如果有额外的报告 URL，添加链接（避免重复）
+                if report_url and not html_path_display:
+                    text = text + f"[📊 查看详细报告]({report_url})\n\n"
+            else:
+                # 使用纯文本格式
+                text = build_text_message(report, html_path=html_path_display, log_path=ctx.log_path, topn=ctx.topn)
             
             at_block = {
                 "atMobiles": self.at_mobiles,
