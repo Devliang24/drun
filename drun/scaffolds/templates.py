@@ -233,6 +233,40 @@ testcases:
     testcase: testcases/test_import_users.yaml
 """
 
+# CSV 导出示例用例
+CSV_EXPORT_TESTCASE = """config:
+  name: "CSV 导出示例"
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, export]
+
+steps:
+  - name: 导出用户数据
+    request:
+      method: GET
+      path: /api/users
+    extract:
+      userCount: $.data.total
+    export:
+      csv:
+        data: $.data.users
+        file: data/exported_users.csv
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$userCount, 0]
+
+  - name: 导出订单摘要（指定列）
+    request:
+      method: GET
+      path: /api/orders
+    export:
+      csv:
+        data: $.data.orders
+        file: reports/orders_summary.csv
+        columns: [orderId, customerName, totalAmount, status]
+    validate:
+      - eq: [status_code, 200]
+"""
+
 # cURL 示例文件
 SAMPLE_CURL = """# 示例 1: GET 请求（带查询参数）
 curl -X GET 'https://api.example.com/api/v1/products?category=electronics&limit=10' \\
