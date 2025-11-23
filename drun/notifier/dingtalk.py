@@ -42,10 +42,18 @@ class DingTalkNotifier(Notifier):
         return {"timestamp": ts, "sign": sign}
 
     def _send_json(self, payload: dict) -> None:
-        params = self._sign_params()
+        # 构建完整的 URL，包含签名参数
+        url = self.webhook
+        sign_params = self._sign_params()
+        if sign_params:
+            # 将签名参数附加到 URL，避免覆盖 access_token
+            timestamp = sign_params["timestamp"]
+            sign = sign_params["sign"]
+            url = f"{self.webhook}&timestamp={timestamp}&sign={sign}"
+        
         headers = {"Content-Type": "application/json"}
         with httpx.Client(timeout=self.timeout) as client:
-            _ = client.post(self.webhook, params=params, json=payload, headers=headers)
+            _ = client.post(url, json=payload, headers=headers)
 
     def send(self, report: RunReport, ctx: NotifyContext) -> None:  # pragma: no cover - integration
         if not self.webhook:

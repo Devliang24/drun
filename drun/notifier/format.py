@@ -103,7 +103,7 @@ def build_summary_text(report: RunReport, *, html_path: str | None, log_path: st
     lines: List[str] = []
     # 用例级别摘要
     system_name = get_system_name()
-    lines.append(f"{system_name} 执行完成：总 {total} | 通过 {passed} | 失败 {failed} | 跳过 {skipped} | {dur_ms/1000.0:.1f}s")
+    lines.append(f"【测试结果】{system_name} 执行完成：总 {total} | 通过 {passed} | 失败 {failed} | 跳过 {skipped} | {dur_ms/1000.0:.1f}s")
 
     # 步骤级别统计
     lines.append(f"步骤统计：总 {steps_total} | 通过 {steps_passed} | 失败 {steps_failed}")
