@@ -741,6 +741,50 @@ class Runner:
                             if self.log:
                                 self.log.warning(f"[PERSIST] 写入失败 {var_name}: {e}")
                 
+                # Export data to CSV
+                if step.export:
+                    if "csv" in step.export:
+                        csv_config = step.export["csv"]
+                        
+                        # 渲染配置中的模板变量（支持 ${now()} 等）
+                        rendered_config = self._render(csv_config, variables, funcs, envmap)
+                        
+                        # 提取数据
+                        data_expr = rendered_config.get("data")
+                        if not data_expr:
+                            raise ValueError("export.csv.data 字段是必填的")
+                        
+                        array_data = self._eval_extract(data_expr, resp_obj)
+                        
+                        # 导出到 CSV
+                        from pathlib import Path
+                        from drun.utils.data_exporter import export_to_csv
+                        
+                        try:
+                            # 获取项目根目录（与 CSV 参数化保持一致）
+                            from drun.loader.hooks import find_hooks
+                            hooks_file = find_hooks(Path.cwd())
+                            base_dir = hooks_file.parent if hooks_file else Path.cwd()
+                            
+                            row_count = export_to_csv(
+                                data=array_data,
+                                file_path=rendered_config["file"],
+                                columns=rendered_config.get("columns"),
+                                encoding=rendered_config.get("encoding", "utf-8"),
+                                mode=rendered_config.get("mode", "overwrite"),
+                                delimiter=rendered_config.get("delimiter", ","),
+                                base_dir=base_dir,
+                            )
+                            
+                            if self.log:
+                                self.log.info(
+                                    f"[EXPORT CSV] {row_count} rows → {rendered_config['file']}"
+                                )
+                        except Exception as e:
+                            if self.log:
+                                self.log.error(f"[EXPORT CSV] 导出失败: {e}")
+                            raise
+                
                 # Update variables after extraction so validate can use them
                 variables = ctx.get_merged(global_vars)
 

@@ -12,6 +12,7 @@ class Step(BaseModel):
     variables: Dict[str, Any] = Field(default_factory=dict)
     request: StepRequest
     extract: Dict[str, str] = Field(default_factory=dict)
+    export: Optional[Dict[str, Any]] = None
     validators: List[Validator] = Field(default_factory=list, alias="validate")
     setup_hooks: List[str] = Field(default_factory=list)
     teardown_hooks: List[str] = Field(default_factory=list)
