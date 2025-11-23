@@ -139,6 +139,63 @@ def build_summary_text(report: RunReport, *, html_path: str | None, log_path: st
     return "\n".join(lines)
 
 
+def build_markdown_message(report: RunReport, *, html_path: str | None, log_path: str | None, topn: int = 5) -> str:
+    """生成钉钉 Markdown 格式消息"""
+    s = report.summary or {}
+    total = s.get("total", 0)
+    passed = s.get("passed", 0)
+    failed = s.get("failed", 0)
+    skipped = s.get("skipped", 0)
+    dur_ms = s.get("duration_ms", 0.0)
+    
+    steps_total = s.get("steps_total", 0)
+    steps_passed = s.get("steps_passed", 0)
+    steps_failed = s.get("steps_failed", 0)
+    
+    system_name = get_system_name()
+    
+    # Markdown 格式
+    lines = [
+        f"### 【测试结果】{system_name}\n\n",
+        f"**执行时间**: {dur_ms/1000.0:.1f}s\n\n",
+        f"**用例统计**: 总数 {total} | ✅ 通过 {passed} | ❌ 失败 {failed} | ⏭ 跳过 {skipped}\n\n",
+        f"**步骤统计**: 总数 {steps_total} | ✅ 通过 {steps_passed} | ❌ 失败 {steps_failed}\n\n",
+    ]
+    
+    # 失败详情
+    failed_steps = collect_failed_steps(report, topn=topn)
+    if failed_steps:
+        lines.append("---\n\n")
+        lines.append("#### 失败详情\n\n")
+        for i, (case_name, step_name, error_msg, duration) in enumerate(failed_steps, 1):
+            msg = str(error_msg)
+            if len(msg) > 100:
+                msg = msg[:100] + "..."
+            lines.append(f"**{i}. {case_name}**\n\n")
+            lines.append(f"- 步骤: {step_name}\n")
+            lines.append(f"- 错误: `{msg}`\n")
+            lines.append(f"- 耗时: {duration:.1f}ms\n\n")
+    
+    # 文件信息
+    files_info = collect_test_files(report, max_display=3)
+    if files_info:
+        lines.append("---\n\n")
+        lines.append(f"**{files_info}**\n\n")
+    
+    # 报告链接
+    if html_path or log_path:
+        lines.append("---\n\n")
+        if html_path:
+            if html_path.startswith("http"):
+                lines.append(f"[📊 查看报告]({html_path})\n\n")
+            else:
+                lines.append(f"📊 **报告**: `{html_path}`\n\n")
+        if log_path:
+            lines.append(f"📝 **日志**: `{log_path}`\n\n")
+    
+    return "".join(lines)
+
+
 def build_text_message(report: RunReport, *, html_path: str | None, log_path: str | None, topn: int = 5) -> str:
     # Only Dollar-style rendering is supported for test templates; notifications use built-in summary text
     return build_summary_text(report, html_path=html_path, log_path=log_path, topn=topn)
