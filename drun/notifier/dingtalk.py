@@ -59,7 +59,21 @@ class DingTalkNotifier(Notifier):
         if not self.webhook:
             return
         try:
-            text = build_text_message(report, html_path=ctx.html_path, log_path=ctx.log_path, topn=ctx.topn)
+            # 获取报告 URL（优先使用 REPORT_URL 环境变量）
+            report_url = get_env_clean("REPORT_URL")
+            if not report_url and ctx.html_path:
+                # 如果 html_path 是 HTTP URL，直接使用
+                if ctx.html_path.startswith("http://") or ctx.html_path.startswith("https://"):
+                    report_url = ctx.html_path
+            
+            # 构建消息内容
+            html_path_display = report_url if report_url else ctx.html_path
+            text = build_text_message(report, html_path=html_path_display, log_path=ctx.log_path, topn=ctx.topn)
+            
+            # 如果是 Markdown 格式且有报告 URL，添加可点击链接
+            if self.style == "markdown" and report_url:
+                text = text + f"\n\n[📊 查看详细报告]({report_url})"
+            
             at_block = {
                 "atMobiles": self.at_mobiles,
                 "isAtAll": self.at_all,
