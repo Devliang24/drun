@@ -1,6 +1,6 @@
 # Drun — Modern HTTP API Testing Framework
 
-[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -18,10 +18,11 @@
 ## ✨ Key Features
 
 ### Core Testing Capabilities
-- ✅ **YAML DSL**: Intuitive test case syntax with `config`, `steps`, `extract`, `validate`
+- ✅ **YAML DSL**: Intuitive test case syntax with `config`, `steps`, `extract`, `validate`, `export`
 - ✅ **Dollar Templating**: `$var` and `${func(...)}` for dynamic values
 - ✅ **Rich Assertions**: 12 validators (eq, ne, lt, contains, regex, len_eq, etc.)
 - ✅ **Data-Driven**: CSV parameters for batch testing
+- ✅ **CSV Export**: Export API response arrays to CSV files (NEW in v4.2)
 - ✅ **Streaming Support**: SSE (Server-Sent Events) with per-event assertions
 - ✅ **File Uploads**: Multipart/form-data support
 
@@ -162,6 +163,10 @@ steps:
       timeout: 10.0
     extract:
       variableName: $.response.path
+    export:
+      csv:
+        data: $.response.items
+        file: data/output.csv
     validate:
       - eq: [status_code, 200]
       - contains: [$.data.message, success]
@@ -313,6 +318,76 @@ steps:
 ```
 
 Drun will execute the test 3 times (once per CSV row).
+
+### CSV Export (NEW in v4.2)
+
+Export API response arrays to CSV files, similar to Postman's data export:
+
+```yaml
+steps:
+  - name: Export User Data
+    request:
+      method: GET
+      path: /api/users
+    extract:
+      userCount: $.data.total
+    export:
+      csv:
+        data: $.data.users           # JMESPath expression
+        file: data/users.csv         # Output file path
+    validate:
+      - eq: [status_code, 200]
+      - gt: [$userCount, 0]
+```
+
+**Advanced options:**
+
+```yaml
+export:
+  csv:
+    data: $.data.orders
+    file: reports/orders_${now()}.csv    # Dynamic filename
+    columns: [orderId, customerName, totalAmount]  # Select columns
+    mode: append                         # append or overwrite
+    encoding: utf-8                      # File encoding
+    delimiter: ","                       # CSV delimiter
+```
+
+**Common use cases:**
+
+```yaml
+# Filter and export
+export:
+  csv:
+    data: $.users[?status=='active']    # JMESPath filter
+    file: data/active_users.csv
+
+# Paginated export with append
+config:
+  parameters:
+    - page: [1, 2, 3, 4, 5]
+steps:
+  - name: Export page $page
+    request:
+      method: GET
+      path: /api/products?page=$page
+    export:
+      csv:
+        data: $.data.items
+        file: data/all_products.csv
+        mode: append                     # Append to file
+```
+
+**Comparison with extract:**
+
+| Feature | extract | export |
+|---------|---------|--------|
+| Target | Memory variables | Disk files |
+| Data type | Any type | Arrays only |
+| Purpose | Temporary usage | Persistent storage |
+| Example | `userId: $.data.id` | `csv: {data: $.data.users, file: users.csv}` |
+
+See [EXPORT_CSV_GUIDE.md](EXPORT_CSV_GUIDE.md) for complete documentation.
 
 ### Custom Hooks
 
@@ -976,6 +1051,14 @@ testcases:
 No changes required! v4.0 adds new features without breaking existing tests.
 
 ## 📝 Version History
+
+### v4.2.0 (2024-11-24) - CSV Export Feature
+- **NEW**: Export API response arrays to CSV files
+- **NEW**: `export.csv` configuration with `data` and `file` fields
+- **NEW**: Support column selection, append mode, custom encoding
+- **NEW**: Full JMESPath syntax support (filter, slice, projection)
+- **NEW**: Complete error validation and friendly error messages
+- **NEW**: Usage guide documentation (EXPORT_CSV_GUIDE.md)
 
 ### v4.0.0 (2024-11-20) - Postman-Like Variable Management
 - **NEW**: Auto-persist extracted variables to `.env`
