@@ -5,8 +5,40 @@ import re
 import ast
 import operator as op
 import os
+import json
 
 from .builtins import BUILTINS
+
+
+def _try_parse_json(value: Any) -> Any:
+    """尝试将字符串值解析为 JSON 数组或对象。
+    
+    如果字符串以 [ 或 { 开头并以对应的 ] 或 } 结尾，
+    尝试将其解析为 JSON。解析失败时返回原始值。
+    
+    支持两种格式：
+    1. 标准 JSON: ["item1", "item2"]
+    2. Python 格式: ['item1', 'item2']（自动转换单引号为双引号）
+    """
+    if not isinstance(value, str):
+        return value
+    
+    stripped = value.strip()
+    # 检查是否像 JSON 数组或对象
+    if (stripped.startswith('[') and stripped.endswith(']')) or \
+       (stripped.startswith('{') and stripped.endswith('}')):
+        try:
+            # 先尝试标准 JSON 解析
+            return json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            # 如果失败，尝试将 Python 格式的单引号转换为双引号
+            try:
+                # 简单替换：将单引号替换为双引号（仅适用于简单情况）
+                normalized = stripped.replace("'", '"')
+                return json.loads(normalized)
+            except (json.JSONDecodeError, ValueError):
+                pass
+    return value
 
 
 def _normalize_simple_tokens(text: str) -> str:
@@ -136,8 +168,10 @@ class TemplateEngine:
                 # Inject ENV function that reads from provided envmap or OS
                 def ENV(name: str, default: Any = None) -> Any:  # noqa: N802 - uppercase by design
                     if envmap is not None and name in envmap:
-                        return envmap.get(name)
-                    return os.environ.get(name, default)
+                        value = envmap.get(name)
+                    else:
+                        value = os.environ.get(name, default)
+                    return _try_parse_json(value)
 
                 dyn_funcs: Dict[str, Callable[..., Any]] = {"ENV": ENV}
                 ctx: Dict[str, Any] = {**BUILTINS, **dyn_funcs, **(functions or {}), **variables}
@@ -179,8 +213,10 @@ class TemplateEngine:
 
         def ENV(name: str, default: Any = None) -> Any:  # noqa: N802
             if envmap is not None and name in envmap:
-                return envmap.get(name)
-            return os.environ.get(name, default)
+                value = envmap.get(name)
+            else:
+                value = os.environ.get(name, default)
+            return _try_parse_json(value)
 
         ctx: Dict[str, Any] = {**BUILTINS, **(functions or {}), **(variables or {}), **(extra_ctx or {}), "ENV": ENV}
         try:
