@@ -11,20 +11,23 @@ from .builtins import BUILTINS
 
 
 def _try_parse_json(value: Any) -> Any:
-    """尝试将字符串值解析为 JSON 数组或对象。
+    """尝试将字符串值解析为 JSON 数组、对象或基本类型。
     
-    如果字符串以 [ 或 { 开头并以对应的 ] 或 } 结尾，
-    尝试将其解析为 JSON。解析失败时返回原始值。
-    
-    支持两种格式：
-    1. 标准 JSON: ["item1", "item2"]
-    2. Python 格式: ['item1', 'item2']（自动转换单引号为双引号）
+    自动识别并转换：
+    1. JSON 数组: ["item1", "item2"] 或 ['item1', 'item2']
+    2. JSON 对象: {"key": "value"}
+    3. 布尔值: true/false → True/False
+    4. null 值: null → None
+    5. 整数: 23 → 23
+    6. 浮点数: 19.99 → 19.99
+    7. 普通字符串保持不变
     """
     if not isinstance(value, str):
         return value
     
     stripped = value.strip()
-    # 检查是否像 JSON 数组或对象
+    
+    # 1. 尝试解析 JSON 数组或对象
     if (stripped.startswith('[') and stripped.endswith(']')) or \
        (stripped.startswith('{') and stripped.endswith('}')):
         try:
@@ -38,6 +41,32 @@ def _try_parse_json(value: Any) -> Any:
                 return json.loads(normalized)
             except (json.JSONDecodeError, ValueError):
                 pass
+    
+    # 2. 尝试解析布尔值（不区分大小写）
+    lower = stripped.lower()
+    if lower == 'true':
+        return True
+    if lower == 'false':
+        return False
+    
+    # 3. 尝试解析 null
+    if lower == 'null':
+        return None
+    
+    # 4. 尝试解析数字
+    # 4a. 整数（包括负数）
+    if stripped.lstrip('-').isdigit():
+        return int(stripped)
+    
+    # 4b. 浮点数
+    try:
+        # 只有在包含小数点时才尝试解析为浮点数
+        if '.' in stripped:
+            return float(stripped)
+    except ValueError:
+        pass
+    
+    # 5. 无法识别，返回原字符串
     return value
 
 
