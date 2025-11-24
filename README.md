@@ -392,7 +392,7 @@ steps:
 | Purpose | Temporary usage | Persistent storage |
 | Example | `userId: $.data.id` | `csv: {data: $.data.users, file: users.csv}` |
 
-See [EXPORT_CSV_GUIDE.md](EXPORT_CSV_GUIDE.md) for complete documentation.
+CSV export functionality is fully documented above with complete examples.
 
 ### Code Snippets (NEW in v4.2)
 
@@ -1180,7 +1180,6 @@ No changes required! v4.0 adds new features without breaking existing tests.
   - Support column selection, append mode, custom encoding
   - Full JMESPath syntax support (filter, slice, projection)
 - **NEW**: Scaffolds auto-create `snippets/` directory
-- **NEW**: Usage guide documentation (EXPORT_CSV_GUIDE.md)
 
 ### v4.0.0 (2024-11-20) - Postman-Like Variable Management
 - **NEW**: Auto-persist extracted variables to `.env`
