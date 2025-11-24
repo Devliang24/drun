@@ -1,6 +1,6 @@
 # Drun — Modern HTTP API Testing Framework
 
-[![Version](https://img.shields.io/badge/version-5.0.0-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-5.0.1-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -1157,6 +1157,13 @@ testcases:
 No changes required! v4.0 adds new features without breaking existing tests.
 
 ## 📝 Version History
+
+### v5.0.1 (2024-11-24) - Documentation Cleanup
+- **IMPROVED**: Simplified documentation structure
+  - Removed 10 obsolete documentation files (4 release notes, 5 feature guides, 1 course outline)
+  - Consolidated all feature documentation into README.md
+  - Total reduction: 1,988 lines of redundant documentation
+- **IMPROVED**: Easier project navigation with focused core documentation (README.md + CHANGELOG.md)
 
 ### v5.0.0 (2024-11-24) - Enhanced User Experience
 - **NEW**: Smart file discovery - Run tests without `.yaml`/`.yml` extension
