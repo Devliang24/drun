@@ -1158,40 +1158,29 @@ def list_tags(
             typer.echo(f"    • {case_name} -> {case_path}")
 
 
-@app.command()
-def run(
-    path: str = typer.Argument(..., help="要运行的文件或目录"),
-    k: Optional[str] = typer.Option(None, "-k", help="标签过滤表达式（支持 and/or/not）"),
-    vars: List[str] = typer.Option([], "--vars", help="变量覆盖 k=v（可重复）"),
-    failfast: bool = typer.Option(False, "--failfast", help="遇到第一个失败时停止"),
-    report: Optional[str] = typer.Option(None, "--report", help="输出 JSON 报告到文件"),
-    html: Optional[str] = typer.Option(None, "--html", help="输出 HTML 报告到文件（默认 reports/report-<timestamp>.html）"),
-    allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
-    log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
-    env_file: Optional[str] = typer.Option(None, "--env-file", help=".env 文件路径（默认 .env）"),
-    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env 或使用 --env-file 的文件）"),
-    log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（默认 logs/run-<ts>.log）"),
-    httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
-    reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="在日志和报告中显示敏感字段明文（password、tokens）", show_default=True),
-    response_headers: bool = typer.Option(
-        False,
-        "--response-headers/--no-response-headers",
-        help="记录 HTTP 响应头（默认关闭）",
-        show_default=False,
-    ),
-    notify: Optional[str] = typer.Option(None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"),
-    notify_only: Optional[str] = typer.Option(
-        None,
-        "--notify-only",
-        help="通知策略：failed|always（默认 $DRUN_NOTIFY_ONLY 或 'failed'）",
-        show_default=False,
-    ),
-    notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="在邮件中附加 HTML 报告（如果启用邮件）", show_default=False),
-    no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（默认会自动生成到 snippets/ 目录）"),
-    snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
-    snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
+def _run_impl(
+    path: str,
+    k: Optional[str],
+    vars: List[str],
+    failfast: bool,
+    report: Optional[str],
+    html: Optional[str],
+    allure_results: Optional[str],
+    log_level: str,
+    env_file: Optional[str],
+    persist_env: Optional[str],
+    log_file: Optional[str],
+    httpx_logs: bool,
+    reveal_secrets: bool,
+    response_headers: bool,
+    notify: Optional[str],
+    notify_only: Optional[str],
+    notify_attach_html: bool,
+    no_snippet: bool,
+    snippet_output: Optional[str],
+    snippet_lang: str,
 ):
-    """运行测试用例或测试套件"""
+    """运行测试用例的核心实现"""
     # default timestamp; set up console logging first (no file) to avoid writing to a wrong file
     ts = time.strftime("%Y%m%d-%H%M%S")
     default_log = None  # will be decided after env is loaded
@@ -1545,6 +1534,90 @@ def run(
     log.info("[CASE] Logs written to %s", default_log)
     if s.get("failed", 0) > 0:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def run(
+    path: str = typer.Argument(..., help="要运行的文件或目录"),
+    k: Optional[str] = typer.Option(None, "-k", help="标签过滤表达式（支持 and/or/not）"),
+    vars: List[str] = typer.Option([], "--vars", help="变量覆盖 k=v（可重复）"),
+    failfast: bool = typer.Option(False, "--failfast", help="遇到第一个失败时停止"),
+    report: Optional[str] = typer.Option(None, "--report", help="输出 JSON 报告到文件"),
+    html: Optional[str] = typer.Option(None, "--html", help="输出 HTML 报告到文件（默认 reports/report-<timestamp>.html）"),
+    allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
+    log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
+    env_file: Optional[str] = typer.Option(None, "--env-file", help=".env 文件路径（默认 .env）"),
+    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env 或使用 --env-file 的文件）"),
+    log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（默认 logs/run-<ts>.log）"),
+    httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
+    reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="在日志和报告中显示敏感字段明文（password、tokens）", show_default=True),
+    response_headers: bool = typer.Option(
+        False,
+        "--response-headers/--no-response-headers",
+        help="记录 HTTP 响应头（默认关闭）",
+        show_default=False,
+    ),
+    notify: Optional[str] = typer.Option(None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"),
+    notify_only: Optional[str] = typer.Option(
+        None,
+        "--notify-only",
+        help="通知策略：failed|always（默认 $DRUN_NOTIFY_ONLY 或 'failed'）",
+        show_default=False,
+    ),
+    notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="在邮件中附加 HTML 报告（如果启用邮件）", show_default=False),
+    no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（默认会自动生成到 snippets/ 目录）"),
+    snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
+    snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
+):
+    """运行测试用例或测试套件"""
+    return _run_impl(
+        path, k, vars, failfast, report, html, allure_results,
+        log_level, env_file, persist_env, log_file, httpx_logs,
+        reveal_secrets, response_headers, notify, notify_only,
+        notify_attach_html, no_snippet, snippet_output, snippet_lang
+    )
+
+
+@app.command("r")
+def r(
+    path: str = typer.Argument(..., help="要运行的文件或目录"),
+    k: Optional[str] = typer.Option(None, "-k", help="标签过滤表达式（支持 and/or/not）"),
+    vars: List[str] = typer.Option([], "--vars", help="变量覆盖 k=v（可重复）"),
+    failfast: bool = typer.Option(False, "--failfast", help="遇到第一个失败时停止"),
+    report: Optional[str] = typer.Option(None, "--report", help="输出 JSON 报告到文件"),
+    html: Optional[str] = typer.Option(None, "--html", help="输出 HTML 报告到文件（默认 reports/report-<timestamp>.html）"),
+    allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
+    log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
+    env_file: Optional[str] = typer.Option(None, "--env-file", help=".env 文件路径（默认 .env）"),
+    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env 或使用 --env-file 的文件）"),
+    log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（默认 logs/run-<ts>.log）"),
+    httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
+    reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="在日志和报告中显示敏感字段明文（password、tokens）", show_default=True),
+    response_headers: bool = typer.Option(
+        False,
+        "--response-headers/--no-response-headers",
+        help="记录 HTTP 响应头（默认关闭）",
+        show_default=False,
+    ),
+    notify: Optional[str] = typer.Option(None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"),
+    notify_only: Optional[str] = typer.Option(
+        None,
+        "--notify-only",
+        help="通知策略：failed|always（默认 $DRUN_NOTIFY_ONLY 或 'failed'）",
+        show_default=False,
+    ),
+    notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="在邮件中附加 HTML 报告（如果启用邮件）", show_default=False),
+    no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（默认会自动生成到 snippets/ 目录）"),
+    snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
+    snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
+):
+    """运行测试用例或测试套件（run 的简写）"""
+    return _run_impl(
+        path, k, vars, failfast, report, html, allure_results,
+        log_level, env_file, persist_env, log_file, httpx_logs,
+        reveal_secrets, response_headers, notify, notify_only,
+        notify_attach_html, no_snippet, snippet_output, snippet_lang
+    )
 
 
 @app.command("check")
