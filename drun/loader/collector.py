@@ -23,31 +23,35 @@ def _search_in_test_dirs(filename: str) -> Path | None:
     """Search for a file in testcases/ and testsuites/ directories.
     
     Args:
-        filename: The filename to search for (must include .yaml or .yml extension)
+        filename: The filename to search for (with or without .yaml/.yml extension)
     
     Returns:
         Path to the found file, or None if not found
     """
-    # Only accept filenames with .yaml or .yml extension
-    if not (filename.endswith('.yaml') or filename.endswith('.yml')):
-        return None
+    # If no extension provided, try .yaml and .yml
+    search_names = []
+    if filename.endswith('.yaml') or filename.endswith('.yml'):
+        search_names = [filename]
+    else:
+        search_names = [f"{filename}.yaml", f"{filename}.yml"]
     
     search_dirs = ['testcases', 'testsuites']
     
-    for base_dir in search_dirs:
-        base_path = Path(base_dir)
-        if not base_path.exists():
-            continue
-        
-        # Try direct path first
-        candidate = base_path / filename
-        if candidate.exists() and _is_valid_name(candidate):
-            return candidate
-        
-        # Recursive search if not found at root level
-        matches = list(base_path.rglob(filename))
-        if matches and _is_valid_name(matches[0]):
-            return matches[0]
+    for search_name in search_names:
+        for base_dir in search_dirs:
+            base_path = Path(base_dir)
+            if not base_path.exists():
+                continue
+            
+            # Try direct path first
+            candidate = base_path / search_name
+            if candidate.exists() and _is_valid_name(candidate):
+                return candidate
+            
+            # Recursive search if not found at root level
+            matches = list(base_path.rglob(search_name))
+            if matches and _is_valid_name(matches[0]):
+                return matches[0]
     
     return None
 
@@ -57,7 +61,7 @@ def discover(paths: Sequence[str | Path]) -> List[Path]:
     for p in paths:
         pp = Path(p)
         
-        # If path doesn't exist, try smart search in testcases/testsuites directories
+        # If path doesn't exist, try smart search
         if not pp.exists():
             # Check if it's a simple filename (no path separators)
             path_str = str(p)
@@ -66,6 +70,16 @@ def discover(paths: Sequence[str | Path]) -> List[Path]:
                 found_file = _search_in_test_dirs(path_str)
                 if found_file:
                     found.append(found_file)
+                    continue
+            
+            # If path has no extension, try adding .yaml/.yml
+            if not path_str.endswith('.yaml') and not path_str.endswith('.yml'):
+                for ext in ['.yaml', '.yml']:
+                    pp_with_ext = Path(path_str + ext)
+                    if pp_with_ext.exists() and _is_valid_name(pp_with_ext):
+                        found.append(pp_with_ext)
+                        break
+                if found and found[-1].stem == pp.stem:
                     continue
         
         # Original logic remains unchanged

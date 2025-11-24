@@ -240,7 +240,8 @@ def _save_code_snippets(
     output_dir: Optional[str],
     languages: str,
     env_store: Dict[str, Any],
-    timestamp: str
+    timestamp: str,
+    log
 ):
     """保存代码片段到文件"""
     from pathlib import Path
@@ -303,9 +304,9 @@ def _save_code_snippets(
     
     # 输出保存信息
     if saved_files:
-        typer.echo(f"[SNIPPET] Code snippets saved to {target_dir}/")
+        log.info("[SNIPPET] Code snippets saved to %s/", target_dir)
         for file in saved_files:
-            typer.echo(f"  - {file}")
+            log.info("[SNIPPET]   - %s", file)
 
 
 def load_env_file(path: Optional[str]) -> Dict[str, str]:
@@ -1537,7 +1538,7 @@ def run(
     # 生成代码片段（默认行为）
     if not no_snippet:
         try:
-            _save_code_snippets(items, snippet_output, snippet_lang, env_store, ts)
+            _save_code_snippets(items, snippet_output, snippet_lang, env_store, ts, log)
         except Exception as e:
             log.error("[SNIPPET] Failed to generate code snippets: %s", str(e))
 
