@@ -146,9 +146,12 @@ async def serve_report(file_name: str):
     # Inject back button style and adjust header to match list page
     button_style = """
     <style>
-        /* Override wrap styles to match list page */
+        /* Override wrap styles to match list page - use higher specificity */
+        body .wrap,
         .wrap {
             max-width: 1400px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
             padding: 0 20px 40px !important;
         }
         /* Override header styles to match list page */
