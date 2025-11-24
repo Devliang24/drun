@@ -27,7 +27,7 @@ class SnippetGenerator:
             from drun import __version__
             return __version__
         except Exception:
-            return "4.1.2"
+            return "4.2.0"
     
     def generate_shell_script_for_step(
         self,
