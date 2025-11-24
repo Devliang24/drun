@@ -1338,6 +1338,9 @@ logs/
 allure-results/
 *.log
 
+# 代码片段（自动生成）
+snippets/
+
 # 环境配置（包含敏感信息）
 .env
 .env.*
