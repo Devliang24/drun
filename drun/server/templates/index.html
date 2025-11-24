@@ -1,110 +1,156 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drun Test Reports</title>
+    <title>Drun 测试报告</title>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
+        :root { 
+            --bg: #ffffff; 
+            --fg: #24292f; 
+            --muted: #57606a; 
+            --ok: #1a7f37; 
+            --fail: #cf222e; 
+            --border: #d0d7de; 
+            --card: #f6f8fa; 
+            --accent: #0969da; 
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            background: #f5f5f5; 
-            padding: 20px;
-            color: #333;
+            margin: 0; 
+            padding: 0; 
+            background: var(--bg); 
+            color: var(--fg); 
+            font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
         }
-        .container { max-width: 1400px; margin: 0 auto; }
+        .wrap { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 0 20px 40px; 
+        }
         
         /* Header */
-        header { margin-bottom: 30px; }
+        .header-sticky { 
+            position: sticky; 
+            top: 0; 
+            z-index: 999; 
+            background: var(--bg); 
+            padding: 16px 0 12px; 
+            border-bottom: 1px solid var(--border); 
+            margin-bottom: 20px;
+        }
+        .headbar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
         h1 { 
-            font-size: 28px; 
-            margin-bottom: 10px; 
-            color: #1a1a1a;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .subtitle { color: #666; font-size: 14px; }
-        
-        /* Stats Cards */
-        .stats { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 15px; 
-            margin-bottom: 25px; 
-        }
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.2s;
-        }
-        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
-        .stat-card h3 { 
-            font-size: 13px; 
-            color: #666; 
-            margin-bottom: 10px; 
-            text-transform: uppercase;
+            font-size: 20px; 
+            margin: 0; 
             font-weight: 600;
-            letter-spacing: 0.5px;
+            color: var(--fg);
         }
-        .stat-card .value { 
-            font-size: 36px; 
-            font-weight: bold; 
-            color: #1a1a1a;
-        }
-        .stat-card.green .value { color: #4CAF50; }
-        .stat-card.red .value { color: #f44336; }
-        .stat-card.blue .value { color: #2196F3; }
-        
-        /* Filters */
-        .filters { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 25px;
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .filters input, .filters select {
-            padding: 10px 14px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-        }
-        .filters input:focus, .filters select:focus {
-            outline: none;
-            border-color: #4CAF50;
-        }
-        .filters input { min-width: 200px; }
-        .filters button {
-            padding: 10px 20px;
-            background: #4CAF50;
-            color: white;
+        .rescan-btn {
+            padding: 0;
+            background: none;
+            color: var(--accent);
             border: none;
-            border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 500;
-            transition: background 0.2s;
+            transition: color 0.15s ease;
         }
-        .filters button:hover { background: #45a049; }
-        .filters button.secondary {
-            background: #2196F3;
+        .rescan-btn:hover {
+            color: var(--ok);
+            text-decoration: underline;
         }
-        .filters button.secondary:hover { background: #1976D2; }
         
-        /* Reports Table */
-        .table-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success {
+            border-color: var(--ok);
+            background: rgba(26, 127, 55, 0.05);
+        }
+        .toast.error {
+            border-color: var(--fail);
+            background: rgba(207, 34, 46, 0.05);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Stats Cards */
+        .summary { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+            gap: 12px; 
+            margin-bottom: 20px; 
+        }
+        .stat-card { 
+            position: relative; 
+            padding: 16px 18px; 
+            border-radius: 6px; 
+            background: var(--card); 
+            border: 1px solid var(--border); 
+        }
+        .stat-card::before { 
+            content: ''; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 4px; 
+            height: 100%; 
+            border-radius: 6px 0 0 6px; 
+        }
+        .stat-card.total::before { background: var(--accent); }
+        .stat-card.passed::before { background: var(--ok); }
+        .stat-card.failed::before { background: var(--fail); }
+        .stat-card.duration::before { background: #8250df; }
+        
+        .stat-label { 
+            display: block; 
+            font-size: 12px; 
+            color: var(--muted); 
+            margin-bottom: 6px; 
+        }
+        .stat-value { 
+            display: block; 
+            font-size: 28px; 
+            font-weight: 700; 
+            line-height: 1; 
+            color: var(--fg);
+        }
+        .stat-card.passed .stat-value { color: var(--ok); }
+        .stat-card.failed .stat-value { color: var(--fail); }
+        
+        /* Table */
+        .table-wrapper {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg);
             overflow: hidden;
         }
         table { 
@@ -112,158 +158,187 @@
             border-collapse: collapse; 
         }
         th, td { 
-            padding: 14px 16px; 
+            padding: 12px 16px; 
             text-align: left; 
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
         }
         th { 
-            background: #4CAF50; 
-            color: white; 
+            background: var(--card); 
+            color: var(--muted); 
             font-weight: 600;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        tbody tr { transition: background 0.2s; }
-        tbody tr.success { background: #f1f8f4; }
-        tbody tr.failed { background: #ffebee; }
-        tbody tr:hover { background: #fafafa !important; }
-        
-        .failed-count { color: #d32f2f; font-weight: 600; }
-        a { color: #2196F3; text-decoration: none; transition: color 0.2s; }
-        a:hover { color: #1976D2; text-decoration: underline; }
-        
-        .badge { 
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
             font-size: 12px;
-            font-weight: 600;
         }
-        .badge.success { background: #4CAF50; color: white; }
-        .badge.failed { background: #f44336; color: white; }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
+        tbody tr:hover { 
+            background: var(--card); 
         }
-        .empty-state svg {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 20px;
-            opacity: 0.5;
+        tbody tr:last-child td {
+            border-bottom: none;
         }
         
-        /* Loading */
-        .loading {
+        .status-badge { 
+            padding: 2px 8px; 
+            border-radius: 12px; 
+            font-size: 12px; 
+            font-weight: 500;
+        }
+        .status-badge.passed { 
+            background: rgba(26, 127, 55, 0.1); 
+            color: var(--ok); 
+        }
+        .status-badge.failed { 
+            background: rgba(207, 34, 46, 0.1); 
+            color: var(--fail); 
+        }
+        
+        a { 
+            color: var(--accent); 
+            text-decoration: none; 
+        }
+        a:hover { 
+            text-decoration: underline; 
+        }
+        
+        .passed-text { color: var(--ok); }
+        .failed-text { color: var(--fail); font-weight: 600; }
+        
+        /* 序号列居中显示 */
+        table td:first-child {
             text-align: center;
-            padding: 40px;
-            color: #666;
+            color: var(--muted);
+        }
+        
+        .empty-state, .loading {
+            text-align: center;
+            padding: 48px 20px;
         }
         
         /* Responsive */
         @media (max-width: 768px) {
-            body { padding: 10px; }
-            h1 { font-size: 22px; }
-            .stats { grid-template-columns: repeat(2, 1fr); }
-            .filters { flex-direction: column; }
-            .filters input, .filters select, .filters button { width: 100%; }
+            .wrap { padding: 0 12px 24px; }
+            h1 { font-size: 18px; }
+            .summary { grid-template-columns: repeat(2, 1fr); }
             table { font-size: 13px; }
-            th, td { padding: 10px; }
+            th, td { padding: 10px 12px; }
+        }
+        
+        /* Pagination */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+            padding: 12px 20px 12px 0;
+        }
+        .page-btn {
+            padding: 8px 12px;
+            background: var(--bg);
+            color: var(--fg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.15s ease;
+            min-width: 40px;
+        }
+        .page-btn:hover:not(:disabled) {
+            background: var(--card);
+            border-color: var(--accent);
+        }
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .page-btn.active {
+            background: var(--accent);
+            color: #ffffff;
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+        .page-info {
+            margin-left: 12px;
+            color: var(--muted);
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
-    <div class="container" x-data="reportsApp()">
-        <header>
-            <h1>
-                <span>📊</span>
-                <span>Drun Test Reports</span>
-            </h1>
-            <p class="subtitle">Lightweight test report server with SQLite persistence</p>
-        </header>
+    <div class="wrap" x-data="reportsApp()">
+        <!-- Toast Notification -->
+        <div x-show="toast.show" 
+             x-transition
+             :class="'toast ' + toast.type"
+             @click="toast.show = false"
+             style="cursor: pointer;">
+            <span x-text="toast.message"></span>
+        </div>
         
-        <!-- Stats Cards -->
-        <div class="stats">
-            <div class="stat-card">
-                <h3>📁 Total Reports</h3>
-                <div class="value" x-text="stats.total_reports || 0"></div>
-            </div>
-            <div class="stat-card green">
-                <h3>✅ Total Passed</h3>
-                <div class="value" x-text="stats.passed_cases || 0"></div>
-            </div>
-            <div class="stat-card red">
-                <h3>❌ Total Failed</h3>
-                <div class="value" x-text="stats.failed_cases || 0"></div>
-            </div>
-            <div class="stat-card blue">
-                <h3>⏱ Avg Duration</h3>
-                <div class="value" x-text="((stats.avg_duration_ms || 0) / 1000).toFixed(1) + 's'"></div>
+        <div class="header-sticky">
+            <div class="headbar">
+                <h1>Drun 测试报告</h1>
+                <button class="rescan-btn" @click="rescan()">重新扫描</button>
             </div>
         </div>
         
-        <!-- Filters -->
-        <div class="filters">
-            <input 
-                type="text" 
-                placeholder="🔍 Search system name..." 
-                x-model="filters.system_name"
-                @keyup.enter="loadReports()">
-            <select x-model="filters.status">
-                <option value="all">All Status</option>
-                <option value="passed">✅ Passed</option>
-                <option value="failed">❌ Failed</option>
-            </select>
-            <select x-model="filters.environment">
-                <option value="">All Environments</option>
-                <option value="dev">Dev</option>
-                <option value="staging">Staging</option>
-                <option value="prod">Prod</option>
-            </select>
-            <button @click="loadReports()">🔍 Search</button>
-            <button class="secondary" @click="rescan()">🔄 Rescan</button>
+        <!-- Stats Cards -->
+        <div class="summary">
+            <div class="stat-card total">
+                <span class="stat-label">报告总数</span>
+                <span class="stat-value" x-text="stats.total_reports || 0"></span>
+            </div>
+            <div class="stat-card passed">
+                <span class="stat-label">通过总数</span>
+                <span class="stat-value" x-text="stats.passed_cases || 0"></span>
+            </div>
+            <div class="stat-card failed">
+                <span class="stat-label">失败总数</span>
+                <span class="stat-value" x-text="stats.failed_cases || 0"></span>
+            </div>
+            <div class="stat-card duration">
+                <span class="stat-label">平均耗时</span>
+                <span class="stat-value" x-text="((stats.avg_duration_ms || 0) / 1000).toFixed(1) + 's'"></span>
+            </div>
         </div>
         
         <!-- Reports Table -->
-        <div class="table-container">
+        <div class="table-wrapper">
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 60px;">Status</th>
-                        <th style="width: 180px;">Time</th>
-                        <th>System</th>
-                        <th style="width: 100px;">Environment</th>
-                        <th style="width: 80px;">Total</th>
-                        <th style="width: 80px;">Passed</th>
-                        <th style="width: 80px;">Failed</th>
-                        <th style="width: 100px;">Pass Rate</th>
-                        <th style="width: 100px;">Duration</th>
+                        <th style="width: 60px;">序号</th>
+                        <th style="width: 90px;">状态</th>
+                        <th>报告名称</th>
+                        <th style="width: 180px;">运行时间</th>
+                        <th style="width: 100px;">环境</th>
+                        <th style="width: 80px;">总数</th>
+                        <th style="width: 80px;">通过</th>
+                        <th style="width: 80px;">失败</th>
+                        <th style="width: 100px;">通过率</th>
+                        <th style="width: 100px;">耗时</th>
                     </tr>
                 </thead>
                 <tbody x-show="!loading && reports.length > 0">
-                    <template x-for="report in reports" :key="report.id">
-                        <tr :class="report.failed_cases > 0 ? 'failed' : 'success'">
+                    <template x-for="(report, index) in paginatedReports" :key="report.id">
+                        <tr>
+                            <td x-text="reports.length - ((currentPage - 1) * pageSize + index)"></td>
                             <td>
                                 <span 
-                                    class="badge" 
-                                    :class="report.failed_cases > 0 ? 'failed' : 'success'" 
-                                    x-text="report.failed_cases > 0 ? '❌' : '✅'">
+                                    :class="report.failed_cases > 0 ? 'failed-text' : 'passed-text'"
+                                    x-text="report.failed_cases > 0 ? '失败' : '通过'">
                                 </span>
                             </td>
                             <td>
                                 <a 
-                                    :href="'/reports/' + report.file_name" 
-                                    target="_blank" 
-                                    x-text="formatTime(report.run_time)">
+                                    :href="'/reports/' + report.file_name"
+                                    x-text="removeHtmlExtension(report.file_name)">
                                 </a>
                             </td>
-                            <td x-text="report.system_name || 'Unknown'"></td>
+                            <td x-text="formatTime(report.run_time)"></td>
                             <td x-text="report.environment || '-'"></td>
                             <td x-text="report.total_cases"></td>
-                            <td x-text="report.passed_cases"></td>
-                            <td class="failed-count" x-text="report.failed_cases"></td>
+                            <td class="passed-text" x-text="report.passed_cases"></td>
+                            <td class="failed-text" x-text="report.failed_cases"></td>
                             <td x-text="calcPassRate(report)"></td>
                             <td x-text="(report.duration_ms / 1000).toFixed(1) + 's'"></td>
                         </tr>
@@ -271,18 +346,48 @@
                 </tbody>
             </table>
             
+            <!-- Pagination -->
+            <div x-show="totalPages > 1" class="pagination">
+                <button 
+                    @click="goToPage(currentPage - 1)" 
+                    :disabled="currentPage === 1"
+                    class="page-btn">
+                    上一页
+                </button>
+                
+                <template x-for="page in pageNumbers" :key="page">
+                    <button 
+                        @click="goToPage(page)" 
+                        :class="{ 'active': page === currentPage }"
+                        class="page-btn page-number">
+                        <span x-text="page"></span>
+                    </button>
+                </template>
+                
+                <button 
+                    @click="goToPage(currentPage + 1)" 
+                    :disabled="currentPage === totalPages"
+                    class="page-btn">
+                    下一页
+                </button>
+                
+                <span class="page-info">
+                    共 <span x-text="totalPages"></span> 页，
+                    显示 <span x-text="(currentPage - 1) * pageSize + 1"></span> - 
+                    <span x-text="Math.min(currentPage * pageSize, reports.length)"></span> / 
+                    <span x-text="reports.length"></span> 条
+                </span>
+            </div>
+            
             <!-- Empty State -->
             <div class="empty-state" x-show="!loading && reports.length === 0">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                <h3>No reports found</h3>
-                <p>Run some tests to generate reports, then click "Rescan" to refresh.</p>
+                <div style="color: #57606a; font-size: 14px;">未找到报告</div>
+                <div style="color: #8b949e; font-size: 13px; margin-top: 8px;">运行测试生成报告后，点击右上角"重新扫描"</div>
             </div>
             
             <!-- Loading State -->
             <div class="loading" x-show="loading">
-                <p>Loading reports...</p>
+                <div style="color: #57606a;">加载中...</div>
             </div>
         </div>
     </div>
@@ -293,10 +398,52 @@
                 reports: [],
                 stats: {},
                 loading: true,
-                filters: {
-                    system_name: '',
-                    status: 'all',
-                    environment: ''
+                currentPage: 1,
+                pageSize: 15,
+                toast: {
+                    show: false,
+                    message: '',
+                    type: 'success'
+                },
+                
+                showToast(message, type = 'success') {
+                    this.toast.message = message;
+                    this.toast.type = type;
+                    this.toast.show = true;
+                    setTimeout(() => {
+                        this.toast.show = false;
+                    }, 3000);
+                },
+                
+                removeHtmlExtension(filename) {
+                    if (!filename) return '';
+                    return filename.replace(/\.html$/, '');
+                },
+                
+                // Pagination helpers
+                get paginatedReports() {
+                    const start = (this.currentPage - 1) * this.pageSize;
+                    const end = start + this.pageSize;
+                    return this.reports.slice(start, end);
+                },
+                get totalPages() {
+                    return Math.ceil(this.reports.length / this.pageSize);
+                },
+                goToPage(page) {
+                    if (page >= 1 && page <= this.totalPages) {
+                        this.currentPage = page;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                },
+                get pageNumbers() {
+                    const pages = [];
+                    const total = this.totalPages;
+                    
+                    // 简单分页：显示所有页码
+                    for (let i = 1; i <= total; i++) {
+                        pages.push(i);
+                    }
+                    return pages;
                 },
                 
                 async init() {
@@ -308,16 +455,11 @@
                 async loadReports() {
                     this.loading = true;
                     try {
-                        const params = new URLSearchParams();
-                        if (this.filters.system_name) params.append('system_name', this.filters.system_name);
-                        if (this.filters.status !== 'all') params.append('status', this.filters.status);
-                        if (this.filters.environment) params.append('environment', this.filters.environment);
-                        
-                        const response = await fetch('/api/reports?' + params.toString());
+                        const response = await fetch('/api/reports');
                         this.reports = await response.json();
                     } catch (error) {
                         console.error('Failed to load reports:', error);
-                        alert('Failed to load reports. Please check the console.');
+                        this.showToast('加载报告失败', 'error');
                     } finally {
                         this.loading = false;
                     }
@@ -338,10 +480,10 @@
                         const data = await response.json();
                         await this.loadReports();
                         await this.loadStats();
-                        alert(`Rescan complete! Indexed ${data.count} reports.`);
+                        this.showToast(`重新扫描完成！已索引 ${data.count} 个报告`, 'success');
                     } catch (error) {
                         console.error('Failed to rescan:', error);
-                        alert('Failed to rescan reports. Please check the console.');
+                        this.showToast('重新扫描失败', 'error');
                     }
                 },
                 

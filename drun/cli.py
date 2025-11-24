@@ -2160,7 +2160,7 @@ def convert_openapi(
 @app.command("serve")
 def serve_reports(
     port: int = typer.Option(8080, "--port", help="监听端口"),
-    host: str = typer.Option("127.0.0.1", "--host", help="监听地址 (0.0.0.0 允许外部访问)"),
+    host: str = typer.Option("0.0.0.0", "--host", help="监听地址 (0.0.0.0 允许外部访问)"),
     reports_dir: str = typer.Option("reports", "--reports-dir", help="报告目录路径"),
     reload: bool = typer.Option(False, "--reload/--no-reload", help="开发模式（热重载）"),
     open_browser: bool = typer.Option(True, "--open/--no-open", help="自动打开浏览器"),
@@ -2175,22 +2175,28 @@ def serve_reports(
         typer.echo("Install them with: pip install fastapi uvicorn")
         raise typer.Exit(code=1)
     
-    # Ensure reports directory exists
-    reports_path = Path(reports_dir)
+    # Convert to absolute path and ensure directory exists
+    reports_path = Path(reports_dir).resolve()
     if not reports_path.exists():
         typer.echo(f"[WARN] Reports directory not found: {reports_dir}")
         typer.echo(f"[INFO] Creating directory: {reports_dir}")
         reports_path.mkdir(parents=True, exist_ok=True)
     
+    # Pass absolute path to server via environment variable
+    os.environ["DRUN_REPORTS_DIR"] = str(reports_path)
+    
     url = f"http://{host}:{port}"
     typer.echo(f"[SERVER] Starting Drun Report Server")
     typer.echo(f"[SERVER] Web UI: {url}")
     typer.echo(f"[SERVER] API docs: {url}/docs")
-    typer.echo(f"[SERVER] Reports directory: {reports_path.resolve()}")
+    typer.echo(f"[SERVER] Reports directory: {reports_path}")
+    typer.echo(f"[SERVER] Listening on: {host}:{port}")
+    if host == "0.0.0.0":
+        typer.echo(f"[SERVER] ⚠️  Server is accessible from public network")
     typer.echo(f"[SERVER] Press Ctrl+C to stop")
     
-    if open_browser and not reload:
-        # Open browser after a short delay
+    if open_browser and not reload and host in ["127.0.0.1", "localhost"]:
+        # Open browser after a short delay (only for local access)
         threading.Timer(1.5, lambda: webbrowser.open(url)).start()
     
     try:

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import os
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from typing import Optional, List
 from pydantic import BaseModel
@@ -16,15 +16,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Initialize database
-db = ReportsDB()
+# Get reports directory from environment variable (absolute path)
+REPORTS_DIR = Path(os.getenv("DRUN_REPORTS_DIR", "reports")).resolve()
 
-# Mount static files (HTML reports)
-try:
-    app.mount("/static", StaticFiles(directory="reports"), name="static")
-except RuntimeError:
-    # Directory might not exist yet
-    pass
+# Initialize database with absolute path
+db = ReportsDB(db_path=str(REPORTS_DIR / "reports.db"))
 
 
 # Pydantic models
@@ -50,8 +46,12 @@ class ReportDetail(ReportSummary):
 @app.on_event("startup")
 async def startup_event():
     """Scan reports directory on startup"""
-    count = scan_and_index("reports", db)
-    print(f"[SERVER] Indexed {count} reports")
+    try:
+        count = scan_and_index(str(REPORTS_DIR), db)
+        print(f"[SERVER] Indexed {count} reports from {REPORTS_DIR}")
+    except Exception as e:
+        print(f"[SERVER] Failed to index reports: {e}")
+        # Don't crash - allow server to continue starting
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -131,13 +131,115 @@ async def get_stats():
 
 @app.get("/reports/{file_name}")
 async def serve_report(file_name: str):
-    """Serve individual HTML report file"""
-    file_path = Path("reports") / file_name
-    if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(status_code=404, detail="Report file not found")
-    
+    """Serve individual HTML report file with back button"""
     # Security: prevent directory traversal
     if ".." in file_name or "/" in file_name or "\\" in file_name:
         raise HTTPException(status_code=400, detail="Invalid file name")
     
-    return FileResponse(file_path, media_type="text/html")
+    file_path = REPORTS_DIR / file_name
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Report file not found")
+    
+    # Read original HTML content
+    html_content = file_path.read_text(encoding="utf-8")
+    
+    # Inject back button style and adjust header to match list page
+    button_style = """
+    <style>
+        /* Override wrap styles to match list page */
+        .wrap {
+            max-width: 1400px !important;
+            padding: 0 20px 40px !important;
+        }
+        /* Override header styles to match list page */
+        .header-sticky {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 999 !important;
+            background: #ffffff !important;
+            padding: 16px 0 12px !important;
+            border-bottom: 1px solid #d0d7de !important;
+            margin-bottom: 20px !important;
+            box-shadow: none !important;
+        }
+        .headbar {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            gap: 12px !important;
+            margin-bottom: 12px !important;
+        }
+        /* Remove extra spacing - margin-bottom on header is enough */
+        .summary {
+            margin-top: 0 !important;
+        }
+        .back-to-list-btn {
+            padding: 0;
+            background: none;
+            color: #0969da;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: color 0.15s ease;
+            white-space: nowrap;
+        }
+        .back-to-list-btn:hover {
+            color: #1a7f37;
+            text-decoration: underline;
+        }
+        /* Override all button styles in detail page to text-only */
+        .toolbar button {
+            padding: 0 !important;
+            border: none !important;
+            background: none !important;
+            color: #0969da !important;
+            border-radius: 0 !important;
+            font-weight: 500 !important;
+        }
+        .toolbar button:hover {
+            color: #1a7f37 !important;
+            text-decoration: underline !important;
+            border-color: transparent !important;
+        }
+        .panel .p-head button {
+            padding: 0 !important;
+            border: none !important;
+            background: none !important;
+            color: #0969da !important;
+            border-radius: 0 !important;
+            font-size: 12px !important;
+        }
+        .panel .p-head button:hover {
+            color: #1a7f37 !important;
+            text-decoration: underline !important;
+            border-color: transparent !important;
+        }
+        .panel .p-head button.copied {
+            color: #1a7f37 !important;
+            background: none !important;
+            border: none !important;
+        }
+        .panel .p-head button.copy-failed {
+            color: #cf222e !important;
+            background: none !important;
+            border: none !important;
+        }
+    </style>
+    """
+    
+    # Replace .meta div with back button
+    import re
+    # Match: <div class='meta'>...</div>
+    pattern = r"<div class=['\"]meta['\"]>.*?</div>"
+    
+    # Replace meta div with just the back button
+    button_html = "<a href='/' class='back-to-list-btn'>返回列表</a>"
+    html_content = re.sub(pattern, button_html, html_content, count=1)
+    
+    # Inject style into <head>
+    if "</head>" in html_content:
+        html_content = html_content.replace("</head>", f"{button_style}</head>")
+    
+    return HTMLResponse(content=html_content)

@@ -47,6 +47,7 @@
 - ✅ **Format Conversion**: Import/export with cURL, Postman, HAR, OpenAPI
 - ✅ **Code Snippets**: Auto-generate executable Shell and Python scripts (v4.2)
 - ✅ **Unified Logging**: Consistent log format with timestamps (NEW in v5.0)
+- ✅ **Web Report Server**: Real-time HTML report viewing with SQLite database (NEW in v6.0)
 
 ## 🚀 Quick Start
 
@@ -540,6 +541,25 @@ steps:
 ```
 
 ## 🔧 CLI Reference
+
+### Web Report Server (NEW in v6.0)
+
+```bash
+# Start report server
+drun serve
+
+# Custom port and options
+drun serve --port 8080 --no-open
+
+# Server will be accessible at http://0.0.0.0:8080
+# Features:
+# - Auto-scans reports/ directory
+# - Real-time report indexing with SQLite
+# - Paginated list view (15 reports per page)
+# - Detailed report view with back navigation
+# - Statistics dashboard
+# - RESTful API at /api/reports
+```
 
 ### Run Tests
 
@@ -1157,6 +1177,28 @@ testcases:
 No changes required! v4.0 adds new features without breaking existing tests.
 
 ## 📝 Version History
+
+### v6.0.0 (2024-11-25) - Web Report Server
+- **NEW**: Web-based report server with live indexing
+  - Real-time HTML report viewing at `http://0.0.0.0:8080`
+  - Automatic report scanning and indexing
+  - SQLite-based report database for fast querying
+  - RESTful API for report management
+  - Responsive UI with Alpine.js
+  - Command: `drun serve --port 8080 --no-open`
+- **NEW**: Report list page with comprehensive features
+  - Statistics cards (total reports, passed/failed counts, average duration)
+  - Sortable table with report metadata (status, name, time, environment, stats)
+  - Pagination support (15 items per page)
+  - Chinese localization
+  - Clean minimalist design
+- **NEW**: Report detail page enhancements
+  - Dynamic back button injection
+  - Unified styling with list page (1400px max-width, consistent header spacing)
+  - Text-only button styles (no borders/backgrounds)
+  - All toolbar buttons converted to link-style
+- **IMPROVED**: Public network access support with 0.0.0.0 binding
+- **IMPROVED**: Report scanning with HTML badge parsing fallback
 
 ### v5.0.1 (2024-11-24) - Documentation Cleanup
 - **IMPROVED**: Simplified documentation structure
