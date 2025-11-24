@@ -44,6 +44,7 @@
 - ✅ **JSON/Allure**: Structured results for CI/CD pipelines
 - ✅ **Notifications**: Feishu, DingTalk, Email alerts on failure
 - ✅ **Format Conversion**: Import/export with cURL, Postman, HAR, OpenAPI
+- ✅ **Code Snippets**: Auto-generate executable Shell and Python scripts (NEW in v4.2)
 
 ## 🚀 Quick Start
 
@@ -68,6 +69,7 @@ my-api-test/
 ├── testcases/          # Individual test cases
 ├── testsuites/         # Test suite orchestration
 ├── data/               # CSV and test data
+├── snippets/           # Auto-generated code snippets
 ├── .env                # Environment variables
 ├── drun_hooks.py       # Custom functions
 └── README.md
@@ -389,6 +391,99 @@ steps:
 
 See [EXPORT_CSV_GUIDE.md](EXPORT_CSV_GUIDE.md) for complete documentation.
 
+### Code Snippets (NEW in v4.2)
+
+Automatically generate executable Shell and Python scripts from test steps, similar to Postman's code snippet feature:
+
+```bash
+# Run test - code snippets are generated automatically
+$ drun run testcases/test_login.yaml
+
+[SUCCESS] test_login.yaml (3 steps passed)
+[SNIPPET] Code snippets saved to snippets/20251124-143025/
+  - step1_login_curl.sh
+  - step1_login_python.py
+  - step2_get_user_info_curl.sh
+  - step2_get_user_info_python.py
+  - step3_update_profile_curl.sh
+  - step3_update_profile_python.py
+```
+
+**Generated Shell script (step1_login_curl.sh):**
+```bash
+#!/bin/bash
+set -e  # Exit on error
+
+echo "=== Step 1: Login ==="
+
+curl -X POST 'https://api.example.com/api/v1/login' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{"username":"admin","password":"pass123"}'
+
+echo ""
+echo "✅ Request completed"
+```
+
+**Generated Python script (step1_login_python.py):**
+```python
+#!/usr/bin/env python3
+import requests
+import json
+import sys
+
+def main():
+    print("=== Step 1: Login ===")
+    
+    response = requests.post(
+        url='https://api.example.com/api/v1/login',
+        headers={'Content-Type': 'application/json'},
+        json={'username': 'admin', 'password': 'pass123'},
+        timeout=30.0
+    )
+    
+    print(f"Status: {response.status_code}")
+    print(json.dumps(response.json(), indent=2, ensure_ascii=False))
+    print("\n✅ Request completed")
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as e:
+        print(f"❌ Error: {e}", file=sys.stderr)
+        sys.exit(1)
+```
+
+**Execute generated scripts:**
+```bash
+# Run shell script
+$ bash snippets/20251124-143025/step1_login_curl.sh
+
+# Run Python script
+$ python3 snippets/20251124-143025/step1_login_python.py
+```
+
+**CLI Options:**
+```bash
+# Disable snippet generation
+$ drun run testcases/test_api.yaml --no-snippet
+
+# Generate only Python scripts
+$ drun run testcases/test_api.yaml --snippet-lang python
+
+# Generate only curl scripts
+$ drun run testcases/test_api.yaml --snippet-lang curl
+
+# Custom output directory
+$ drun run testcases/test_api.yaml --snippet-output exports/
+```
+
+**Features:**
+- ✅ Each step generates independent executable files
+- ✅ Timestamp-based directory management (no overwrite)
+- ✅ Auto-detect variable dependencies with hints
+- ✅ Scripts include shebang and execute permissions
+- ✅ Support for all HTTP methods, headers, body, auth, timeout
+
 ### Custom Hooks
 
 **drun_hooks.py**
@@ -476,6 +571,9 @@ drun run testsuite_smoke.yaml
 - `--log-file FILE`: Write logs to file
 - `--notify CHANNELS`: Enable notifications (feishu, dingtalk, email)
 - `--notify-only POLICY`: Notification policy (always, failed, passed)
+- `--no-snippet`: Disable code snippet generation
+- `--snippet-output DIR`: Custom output directory for snippets (default: snippets/{timestamp}/)
+- `--snippet-lang LANG`: Generate snippets in specific language: all|curl|python (default: all)
 
 ### Format Conversion
 
@@ -1052,12 +1150,17 @@ No changes required! v4.0 adds new features without breaking existing tests.
 
 ## 📝 Version History
 
-### v4.2.0 (2024-11-24) - CSV Export Feature
-- **NEW**: Export API response arrays to CSV files
-- **NEW**: `export.csv` configuration with `data` and `file` fields
-- **NEW**: Support column selection, append mode, custom encoding
-- **NEW**: Full JMESPath syntax support (filter, slice, projection)
-- **NEW**: Complete error validation and friendly error messages
+### v4.2.0 (2024-11-24) - Code Snippet & CSV Export
+- **NEW**: Code Snippet - Auto-generate executable Shell and Python scripts from test steps
+  - Each step generates independent `.sh` and `.py` files with execute permissions
+  - Timestamp-based directory management (no overwrite history)
+  - Auto-detect variable dependencies with hints
+  - CLI options: `--no-snippet`, `--snippet-output`, `--snippet-lang`
+- **NEW**: CSV Export - Export API response arrays to CSV files
+  - `export.csv` configuration with `data` and `file` fields
+  - Support column selection, append mode, custom encoding
+  - Full JMESPath syntax support (filter, slice, projection)
+- **NEW**: Scaffolds auto-create `snippets/` directory
 - **NEW**: Usage guide documentation (EXPORT_CSV_GUIDE.md)
 
 ### v4.0.0 (2024-11-20) - Postman-Like Variable Management
