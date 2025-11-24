@@ -149,7 +149,7 @@ async def serve_report(file_name: str):
         /* Override wrap styles to match list page - use higher specificity */
         body .wrap,
         .wrap {
-            max-width: 1400px !important;
+            max-width: 1440px !important;
             margin-left: auto !important;
             margin-right: auto !important;
             padding: 0 20px 40px !important;
