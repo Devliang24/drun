@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drun Test Reports</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: #f5f5f5; 
+            padding: 20px;
+            color: #333;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* Header */
+        header { margin-bottom: 30px; }
+        h1 { 
+            font-size: 28px; 
+            margin-bottom: 10px; 
+            color: #1a1a1a;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .subtitle { color: #666; font-size: 14px; }
+        
+        /* Stats Cards */
+        .stats { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px; 
+            margin-bottom: 25px; 
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+        .stat-card h3 { 
+            font-size: 13px; 
+            color: #666; 
+            margin-bottom: 10px; 
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .stat-card .value { 
+            font-size: 36px; 
+            font-weight: bold; 
+            color: #1a1a1a;
+        }
+        .stat-card.green .value { color: #4CAF50; }
+        .stat-card.red .value { color: #f44336; }
+        .stat-card.blue .value { color: #2196F3; }
+        
+        /* Filters */
+        .filters { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filters input, .filters select {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .filters input:focus, .filters select:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        .filters input { min-width: 200px; }
+        .filters button {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .filters button:hover { background: #45a049; }
+        .filters button.secondary {
+            background: #2196F3;
+        }
+        .filters button.secondary:hover { background: #1976D2; }
+        
+        /* Reports Table */
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+        }
+        th, td { 
+            padding: 14px 16px; 
+            text-align: left; 
+            border-bottom: 1px solid #f0f0f0;
+        }
+        th { 
+            background: #4CAF50; 
+            color: white; 
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        tbody tr { transition: background 0.2s; }
+        tbody tr.success { background: #f1f8f4; }
+        tbody tr.failed { background: #ffebee; }
+        tbody tr:hover { background: #fafafa !important; }
+        
+        .failed-count { color: #d32f2f; font-weight: 600; }
+        a { color: #2196F3; text-decoration: none; transition: color 0.2s; }
+        a:hover { color: #1976D2; text-decoration: underline; }
+        
+        .badge { 
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge.success { background: #4CAF50; color: white; }
+        .badge.failed { background: #f44336; color: white; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            h1 { font-size: 22px; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .filters { flex-direction: column; }
+            .filters input, .filters select, .filters button { width: 100%; }
+            table { font-size: 13px; }
+            th, td { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="reportsApp()">
+        <header>
+            <h1>
+                <span>📊</span>
+                <span>Drun Test Reports</span>
+            </h1>
+            <p class="subtitle">Lightweight test report server with SQLite persistence</p>
+        </header>
+        
+        <!-- Stats Cards -->
+        <div class="stats">
+            <div class="stat-card">
+                <h3>📁 Total Reports</h3>
+                <div class="value" x-text="stats.total_reports || 0"></div>
+            </div>
+            <div class="stat-card green">
+                <h3>✅ Total Passed</h3>
+                <div class="value" x-text="stats.passed_cases || 0"></div>
+            </div>
+            <div class="stat-card red">
+                <h3>❌ Total Failed</h3>
+                <div class="value" x-text="stats.failed_cases || 0"></div>
+            </div>
+            <div class="stat-card blue">
+                <h3>⏱ Avg Duration</h3>
+                <div class="value" x-text="((stats.avg_duration_ms || 0) / 1000).toFixed(1) + 's'"></div>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <div class="filters">
+            <input 
+                type="text" 
+                placeholder="🔍 Search system name..." 
+                x-model="filters.system_name"
+                @keyup.enter="loadReports()">
+            <select x-model="filters.status">
+                <option value="all">All Status</option>
+                <option value="passed">✅ Passed</option>
+                <option value="failed">❌ Failed</option>
+            </select>
+            <select x-model="filters.environment">
+                <option value="">All Environments</option>
+                <option value="dev">Dev</option>
+                <option value="staging">Staging</option>
+                <option value="prod">Prod</option>
+            </select>
+            <button @click="loadReports()">🔍 Search</button>
+            <button class="secondary" @click="rescan()">🔄 Rescan</button>
+        </div>
+        
+        <!-- Reports Table -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">Status</th>
+                        <th style="width: 180px;">Time</th>
+                        <th>System</th>
+                        <th style="width: 100px;">Environment</th>
+                        <th style="width: 80px;">Total</th>
+                        <th style="width: 80px;">Passed</th>
+                        <th style="width: 80px;">Failed</th>
+                        <th style="width: 100px;">Pass Rate</th>
+                        <th style="width: 100px;">Duration</th>
+                    </tr>
+                </thead>
+                <tbody x-show="!loading && reports.length > 0">
+                    <template x-for="report in reports" :key="report.id">
+                        <tr :class="report.failed_cases > 0 ? 'failed' : 'success'">
+                            <td>
+                                <span 
+                                    class="badge" 
+                                    :class="report.failed_cases > 0 ? 'failed' : 'success'" 
+                                    x-text="report.failed_cases > 0 ? '❌' : '✅'">
+                                </span>
+                            </td>
+                            <td>
+                                <a 
+                                    :href="'/reports/' + report.file_name" 
+                                    target="_blank" 
+                                    x-text="formatTime(report.run_time)">
+                                </a>
+                            </td>
+                            <td x-text="report.system_name || 'Unknown'"></td>
+                            <td x-text="report.environment || '-'"></td>
+                            <td x-text="report.total_cases"></td>
+                            <td x-text="report.passed_cases"></td>
+                            <td class="failed-count" x-text="report.failed_cases"></td>
+                            <td x-text="calcPassRate(report)"></td>
+                            <td x-text="(report.duration_ms / 1000).toFixed(1) + 's'"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            
+            <!-- Empty State -->
+            <div class="empty-state" x-show="!loading && reports.length === 0">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <h3>No reports found</h3>
+                <p>Run some tests to generate reports, then click "Rescan" to refresh.</p>
+            </div>
+            
+            <!-- Loading State -->
+            <div class="loading" x-show="loading">
+                <p>Loading reports...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function reportsApp() {
+            return {
+                reports: [],
+                stats: {},
+                loading: true,
+                filters: {
+                    system_name: '',
+                    status: 'all',
+                    environment: ''
+                },
+                
+                async init() {
+                    await this.loadReports();
+                    await this.loadStats();
+                    this.loading = false;
+                },
+                
+                async loadReports() {
+                    this.loading = true;
+                    try {
+                        const params = new URLSearchParams();
+                        if (this.filters.system_name) params.append('system_name', this.filters.system_name);
+                        if (this.filters.status !== 'all') params.append('status', this.filters.status);
+                        if (this.filters.environment) params.append('environment', this.filters.environment);
+                        
+                        const response = await fetch('/api/reports?' + params.toString());
+                        this.reports = await response.json();
+                    } catch (error) {
+                        console.error('Failed to load reports:', error);
+                        alert('Failed to load reports. Please check the console.');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async loadStats() {
+                    try {
+                        const response = await fetch('/api/stats');
+                        this.stats = await response.json();
+                    } catch (error) {
+                        console.error('Failed to load stats:', error);
+                    }
+                },
+                
+                async rescan() {
+                    try {
+                        const response = await fetch('/api/reports/rescan', { method: 'POST' });
+                        const data = await response.json();
+                        await this.loadReports();
+                        await this.loadStats();
+                        alert(`Rescan complete! Indexed ${data.count} reports.`);
+                    } catch (error) {
+                        console.error('Failed to rescan:', error);
+                        alert('Failed to rescan reports. Please check the console.');
+                    }
+                },
+                
+                formatTime(isoString) {
+                    if (!isoString) return '-';
+                    try {
+                        const date = new Date(isoString);
+                        return date.toLocaleString('zh-CN', { 
+                            year: 'numeric', 
+                            month: '2-digit', 
+                            day: '2-digit',
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
+                    } catch {
+                        return isoString;
+                    }
+                },
+                
+                calcPassRate(report) {
+                    if (report.total_cases === 0) return '0%';
+                    return ((report.passed_cases / report.total_cases * 100) || 0).toFixed(1) + '%';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
