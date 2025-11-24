@@ -1178,6 +1178,13 @@ No changes required! v4.0 adds new features without breaking existing tests.
 
 ## 📝 Version History
 
+### v6.0.1 (2024-11-25) - Web Report Server Refinements
+- **FIXED**: Width adjustments for better layout consistency
+  - List page: 1460px container (1420px content area)
+  - Detail page: 1400px container (1360px content area)
+  - Enhanced CSS specificity for reliable width override
+  - Table layout fixed to ensure full container width usage
+
 ### v6.0.0 (2024-11-25) - Web Report Server
 - **NEW**: Web-based report server with live indexing
   - Real-time HTML report viewing at `http://0.0.0.0:8080`
@@ -1194,7 +1201,7 @@ No changes required! v4.0 adds new features without breaking existing tests.
   - Clean minimalist design
 - **NEW**: Report detail page enhancements
   - Dynamic back button injection
-  - Unified styling with list page (1400px max-width, consistent header spacing)
+  - Unified styling with list page (consistent header spacing)
   - Text-only button styles (no borders/backgrounds)
   - All toolbar buttons converted to link-style
 - **IMPROVED**: Public network access support with 0.0.0.0 binding
