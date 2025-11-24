@@ -223,6 +223,91 @@ def parse_kv(items: List[str]) -> Dict[str, str]:
     return out
 
 
+def _sanitize_name(name: str) -> str:
+    """清理文件名，移除特殊字符"""
+    import re
+    name = name.lower()
+    name = name.replace(' ', '_')
+    name = name.replace('/', '_')
+    name = name.replace('-', '_')
+    # 移除其他特殊字符
+    name = re.sub(r'[^\w_]', '', name)
+    return name
+
+
+def _save_code_snippets(
+    items: List[tuple[Case, Dict[str, str]]],
+    output_dir: Optional[str],
+    languages: str,
+    env_store: Dict[str, Any],
+    timestamp: str
+):
+    """保存代码片段到文件"""
+    from pathlib import Path
+    from drun.exporters.snippet import SnippetGenerator
+    
+    generator = SnippetGenerator()
+    
+    # 确定输出目录
+    if output_dir:
+        # 用户指定了目录，直接使用（不添加时间戳子目录）
+        target_dir = Path(output_dir)
+    else:
+        # 默认行为：使用 snippets/{timestamp}/
+        target_dir = Path("snippets") / timestamp
+    
+    target_dir.mkdir(parents=True, exist_ok=True)
+    
+    saved_files = []
+    is_multi_case = len(items) > 1
+    
+    for case, meta in items:
+        case_name = case.config.name or Path(meta.get('file', 'snippet')).stem
+        safe_case_name = _sanitize_name(case_name)
+        
+        # 遍历每个 step
+        for step_idx, step in enumerate(case.steps):
+            step_num = step_idx + 1
+            safe_step_name = _sanitize_name(step.name)
+            
+            # 生成文件名
+            if is_multi_case:
+                # 多个用例：step{N}_{case}_{step}_{lang}.{ext}
+                file_prefix = f"step{step_num}_{safe_case_name}_{safe_step_name}"
+            else:
+                # 单个用例：step{N}_{step}_{lang}.{ext}
+                file_prefix = f"step{step_num}_{safe_step_name}"
+            
+            # 确定要生成的语言
+            langs = ['curl', 'python'] if languages == 'all' else [languages]
+            
+            # 生成 Shell 脚本
+            if 'curl' in langs:
+                shell_file = target_dir / f"{file_prefix}_curl.sh"
+                content = generator.generate_shell_script_for_step(
+                    case, step_idx, len(case.steps), env_store
+                )
+                shell_file.write_text(content, encoding='utf-8')
+                shell_file.chmod(0o755)  # 添加执行权限
+                saved_files.append(shell_file.name)
+            
+            # 生成 Python 脚本
+            if 'python' in langs:
+                python_file = target_dir / f"{file_prefix}_python.py"
+                content = generator.generate_python_script_for_step(
+                    case, step_idx, len(case.steps), env_store
+                )
+                python_file.write_text(content, encoding='utf-8')
+                python_file.chmod(0o755)  # 添加执行权限
+                saved_files.append(python_file.name)
+    
+    # 输出保存信息
+    if saved_files:
+        typer.echo(f"[SNIPPET] Code snippets saved to {target_dir}/")
+        for file in saved_files:
+            typer.echo(f"  - {file}")
+
+
 def load_env_file(path: Optional[str]) -> Dict[str, str]:
     # Kept for backward compat; now handled in load_environment
     if not path:
@@ -1101,6 +1186,9 @@ def run(
         show_default=False,
     ),
     notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="在邮件中附加 HTML 报告（如果启用邮件）", show_default=False),
+    no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（默认会自动生成到 snippets/ 目录）"),
+    snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
+    snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
 ):
     """运行测试用例或测试套件"""
     # default timestamp; set up console logging first (no file) to avoid writing to a wrong file
@@ -1446,6 +1534,13 @@ def run(
         # never break main flow for notifications
         log.error("[NOTIFY] Notification module error: %s", str(e))
 
+    # 生成代码片段（默认行为）
+    if not no_snippet:
+        try:
+            _save_code_snippets(items, snippet_output, snippet_lang, env_store, ts)
+        except Exception as e:
+            log.error("[SNIPPET] Failed to generate code snippets: %s", str(e))
+
     log.info("[CASE] Logs written to %s", default_log)
     if s.get("failed", 0) > 0:
         raise typer.Exit(code=1)
@@ -1782,6 +1877,7 @@ def init_project(
         "converts": "格式转换源文件目录",
         "reports": "报告输出目录",
         "logs": "日志输出目录",
+        "snippets": "代码片段输出目录",
         ".github/workflows": "GitHub Actions 工作流目录",
     }
 
@@ -1794,8 +1890,8 @@ def init_project(
     for subdir in convert_subdirs:
         (target_dir / "converts" / subdir).mkdir(parents=True, exist_ok=True)
 
-    # 在 reports 和 logs 目录放置 .gitkeep
-    for empty_dir in ["reports", "logs"]:
+    # 在 reports、logs 和 snippets 目录放置 .gitkeep
+    for empty_dir in ["reports", "logs", "snippets"]:
         gitkeep_path = target_dir / empty_dir / ".gitkeep"
         gitkeep_path.write_text(scaffolds.GITKEEP_CONTENT, encoding="utf-8")
 
@@ -1906,6 +2002,7 @@ def init_project(
         ("│       └── ", "sample_openapi.json", "OpenAPI 规范"),
         ("├── ", "reports/", "测试报告输出目录"),
         ("├── ", "logs/", "运行日志输出目录"),
+        ("├── ", "snippets/", "代码片段输出目录"),
         ("├── ", ".github/", "GitHub 配置目录"),
         ("│   └── ", "workflows/", "GitHub Actions 工作流"),
         ("│       └── ", "test.yml", "默认 CI 流水线"),
@@ -1926,7 +2023,7 @@ def init_project(
         else:
             typer.echo(full)
     typer.echo("")
-    typer.echo("9 directories, 19 files")
+    typer.echo("10 directories, 19 files")
 
     if skipped_files:
         typer.echo("")
