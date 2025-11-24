@@ -1,6 +1,6 @@
 # Drun — Modern HTTP API Testing Framework
 
-[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-5.0.0-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -22,9 +22,10 @@
 - ✅ **Dollar Templating**: `$var` and `${func(...)}` for dynamic values
 - ✅ **Rich Assertions**: 12 validators (eq, ne, lt, contains, regex, len_eq, etc.)
 - ✅ **Data-Driven**: CSV parameters for batch testing
-- ✅ **CSV Export**: Export API response arrays to CSV files (NEW in v4.2)
+- ✅ **CSV Export**: Export API response arrays to CSV files (v4.2)
 - ✅ **Streaming Support**: SSE (Server-Sent Events) with per-event assertions
 - ✅ **File Uploads**: Multipart/form-data support
+- ✅ **Smart File Discovery**: Run tests without `.yaml` extension (NEW in v5.0)
 
 ### Variable Management (NEW in v4.0)
 - ✅ **Auto-Persist**: Extracted variables automatically saved to `.env`
@@ -44,7 +45,8 @@
 - ✅ **JSON/Allure**: Structured results for CI/CD pipelines
 - ✅ **Notifications**: Feishu, DingTalk, Email alerts on failure
 - ✅ **Format Conversion**: Import/export with cURL, Postman, HAR, OpenAPI
-- ✅ **Code Snippets**: Auto-generate executable Shell and Python scripts (NEW in v4.2)
+- ✅ **Code Snippets**: Auto-generate executable Shell and Python scripts (v4.2)
+- ✅ **Unified Logging**: Consistent log format with timestamps (NEW in v5.0)
 
 ## 🚀 Quick Start
 
@@ -123,17 +125,18 @@ steps:
 ### Run Tests
 
 ```bash
-# Run single test
+# Run single test (with or without .yaml extension)
 drun run testcases/test_user_api.yaml
+drun run test_user_api
 
 # Run with HTML report
-drun run testcases/test_user_api.yaml --html reports/report.html
+drun run test_user_api --html reports/report.html
 
 # Run with tag filtering
 drun run testcases -k "smoke and not slow"
 
 # Run test suite
-drun run testsuites/testsuite_e2e.yaml
+drun run testsuite_e2e
 ```
 
 ## 📚 Core Concepts
@@ -396,17 +399,18 @@ See [EXPORT_CSV_GUIDE.md](EXPORT_CSV_GUIDE.md) for complete documentation.
 Automatically generate executable Shell and Python scripts from test steps, similar to Postman's code snippet feature:
 
 ```bash
-# Run test - code snippets are generated automatically
-$ drun run testcases/test_login.yaml
+# Run test - code snippets are generated automatically (extension optional in v5.0)
+$ drun run test_login
 
-[SUCCESS] test_login.yaml (3 steps passed)
-[SNIPPET] Code snippets saved to snippets/20251124-143025/
-  - step1_login_curl.sh
-  - step1_login_python.py
-  - step2_get_user_info_curl.sh
-  - step2_get_user_info_python.py
-  - step3_update_profile_curl.sh
-  - step3_update_profile_python.py
+2025-11-24 14:23:18.551 | INFO | [CASE] Total: 1 Passed: 1 Failed: 0 Skipped: 0
+2025-11-24 14:23:18.553 | INFO | [CASE] HTML report written to reports/report.html
+2025-11-24 14:23:18.559 | INFO | [SNIPPET] Code snippets saved to snippets/20251124-143025/
+2025-11-24 14:23:18.560 | INFO | [SNIPPET]   - step1_login_curl.sh
+2025-11-24 14:23:18.560 | INFO | [SNIPPET]   - step1_login_python.py
+2025-11-24 14:23:18.561 | INFO | [SNIPPET]   - step2_get_user_info_curl.sh
+2025-11-24 14:23:18.561 | INFO | [SNIPPET]   - step2_get_user_info_python.py
+2025-11-24 14:23:18.562 | INFO | [SNIPPET]   - step3_update_profile_curl.sh
+2025-11-24 14:23:18.562 | INFO | [SNIPPET]   - step3_update_profile_python.py
 ```
 
 **Generated Shell script (step1_login_curl.sh):**
@@ -464,17 +468,20 @@ $ python3 snippets/20251124-143025/step1_login_python.py
 
 **CLI Options:**
 ```bash
+# Extension optional (NEW in v5.0)
+$ drun run test_api
+
 # Disable snippet generation
-$ drun run testcases/test_api.yaml --no-snippet
+$ drun run test_api --no-snippet
 
 # Generate only Python scripts
-$ drun run testcases/test_api.yaml --snippet-lang python
+$ drun run test_api --snippet-lang python
 
 # Generate only curl scripts
-$ drun run testcases/test_api.yaml --snippet-lang curl
+$ drun run test_api --snippet-lang curl
 
 # Custom output directory
-$ drun run testcases/test_api.yaml --snippet-output exports/
+$ drun run test_api --snippet-output exports/
 ```
 
 **Features:**
@@ -540,6 +547,11 @@ steps:
 # Basic execution
 drun run PATH
 
+# Smart file discovery (NEW in v5.0) - extension optional
+drun run test_api_health              # Finds test_api_health.yaml or .yml
+drun run testcases/test_user          # Supports paths without extension
+drun run test_api_health.yaml         # Traditional format still works
+
 # With options
 drun run testcases/ \
   -k "smoke and not slow" \
@@ -550,10 +562,6 @@ drun run testcases/ \
   --allure-results allure-results \
   --mask-secrets \
   --failfast
-
-# Simplified filename (auto-searches testcases/ and testsuites/)
-drun run test_api.yaml
-drun run testsuite_smoke.yaml
 ```
 
 **Options:**
@@ -1149,6 +1157,17 @@ testcases:
 No changes required! v4.0 adds new features without breaking existing tests.
 
 ## 📝 Version History
+
+### v5.0.0 (2024-11-24) - Enhanced User Experience
+- **NEW**: Smart file discovery - Run tests without `.yaml`/`.yml` extension
+  - `drun run test_api_health` automatically finds `test_api_health.yaml` or `.yml`
+  - Supports paths: `drun run testcases/test_user`
+  - Auto-searches in `testcases/` and `testsuites/` directories
+  - Backward compatible: full filenames still work
+- **IMPROVED**: Unified logging format for code snippet generation
+  - Code snippet logs now include timestamps and log levels
+  - Consistent format with other log outputs: `YYYY-MM-DD HH:MM:SS.mmm | LEVEL | [TAG] message`
+- **IMPROVED**: Enhanced CLI usability with simplified command patterns
 
 ### v4.2.0 (2024-11-24) - Code Snippet & CSV Export
 - **NEW**: Code Snippet - Auto-generate executable Shell and Python scripts from test steps
