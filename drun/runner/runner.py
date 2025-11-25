@@ -40,6 +40,31 @@ class Runner:
     def _render(self, data: Any, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None) -> Any:
         return self.templater.render_value(data, variables, functions, envmap)
 
+    def _collect_render_diffs(self, original: Any, rendered: Any, path: str = "") -> List[tuple]:
+        """Collect before/after differences for variable substitution."""
+        diffs = []
+        if isinstance(original, str):
+            # Check if original contains variable references
+            if '$' in original and original != str(rendered):
+                diffs.append((original, rendered))
+        elif isinstance(original, dict) and isinstance(rendered, dict):
+            for key in original:
+                if key in rendered:
+                    diffs.extend(self._collect_render_diffs(original[key], rendered[key], f"{path}.{key}"))
+        elif isinstance(original, list) and isinstance(rendered, list):
+            for i, (o, r) in enumerate(zip(original, rendered)):
+                diffs.extend(self._collect_render_diffs(o, r, f"{path}[{i}]"))
+        return diffs
+
+    def _log_render_diffs(self, req_dict: Dict[str, Any], req_rendered: Dict[str, Any]) -> None:
+        """Log variable substitution before/after values."""
+        if not self.log:
+            return
+        diffs = self._collect_render_diffs(req_dict, req_rendered)
+        for orig, rendered in diffs:
+            rendered_str = str(rendered) if not isinstance(rendered, str) else rendered
+            self.log.info(f"[RENDER] {orig} → {rendered_str}")
+
     def _build_client(self, case: Case) -> HTTPClient:
         cfg = case.config
         return HTTPClient(
@@ -533,6 +558,9 @@ class Runner:
 
                 if self.log:
                     self.log.info(f"[STEP] Start: {rendered_step_name}")
+
+                    # Log variable substitution before/after values
+                    self._log_render_diffs(req_dict, req_rendered)
 
                     # Print step variables if present
                     step_vars = step.variables or {}
