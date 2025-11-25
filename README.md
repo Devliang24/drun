@@ -54,10 +54,28 @@
 ### Installation
 
 ```bash
-pip install drun
+# Install uv (if not installed)
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Create virtual environment
+uv venv
+source .venv/bin/activate  # macOS/Linux
+# .venv\Scripts\activate   # Windows
+
+# Install drun
+uv pip install drun
+
+# Update drun to latest version
+uv pip install --upgrade drun
 ```
 
 **Requirements**: Python 3.10+
+
+> 💡 推荐使用 [uv](https://docs.astral.sh/uv/) 管理虚拟环境。也支持传统方式：`pip install drun`
 
 ### Initialize a Project
 
@@ -127,17 +145,17 @@ steps:
 
 ```bash
 # Run single test (with or without .yaml extension)
-drun run testcases/test_user_api.yaml
-drun run test_user_api
+drun r testcases/test_user_api.yaml
+drun r test_user_api
 
 # Run with HTML report
-drun run test_user_api --html reports/report.html
+drun r test_user_api --html reports/report.html
 
 # Run with tag filtering
-drun run testcases -k "smoke and not slow"
+drun r testcases -k "smoke and not slow"
 
 # Run test suite
-drun run testsuite_e2e
+drun r testsuite_e2e
 ```
 
 ## 📚 Core Concepts
@@ -401,7 +419,7 @@ Automatically generate executable Shell and Python scripts from test steps, simi
 
 ```bash
 # Run test - code snippets are generated automatically (extension optional in v5.0)
-$ drun run test_login
+$ drun r test_login
 
 2025-11-24 14:23:18.551 | INFO | [CASE] Total: 1 Passed: 1 Failed: 0 Skipped: 0
 2025-11-24 14:23:18.553 | INFO | [CASE] HTML report written to reports/report.html
@@ -461,19 +479,19 @@ $ python3 snippets/20251124-143025/step1_login_python.py
 **CLI Options:**
 ```bash
 # Extension optional (NEW in v5.0)
-$ drun run test_api
+$ drun r test_api
 
 # Disable snippet generation
-$ drun run test_api --no-snippet
+$ drun r test_api --no-snippet
 
 # Generate only Python scripts
-$ drun run test_api --snippet-lang python
+$ drun r test_api --snippet-lang python
 
 # Generate only curl scripts
-$ drun run test_api --snippet-lang curl
+$ drun r test_api --snippet-lang curl
 
 # Custom output directory
-$ drun run test_api --snippet-output exports/
+$ drun r test_api --snippet-output exports/
 ```
 
 **Features:**
@@ -556,15 +574,15 @@ drun serve --port 8080 --no-open
 
 ```bash
 # Basic execution
-drun run PATH
+drun r PATH
 
 # Smart file discovery (NEW in v5.0) - extension optional
-drun run test_api_health              # Finds test_api_health.yaml or .yml
-drun run testcases/test_user          # Supports paths without extension
-drun run test_api_health.yaml         # Traditional format still works
+drun r test_api_health              # Finds test_api_health.yaml or .yml
+drun r testcases/test_user          # Supports paths without extension
+drun r test_api_health.yaml         # Traditional format still works
 
 # With options
-drun run testcases/ \
+drun r testcases/ \
   -k "smoke and not slow" \
   --vars api_key=secret \
   --env-file .env.staging \
@@ -671,7 +689,7 @@ drun --version
 ### HTML Reports
 
 ```bash
-drun run testcases --html reports/report.html --mask-secrets
+drun r testcases --html reports/report.html --mask-secrets
 ```
 
 **Features:**
@@ -685,7 +703,7 @@ drun run testcases --html reports/report.html --mask-secrets
 ### JSON Reports
 
 ```bash
-drun run testcases --report reports/results.json
+drun r testcases --report reports/results.json
 ```
 
 **Structure:**
@@ -713,7 +731,7 @@ drun run testcases --report reports/results.json
 
 ```bash
 # Generate Allure results
-drun run testcases --allure-results allure-results
+drun r testcases --allure-results allure-results
 
 # View Allure report
 allure serve allure-results
@@ -747,7 +765,7 @@ NOTIFY_ATTACH_HTML=true
 
 **Usage:**
 ```bash
-drun run testcases \
+drun r testcases \
   --notify feishu,email \
   --notify-only failed \
   --notify-attach-html
@@ -879,13 +897,13 @@ DB_HOST=db.example.com
 **Multi-environment:**
 ```bash
 # Development
-DRUN_ENV=dev drun run testsuites/testsuite_smoke.yaml
+DRUN_ENV=dev drun r testsuites/testsuite_smoke.yaml
 
 # Staging
-DRUN_ENV=staging drun run testsuites/testsuite_regression.yaml
+DRUN_ENV=staging drun r testsuites/testsuite_regression.yaml
 
 # Production (smoke tests only)
-DRUN_ENV=prod drun run testsuites/testsuite_smoke.yaml
+DRUN_ENV=prod drun r testsuites/testsuite_smoke.yaml
 ```
 
 ### Naming Conventions
@@ -915,9 +933,9 @@ tags: [db, data-verify]           # Database validation
 
 **Filtering:**
 ```bash
-drun run testcases -k "smoke"                    # Smoke tests only
-drun run testcases -k "regression and not slow"  # Fast regression
-drun run testcases -k "critical or e2e"          # Critical + E2E
+drun r testcases -k "smoke"                    # Smoke tests only
+drun r testcases -k "regression and not slow"  # Fast regression
+drun r testcases -k "critical or e2e"          # Critical + E2E
 ```
 
 ### CI/CD Integration
@@ -943,7 +961,7 @@ jobs:
       
       - name: Run Smoke Tests
         run: |
-          drun run testsuites/testsuite_smoke.yaml \
+          drun r testsuites/testsuite_smoke.yaml \
             --html reports/smoke.html \
             --report reports/smoke.json \
             --mask-secrets \
@@ -955,7 +973,7 @@ jobs:
       - name: Run Regression Tests
         if: github.event_name == 'pull_request'
         run: |
-          drun run testsuites/testsuite_regression.yaml \
+          drun r testsuites/testsuite_regression.yaml \
             --html reports/regression.html \
             --report reports/regression.json \
             --mask-secrets
@@ -973,7 +991,7 @@ jobs:
       - name: Notify on Failure
         if: failure()
         run: |
-          drun run testsuites/testsuite_smoke.yaml \
+          drun r testsuites/testsuite_smoke.yaml \
             --notify feishu \
             --notify-only failed
         env:
@@ -1207,8 +1225,8 @@ No changes required! v4.0 adds new features without breaking existing tests.
 
 ### v5.0.0 (2024-11-24) - Enhanced User Experience
 - **NEW**: Smart file discovery - Run tests without `.yaml`/`.yml` extension
-  - `drun run test_api_health` automatically finds `test_api_health.yaml` or `.yml`
-  - Supports paths: `drun run testcases/test_user`
+  - `drun r test_api_health` automatically finds `test_api_health.yaml` or `.yml`
+  - Supports paths: `drun r testcases/test_user`
   - Auto-searches in `testcases/` and `testsuites/` directories
   - Backward compatible: full filenames still work
 - **IMPROVED**: Unified logging format for code snippet generation
