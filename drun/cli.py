@@ -2211,5 +2211,17 @@ def serve_reports(
         typer.echo("\n[SERVER] Stopped")
 
 
+@app.command("s")
+def s(
+    port: int = typer.Option(8080, "--port", help="监听端口"),
+    host: str = typer.Option("0.0.0.0", "--host", help="监听地址 (0.0.0.0 允许外部访问)"),
+    reports_dir: str = typer.Option("reports", "--reports-dir", help="报告目录路径"),
+    reload: bool = typer.Option(False, "--reload/--no-reload", help="开发模式（热重载）"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="自动打开浏览器"),
+):
+    """启动报告服务器（serve 的简写）"""
+    serve_reports(port=port, host=host, reports_dir=reports_dir, reload=reload, open_browser=open_browser)
+
+
 if __name__ == "__main__":
     app()
