@@ -368,6 +368,12 @@ class Runner:
             if self.log:
                 self.log.info(f"[HOOK] setup expr -> {fn_label}")
             ret = self.templater.eval_expr(text, variables, fdict, envmap, extra_ctx=hook_ctx)
+            if self.log:
+                if isinstance(ret, (dict, list)):
+                    formatted = json.dumps(ret, ensure_ascii=False, indent=2)
+                    self.log.info(self._fmt_aligned("HOOK", f"{fn_label} returned", formatted))
+                else:
+                    self.log.info(f"[HOOK] {fn_label} returned: {ret!r}")
             if isinstance(ret, dict):
                 updated.update(ret)
         return updated
@@ -412,6 +418,12 @@ class Runner:
             if self.log:
                 self.log.info(f"[HOOK] teardown expr -> {fn_label}")
             ret = self.templater.eval_expr(text, variables, fdict, envmap, extra_ctx=hook_ctx)
+            if self.log:
+                if isinstance(ret, (dict, list)):
+                    formatted = json.dumps(ret, ensure_ascii=False, indent=2)
+                    self.log.info(self._fmt_aligned("HOOK", f"{fn_label} returned", formatted))
+                else:
+                    self.log.info(f"[HOOK] {fn_label} returned: {ret!r}")
             if isinstance(ret, dict):
                 updated.update(ret)
         return updated
