@@ -72,7 +72,7 @@ async def list_reports(
     offset: int = Query(0, ge=0, description="Number of reports to skip"),
     system_name: Optional[str] = Query(None, description="Filter by system name (partial match)"),
     environment: Optional[str] = Query(None, description="Filter by environment"),
-    status: Optional[str] = Query(None, regex="^(passed|failed|all)$", description="Filter by status"),
+    status: Optional[str] = Query(None, pattern="^(passed|failed|all)$", description="Filter by status"),
 ):
     """Get list of reports with optional filtering and pagination"""
     reports = db.list_reports(
@@ -149,7 +149,7 @@ async def serve_report(file_name: str):
         /* Override wrap styles to match list page - use higher specificity */
         body .wrap,
         .wrap {
-            max-width: 1400px !important;
+            max-width: 1310px !important;
             margin-left: auto !important;
             margin-right: auto !important;
             padding: 0 20px 40px !important;
