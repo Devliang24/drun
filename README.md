@@ -555,13 +555,13 @@ steps:
 
 ```bash
 # Start report server
-drun serve
+drun s
 
 # Custom port and options
-drun serve --port 8080 --no-open
+drun s --port 8080 --no-open
 
 # Development mode with auto-reload
-drun serve --reload
+drun s --reload
 
 # Server will be accessible at http://0.0.0.0:8080
 # Features:
@@ -1204,7 +1204,7 @@ No changes required! v4.0 adds new features without breaking existing tests.
   - SQLite-based report database for fast querying
   - RESTful API for report management
   - Responsive UI with Alpine.js
-  - Command: `drun serve --port 8080 --no-open`
+  - Command: `drun s --port 8080 --no-open`
 - **NEW**: Report list page with comprehensive features
   - Statistics cards (total reports, passed/failed counts, average duration)
   - Sortable table with report metadata (status, name, time, environment, stats)
