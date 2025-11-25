@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "drun"
 version = "6.1.0"
-description = "Minimal HTTP API test runner (MVP)"
+description = "Simple YAML-based API testing for DevOps automation"
 requires-python = ">=3.10"
 authors = [{ name = "Drun Team" }]
 readme = "README.md"
