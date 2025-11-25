@@ -440,7 +440,7 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
   .panel .p-head button:hover { border-color:var(--accent); }
   .panel .p-head button.copied { border-color:var(--ok); background:#dafbe1; color:var(--ok); font-weight:500; }
   .panel .p-head button.copy-failed { border-color:var(--fail); background:#ffebe9; color:var(--fail); font-weight:500; }
-  .footer { margin-top: 24px; color: var(--muted); font-size: 12px; }
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; padding: 12px 0; background: #ffffff; border-top: 1px solid #d0d7de; color: var(--muted); font-size: 12px; }
   .collapsed .body { display: none; }
   /* Streaming response styles */
   .stream-stats { display: flex; gap: 6px; margin-left: auto; margin-right: 8px; }
