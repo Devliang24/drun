@@ -560,6 +560,9 @@ drun serve
 # Custom port and options
 drun serve --port 8080 --no-open
 
+# Development mode with auto-reload
+drun serve --reload
+
 # Server will be accessible at http://0.0.0.0:8080
 # Features:
 # - Auto-scans reports/ directory
