@@ -431,31 +431,22 @@ echo "✅ Request completed"
 
 **Generated Python script (step1_login_python.py):**
 ```python
-#!/usr/bin/env python3
 import requests
 import json
-import sys
 
-def main():
-    print("=== Step 1: Login ===")
-    
-    response = requests.post(
-        url='https://api.example.com/api/v1/login',
-        headers={'Content-Type': 'application/json'},
-        json={'username': 'admin', 'password': 'pass123'},
-        timeout=30.0
-    )
-    
-    print(f"Status: {response.status_code}")
-    print(json.dumps(response.json(), indent=2, ensure_ascii=False))
-    print("\n✅ Request completed")
+url = "https://api.example.com/api/v1/login"
 
-if __name__ == '__main__':
-    try:
-        main()
-    except Exception as e:
-        print(f"❌ Error: {e}", file=sys.stderr)
-        sys.exit(1)
+payload = json.dumps({
+  "username": "admin",
+  "password": "pass123"
+})
+headers = {
+  "Content-Type": "application/json"
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
 ```
 
 **Execute generated scripts:**
