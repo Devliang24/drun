@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any, List, Dict
 
-from drun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult
+from drun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult, NotifyResult
 from drun.utils.config import get_system_name
 
 
@@ -344,11 +344,23 @@ def _build_case(case: CaseInstanceResult) -> str:
 
     meta_html = f" <span class='case-meta st-meta'>{_escape_html(case_meta)}</span>" if case_meta else ""
 
+    # Notification info
+    notify_channels = ", ".join(case.notify_channels) if case.notify_channels else "-"
+    status_icons = []
+    for r in case.notify_results:
+        if r.status == "success":
+            status_icons.append(f"<span class='ok'>✓</span>")
+        else:
+            status_icons.append(f"<span class='err'>✗</span>")
+    notify_status = " ".join(status_icons) if status_icons else "-"
+
     head = (
         "<div class='head'>"
         f"<div><div><b>用例：</b>{_escape_html(case.name)}{meta_html}</div>{params_html}</div>"
         f"<div><span class='pill {case.status}'>{case.status}</span>"
-        f"<span class='muted' style='margin-left:8px;'>{case.duration_ms:.1f} ms</span></div>"
+        f"<span class='muted' style='margin-left:8px;'>{case.duration_ms:.1f} ms</span>"
+        f"<span class='muted' style='margin-left:8px;'>通知: {_escape_html(notify_channels)}</span>"
+        f"<span class='muted' style='margin-left:8px;'>状态: {notify_status}</span></div>"
         "</div>"
     )
 
