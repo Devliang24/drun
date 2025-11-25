@@ -4,6 +4,11 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
+class NotifyResult(BaseModel):
+    channel: str   # feishu, email, dingtalk
+    status: str    # success, failed
+
+
 class AssertionResult(BaseModel):
     check: str
     comparator: str
@@ -34,6 +39,9 @@ class CaseInstanceResult(BaseModel):
     duration_ms: float = 0.0
     # Optional source file path for better reporting grouping (e.g., Allure suite label)
     source: Optional[str] = None
+    # Notification info
+    notify_channels: List[str] = Field(default_factory=list)
+    notify_results: List[NotifyResult] = Field(default_factory=list)
 
 
 class RunReport(BaseModel):

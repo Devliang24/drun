@@ -22,7 +22,7 @@ from drun.models.config import Config
 from drun.models.request import StepRequest
 from drun.models.step import Step
 from drun.models.validators import Validator
-from drun.models.report import RunReport
+from drun.models.report import RunReport, NotifyResult
 from drun.reporter.json_reporter import write_json
 from drun.runner.runner import Runner
 from drun.templating.engine import TemplateEngine
@@ -1512,14 +1512,40 @@ def _run_impl(
                     )
 
             log.info("[NOTIFY] Sending notifications via %d notifier(s)", len(notifiers))
+            
+            # Map notifier class name to channel name
+            notifier_channel_map = {
+                "FeishuNotifier": "feishu",
+                "EmailNotifier": "email",
+                "DingTalkNotifier": "dingtalk",
+            }
+            
+            # Set notify_channels for all cases
+            active_channels = [notifier_channel_map.get(n.__class__.__name__, n.__class__.__name__.lower()) for n in notifiers]
+            for case in report_obj.cases:
+                case.notify_channels = active_channels.copy()
+            
+            # Send notifications and collect results
+            notify_results: List[NotifyResult] = []
             for n in notifiers:
+                notifier_name = n.__class__.__name__
+                channel = notifier_channel_map.get(notifier_name, notifier_name.lower())
                 try:
-                    notifier_name = n.__class__.__name__
                     log.info("[NOTIFY] Sending via %s...", notifier_name)
                     n.send(report_obj, ctx)
                     log.info("[NOTIFY] %s notification sent successfully", notifier_name)
+                    notify_results.append(NotifyResult(channel=channel, status="success"))
                 except Exception as e:
-                    log.error("[NOTIFY] Failed to send via %s: %s", n.__class__.__name__, str(e))
+                    log.error("[NOTIFY] Failed to send via %s: %s", notifier_name, str(e))
+                    notify_results.append(NotifyResult(channel=channel, status="failed"))
+            
+            # Update notify_results for all cases
+            for case in report_obj.cases:
+                case.notify_results = notify_results.copy()
+            
+            # Regenerate HTML report with notification info
+            write_html(report_obj, html_target)
+            log.info("[NOTIFY] HTML report updated with notification status")
     except Exception as e:
         # never break main flow for notifications
         log.error("[NOTIFY] Notification module error: %s", str(e))
