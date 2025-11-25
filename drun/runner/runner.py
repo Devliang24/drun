@@ -15,6 +15,7 @@ from drun.templating.engine import TemplateEngine
 from drun.runner.extractors import extract_from_body
 from drun.runner.assertions import compare
 from drun.utils.curl import to_curl
+from drun.utils.logging import Colors
 from drun.utils.mask import mask_body, mask_headers
 
 
@@ -866,14 +867,16 @@ class Runner:
                             prefix = f"[VALIDATION] {check_str} {v.comparator} {expect_fmt} => actual="
                             indent_len = len(prefix.split("\n")[-1])
                             actual_fmt = self._format_log_value(actual, prefix_len=indent_len)
-                            self.log.error(prefix + actual_fmt + f" | FAIL | {msg}")
+                            fail_tag = f"{Colors.RED}FAIL{Colors.RESET}"
+                            self.log.error(prefix + actual_fmt + f" | {fail_tag}")
                     else:
                         if self.log:
                             expect_fmt = self._format_log_value(expect_rendered)
                             prefix = f"[VALIDATION] {check_str} {v.comparator} {expect_fmt} => actual="
                             indent_len = len(prefix.split("\n")[-1])
                             actual_fmt = self._format_log_value(actual, prefix_len=indent_len)
-                            self.log.info(prefix + actual_fmt + " | PASS")
+                            pass_tag = f"{Colors.GREEN}PASS{Colors.RESET}"
+                            self.log.info(prefix + actual_fmt + f" | {pass_tag}")
 
                 # Built-in SQL validation has been removed; any SQL checks should run via hooks.
 

@@ -5,6 +5,13 @@ import os
 from pathlib import Path
 from typing import Optional
 
+
+class Colors:
+    """ANSI color codes for terminal output."""
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    RESET = "\033[0m"
+
 try:
     from logging import LogRecord
     from rich.logging import RichHandler as _RichHandler  # type: ignore
