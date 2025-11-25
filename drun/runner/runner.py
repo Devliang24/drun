@@ -493,11 +493,11 @@ class Runner:
                 steps_results.append(StepResult(name="case setup hooks", status="failed", error=f"{e}"))
                 raise
 
-            for step in case.steps:
+            for step_idx, step in enumerate(case.steps, 1):
                 # skip handling
                 if step.skip:
                     if self.log:
-                        self.log.info(f"[STEP] Skip: {step.name} | reason={step.skip}")
+                        self.log.info(f"[STEP] Step {step_idx} Skip: {step.name} | reason={step.skip}")
                     steps_results.append(StepResult(name=step.name, status="skipped"))
                     continue
 
@@ -570,7 +570,7 @@ class Runner:
                         req_rendered["headers"] = hdrs
 
                 if self.log:
-                    self.log.info(f"[STEP] Start: {rendered_step_name}")
+                    self.log.info(f"[STEP] Step {step_idx} Start: {rendered_step_name}")
 
                     # Log variable substitution before/after values
                     self._log_render_diffs(req_dict, req_rendered)
@@ -988,10 +988,10 @@ class Runner:
                 if step_failed:
                     status = "failed"
                     if self.log:
-                        self.log.error(f"[STEP] Result: {rendered_step_name} | FAILED")
+                        self.log.error(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | FAILED")
                 else:
                     if self.log:
-                        self.log.info(f"[STEP] Result: {rendered_step_name} | PASSED")
+                        self.log.info(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | PASSED")
 
                 # httpstat 输出已移除
 
