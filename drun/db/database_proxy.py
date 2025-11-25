@@ -475,12 +475,27 @@ class DatabaseRoleProxy:
                 self._conn = None
 
     def query(self, sql: str) -> Optional[Mapping[str, Any]]:
+        log = get_logger("drun.db")
+        log.info(f"[SQL] Executing: {sql}")
         dn, conn = self._ensure_conn()
         cur = _open_cursor(dn, conn)
         t0 = time.perf_counter()
         try:
             cur.execute(sql)
             row = cur.fetchone()
+            elapsed = (time.perf_counter() - t0) * 1000.0
+            if row:
+                result_json = json.dumps(dict(row), ensure_ascii=False, indent=2)
+                header = f"[SQL] Result ({elapsed:.1f}ms): "
+                pad = " " * len(header)
+                lines = result_json.splitlines()
+                if len(lines) > 1:
+                    result_str = lines[0] + "\n" + "\n".join(pad + ln for ln in lines[1:])
+                else:
+                    result_str = result_json
+                log.info(header + result_str)
+            else:
+                log.info(f"[SQL] Result ({elapsed:.1f}ms): (empty)")
             return row
         finally:
             try:
@@ -490,11 +505,15 @@ class DatabaseRoleProxy:
             self._query_ms_total += (time.perf_counter() - t0) * 1000.0
 
     def execute(self, sql: str) -> int:
+        log = get_logger("drun.db")
+        log.info(f"[SQL] Executing: {sql}")
         dn, conn = self._ensure_conn()
         cur = _open_cursor(dn, conn)
         t0 = time.perf_counter()
         try:
             affected = cur.execute(sql)
+            elapsed = (time.perf_counter() - t0) * 1000.0
+            log.info(f"[SQL] Affected rows ({elapsed:.1f}ms): {affected}")
             return int(affected or 0)
         finally:
             try:
