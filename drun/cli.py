@@ -306,7 +306,7 @@ def _save_code_snippets(
     if saved_files:
         log.info("[SNIPPET] Code snippets saved to %s/", target_dir)
         for file in saved_files:
-            log.info("[SNIPPET]   - %s", file)
+            log.info("[SNIPPET] - %s", file)
 
 
 def load_env_file(path: Optional[str]) -> Dict[str, str]:
