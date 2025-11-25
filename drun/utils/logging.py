@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
 
 class Colors:
     """ANSI color codes for terminal output."""
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    RESET = "\033[0m"
+    _USE_COLOR = sys.stdout.isatty()
+
+    RED = "\033[91m" if _USE_COLOR else ""
+    GREEN = "\033[92m" if _USE_COLOR else ""
+    RESET = "\033[0m" if _USE_COLOR else ""
 
 try:
     from logging import LogRecord
