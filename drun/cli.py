@@ -1172,6 +1172,84 @@ def list_tags(
             typer.echo(f"    • {case_name} -> {case_path}")
 
 
+@app.command("score")
+def score_cases(
+    path: str = typer.Argument("testcases", help="要评分的文件或目录"),
+) -> None:
+    """评估测试用例质量，显示评分和改进建议"""
+    from rich.console import Console
+    from rich.table import Table
+    from drun.scorer import CaseScorer
+    
+    console = Console()
+    files = discover([path])
+    
+    if not files:
+        typer.echo(f"No YAML test files found at: {path}")
+        raise typer.Exit(code=2)
+    
+    scorer = CaseScorer()
+    all_scores = []
+    
+    for f in files:
+        try:
+            cases, _meta = load_yaml_file(f)
+        except Exception as exc:
+            typer.echo(f"[WARN] Failed to parse {f}: {exc}")
+            continue
+        
+        for case in cases:
+            score = scorer.score_case(case)
+            all_scores.append((str(f), score))
+    
+    if not all_scores:
+        typer.echo("No cases found to score.")
+        raise typer.Exit(code=1)
+    
+    # Build table
+    table = Table(title="Case Quality Scores")
+    table.add_column("Case", style="cyan", no_wrap=True)
+    table.add_column("Score", justify="center")
+    table.add_column("Grade", justify="center")
+    table.add_column("Steps", justify="center")
+    table.add_column("Issues", style="dim")
+    
+    for file_path, score in all_scores:
+        # Grade color
+        grade_style = {
+            "A": "bold green",
+            "B": "bold blue", 
+            "C": "bold yellow",
+            "D": "bold red",
+        }.get(score.grade, "")
+        
+        # Step summary
+        step_summary = f"{len(score.steps)} steps"
+        
+        # Issues summary (first 2)
+        issues = score.suggestions[:2] if score.suggestions else ["-"]
+        issues_text = "; ".join(issues)
+        if len(score.suggestions) > 2:
+            issues_text += f" (+{len(score.suggestions) - 2} more)"
+        
+        table.add_row(
+            score.name,
+            str(score.total),
+            f"[{grade_style}]{score.grade}[/]",
+            step_summary,
+            issues_text[:60] + "..." if len(issues_text) > 60 else issues_text
+        )
+    
+    console.print(table)
+    
+    # Summary
+    if all_scores:
+        avg_score = sum(s.total for _, s in all_scores) // len(all_scores)
+        avg_grade = "A" if avg_score >= 90 else "B" if avg_score >= 70 else "C" if avg_score >= 50 else "D"
+        console.print(f"\nAverage: [bold]{avg_score}[/] ({avg_grade})")
+        console.print(f"Total cases: {len(all_scores)}")
+
+
 def _run_impl(
     path: str,
     k: Optional[str],

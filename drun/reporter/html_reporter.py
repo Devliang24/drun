@@ -4,7 +4,7 @@ import json
 import time
 import os
 from pathlib import Path
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
 
 from drun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult, NotifyResult
 from drun.utils.config import get_system_name
@@ -164,7 +164,7 @@ def _build_stream_response_panel(response_map: Dict[str, Any]) -> str:
     )
 
 
-def _build_step(step: StepResult) -> str:
+def _build_step(step: StepResult, step_score: Optional[Any] = None) -> str:
     pass_cnt = sum(1 for a in (step.asserts or []) if a.passed)
     fail_cnt = sum(1 for a in (step.asserts or []) if not a.passed)
 
@@ -231,11 +231,18 @@ def _build_step(step: StepResult) -> str:
         head_left += f" {left_meta_html}"
     head_left += "</div>"
 
+    # Step score badge
+    step_score_html = ""
+    if step_score is not None:
+        grade = "a" if step_score.total >= 90 else "b" if step_score.total >= 70 else "c" if step_score.total >= 50 else "d"
+        step_score_html = f"<span class='step-score score-{grade}'>{step_score.total}</span>"
+    
     head_right = (
         "<div>"
         f"<span class='pill {step.status}'>{step.status}</span>"
         f"<span class='muted' style='margin-left:8px;'>{step.duration_ms:.1f} ms</span>"
         f"<span class='muted' style='margin-left:8px;'>断言: {pass_cnt} ✓ / {fail_cnt} ✗</span>"
+        f"{step_score_html}"
         "</div>"
     )
 
@@ -322,7 +329,7 @@ def _build_step(step: StepResult) -> str:
     return f"<div class='step'><div>{head}</div>{body}</div>"
 
 
-def _build_case(case: CaseInstanceResult) -> str:
+def _build_case(case: CaseInstanceResult, case_score: Optional[Any] = None) -> str:
     params = case.parameters or {}
     params_html = f"<div class='muted'>参数：<code>{_escape_html(_json(params))}</code></div>" if params else ""
 
@@ -354,9 +361,15 @@ def _build_case(case: CaseInstanceResult) -> str:
             status_icons.append(f"<span class='err'>✗</span>")
     notify_status = " ".join(status_icons) if status_icons else "-"
 
+    # Case score badge
+    score_badge_html = ""
+    if case_score is not None:
+        grade = case_score.grade.lower()
+        score_badge_html = f"<span class='score-badge score-{grade}'>{case_score.grade} ({case_score.total})</span>"
+
     head = (
         "<div class='head'>"
-        f"<div><div><b>用例：</b>{_escape_html(case.name)}{meta_html}</div>{params_html}</div>"
+        f"<div><div><b>用例：</b>{_escape_html(case.name)}{score_badge_html}{meta_html}</div>{params_html}</div>"
         f"<div><span class='pill {case.status}'>{case.status}</span>"
         f"<span class='muted' style='margin-left:8px;'>{case.duration_ms:.1f} ms</span>"
         f"<span class='muted' style='margin-left:8px;'>通知: {_escape_html(notify_channels)}</span>"
@@ -364,8 +377,21 @@ def _build_case(case: CaseInstanceResult) -> str:
         "</div>"
     )
 
-    steps_html = "".join(_build_step(s) for s in (case.steps or []))
-    return f"<div class='case' data-status='{case.status}' data-duration='{case.duration_ms:.3f}'>{head}<div class='body'>{steps_html}</div></div>"
+    # Build steps with scores
+    step_scores = case_score.steps if case_score else []
+    steps_html_parts = []
+    for idx, s in enumerate(case.steps or []):
+        step_score = step_scores[idx] if idx < len(step_scores) else None
+        steps_html_parts.append(_build_step(s, step_score))
+    steps_html = "".join(steps_html_parts)
+    
+    # Suggestions (show if score < 70)
+    suggestions_html = ""
+    if case_score and case_score.total < 70 and case_score.suggestions:
+        suggestions_items = "".join(f"<li>{_escape_html(s)}</li>" for s in case_score.suggestions[:5])
+        suggestions_html = f"<div class='suggestions'><b>改进建议:</b><ul>{suggestions_items}</ul></div>"
+    
+    return f"<div class='case' data-status='{case.status}' data-duration='{case.duration_ms:.3f}'>{head}<div class='body'>{suggestions_html}{steps_html}</div></div>"
 
 
 def write_html(report: RunReport, outfile: str | Path) -> None:
@@ -473,6 +499,17 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
   .event-badge { background: var(--chip-bg); padding: 2px 8px; border-radius: 999px; color: var(--muted); font-size: 11px; border: 1px solid var(--border); }
   .event-badge.done { background: rgba(26, 127, 55, 0.1); color: var(--ok); border-color: var(--ok); }
   .event-item pre { margin: 0; padding: 10px; background: var(--bg); font-size: 12px; max-height: 200px; overflow-y: auto; }
+  /* Score badge styles */
+  .score-badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; margin-left: 8px; font-weight: 500; }
+  .score-a { background: #dafbe1; color: #1a7f37; }
+  .score-b { background: #ddf4ff; color: #0969da; }
+  .score-c { background: #fff8c5; color: #9a6700; }
+  .score-d { background: #ffebe9; color: #cf222e; }
+  .badge.score::before { background: #8250df; }
+  .suggestions { padding: 8px 12px; background: #fff8c5; border-left: 3px solid #9a6700; margin: 8px 12px; font-size: 13px; border-radius: 4px; }
+  .suggestions ul { margin: 4px 0 0 0; padding-left: 20px; }
+  .suggestions li { margin: 2px 0; }
+  .step-score { font-size: 11px; margin-left: 8px; padding: 1px 6px; border-radius: 4px; }
 </style>
 <script>(function(){
   function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -706,13 +743,49 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
     head_parts.append("      <div class='badge failed'><span class='badge-label'>失败</span><span class='badge-value'>" + failed + "</span></div>\n")
     head_parts.append("      <div class='badge skipped'><span class='badge-label'>跳过</span><span class='badge-value'>" + skipped + "</span></div>\n")
     head_parts.append("      <div class='badge duration'><span class='badge-label'>耗时</span><span class='badge-value'>" + duration + "<span style='font-size:14px;font-weight:400;margin-left:4px;'>ms</span></span></div>\n")
+    
+    # Calculate case scores
+    case_scores: Dict[str, Any] = {}
+    avg_score = 0
+    try:
+        from drun.scorer import CaseScorer
+        from drun.loader.yaml_loader import load_yaml_file
+        scorer = CaseScorer()
+        score_totals = []
+        
+        for c in report.cases:
+            source = getattr(c, "source", None)
+            if source:
+                try:
+                    cases, _ = load_yaml_file(Path(source))
+                    for case in cases:
+                        if case.config.name == c.name or (not case.config.name and c.name == "Unnamed"):
+                            score = scorer.score_case(case)
+                            case_scores[c.name] = score
+                            score_totals.append(score.total)
+                            break
+                except Exception:
+                    pass
+        
+        if score_totals:
+            avg_score = sum(score_totals) // len(score_totals)
+    except Exception:
+        pass
+    
+    # Add score badge if we have scores
+    if avg_score > 0:
+        avg_grade = "A" if avg_score >= 90 else "B" if avg_score >= 70 else "C" if avg_score >= 50 else "D"
+        grade_color = {"A": "#1a7f37", "B": "#0969da", "C": "#9a6700", "D": "#cf222e"}.get(avg_grade, "#6e7781")
+        head_parts.append(f"      <div class='badge score'><span class='badge-label'>平均评分</span><span class='badge-value' style='color:{grade_color};'>{avg_grade} ({avg_score})</span></div>\n")
+    
     head_parts.append("    </div>\n")
     head_parts.append("    <div class='toolbar'>\n      <div class='filters'>\n        <label class='chip'><input type='radio' name='status-filter' id='f-all' value='all' checked /> 全部</label>\n        <label class='chip'><input type='radio' name='status-filter' id='f-passed' value='passed' /> 通过</label>\n        <label class='chip'><input type='radio' name='status-filter' id='f-failed' value='failed' /> 失败</label>\n        <label class='chip'><input type='radio' name='status-filter' id='f-skipped' value='skipped' /> 跳过</label>\n      </div>\n      <button id='btn-toggle-expand' title='展开/收起全部' onclick=\"window.toggleAllSteps && window.toggleAllSteps(this)\">展开全部</button>\n    </div>\n  </div>\n")
 
     # Cases
     body_cases = []
     for c in report.cases:
-        body_cases.append(_build_case(c))
+        score = case_scores.get(c.name)
+        body_cases.append(_build_case(c, score))
 
     tail = """
   <div class='footer'>由 Drun 生成</div>
