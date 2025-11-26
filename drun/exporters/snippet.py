@@ -250,6 +250,10 @@ class SnippetGenerator:
         step = case.steps[step_idx]
         req = step.request
         
+        # Skip invoke steps (they don't have request)
+        if req is None:
+            return sorted(dependencies)
+        
         # 将请求对象转为字符串进行检查
         req_str = str(req.model_dump())
         

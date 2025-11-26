@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.2.0] - 2025-11-26
+
+### Added
+- **用例嵌套调用 `invoke`**：新增 `invoke` 步骤类型，支持在测试用例中调用其他用例
+  - 语法：`invoke: test_login` 或 `invoke: testcases/auth/test_login.yaml`
+  - 智能路径解析：支持简写（不带扩展名）、带扩展名、带目录等多种格式
+  - 变量传递：通过 `variables` 向被调用用例传入参数
+  - 变量导出：通过 `export` 导出被调用用例提取的变量
+  - 支持嵌套调用（A invoke B, B invoke C）
+  
+示例：
+```yaml
+steps:
+  - name: 执行登录流程
+    invoke: test_login
+    variables:
+      username: admin
+    export:
+      - token
+      - userId
+      
+  - name: 使用 token
+    request:
+      method: GET
+      path: /api/users/$userId
+      headers:
+        Authorization: Bearer $token
+```
+
 ## Unreleased
 
 _No unreleased changes._

@@ -155,3 +155,66 @@ def match_tags(tags: Iterable[str], expr: str | None) -> bool:
     if position != len(tokens):
         return False
     return result
+
+
+def resolve_invoke_path(invoke_path: str, base_dir: Path | None = None) -> Path | None:
+    """Resolve an invoke path to an actual file path.
+    
+    Supports multiple formats:
+    - test_login              -> searches testcases/test_login.yaml, testcases/test_login.yml
+    - test_login.yaml         -> searches ./test_login.yaml, testcases/test_login.yaml
+    - auth/test_login         -> searches auth/test_login.yaml, testcases/auth/test_login.yaml
+    - testcases/auth/test_login.yaml -> exact path
+    
+    Args:
+        invoke_path: The path specified in the invoke field
+        base_dir: Optional base directory to resolve relative paths from
+    
+    Returns:
+        Resolved Path to the file, or None if not found
+    """
+    if base_dir is None:
+        base_dir = Path.cwd()
+    
+    # Normalize path separators
+    invoke_path = invoke_path.replace('\\', '/')
+    
+    # Check if it has extension
+    has_extension = invoke_path.endswith('.yaml') or invoke_path.endswith('.yml')
+    
+    # Generate candidate paths to try
+    candidates: List[Path] = []
+    
+    if has_extension:
+        # With extension: try exact path first
+        candidates.append(base_dir / invoke_path)
+        # Then try in testcases/
+        if not invoke_path.startswith('testcases/'):
+            candidates.append(base_dir / 'testcases' / invoke_path)
+    else:
+        # Without extension: try .yaml and .yml
+        for ext in ['.yaml', '.yml']:
+            candidates.append(base_dir / (invoke_path + ext))
+            if not invoke_path.startswith('testcases/'):
+                candidates.append(base_dir / 'testcases' / (invoke_path + ext))
+    
+    # Try each candidate
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    
+    # Fallback: use recursive search in test directories
+    # Extract filename from path
+    filename = Path(invoke_path).name
+    if not has_extension:
+        # Try searching with both extensions
+        for ext in ['.yaml', '.yml']:
+            result = _search_in_test_dirs(filename + ext)
+            if result:
+                return result
+    else:
+        result = _search_in_test_dirs(filename)
+        if result:
+            return result
+    
+    return None

@@ -278,6 +278,10 @@ def _save_code_snippets(
         
         # 遍历每个 step
         for step_idx, step in enumerate(case.steps):
+            # Skip invoke steps (they don't have request)
+            if step.invoke is not None:
+                continue
+                
             step_num = step_idx + 1
             safe_step_name = _sanitize_name(step.name)
             
