@@ -1366,6 +1366,11 @@ def _run_impl(
                 raise typer.Exit(code=2)
             log.info(f"[CASE] Start: {c.config.name or 'Unnamed'} | params={ps}")
 
+            # Print loaded environment variables
+            if env_store:
+                for key, value in env_store.items():
+                    log.info(f"[ENV] {key} = {value!r}")
+
             # Print base_url if present
             if c.config.base_url:
                 log.info(f"[CONFIG] base_url: {c.config.base_url}")
