@@ -982,14 +982,13 @@ class Runner:
                     duration_ms=resp_obj.get("elapsed_ms") or 0.0,
                 )
                 steps_results.append(sr)
-                step_duration = resp_obj.get("elapsed_ms") or 0.0
                 if step_failed:
                     status = "failed"
                     if self.log:
-                        self.log.error(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | FAILED | duration={step_duration:.1f}ms")
+                        self.log.error(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | FAILED")
                 else:
                     if self.log:
-                        self.log.info(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | PASSED | duration={step_duration:.1f}ms")
+                        self.log.info(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | PASSED")
 
                 # httpstat 输出已移除
 
