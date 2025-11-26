@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.3.3] - 2025-11-26
+
+### Changed
+- **报告列表默认页大小**：将报告列表页的默认分页大小从 15 调整为 18，提升大屏幕下的浏览体验。
+
 ## [6.3.2] - 2025-11-26
 
 ### Changed
