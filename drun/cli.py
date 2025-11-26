@@ -1402,17 +1402,16 @@ def _run_impl(
     # Print summary (standardized log format)
     s = report_obj.summary
     log.info(
-        "[CASE] Total: %s Passed: %s Failed: %s Skipped: %s Duration: %.1fms",
-        s["total"], s.get("passed", 0), s.get("failed", 0), s.get("skipped", 0), s.get("duration_ms", 0.0)
+        "[CASE] Total: %s Passed: %s Failed: %s Skipped: %s",
+        s["total"], s.get("passed", 0), s.get("failed", 0), s.get("skipped", 0)
     )
     if "steps_total" in s:
         log.info(
-            "[STEP] Total: %s Passed: %s Failed: %s Skipped: %s Duration: %.1fms",
+            "[STEP] Total: %s Passed: %s Failed: %s Skipped: %s",
             s.get("steps_total", 0),
             s.get("steps_passed", 0),
             s.get("steps_failed", 0),
             s.get("steps_skipped", 0),
-            s.get("steps_duration_ms", 0.0),
         )
 
     html_component = _sanitize_filename_component(system_name, "report")
