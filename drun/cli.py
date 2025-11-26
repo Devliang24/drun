@@ -8,7 +8,7 @@ import time
 import unicodedata
 from importlib import metadata as _im
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Iterator
 
 import typer
 import yaml
@@ -51,6 +51,16 @@ def _sanitize_filename_component(value: str, fallback: str) -> str:
     candidate = re.sub(r"-{2,}", "-", candidate)
     candidate = candidate.strip(" .-")
     return candidate or fallback
+
+
+def _iter_unique_env_items(env: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+    seen: set[str] = set()
+    for key, value in env.items():
+        lowered = key.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        yield key, value
 
 
 def _resolve_env_file_alias(value: str) -> tuple[str, bool, List[str]]:
@@ -1368,7 +1378,7 @@ def _run_impl(
 
             # Print loaded environment variables
             if env_store:
-                for key, value in env_store.items():
+                for key, value in _iter_unique_env_items(env_store):
                     log.info(f"[ENV] {key} = {value!r}")
 
             # Print base_url if present
