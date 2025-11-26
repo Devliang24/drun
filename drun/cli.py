@@ -1407,11 +1407,12 @@ def _run_impl(
     )
     if "steps_total" in s:
         log.info(
-            "[STEP] Total: %s Passed: %s Failed: %s Skipped: %s",
+            "[STEP] Total: %s Passed: %s Failed: %s Skipped: %s Duration: %.1fms",
             s.get("steps_total", 0),
             s.get("steps_passed", 0),
             s.get("steps_failed", 0),
             s.get("steps_skipped", 0),
+            s.get("steps_duration_ms", 0.0),
         )
 
     html_component = _sanitize_filename_component(system_name, "report")
