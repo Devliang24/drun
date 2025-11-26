@@ -309,7 +309,7 @@
                 <thead>
                     <tr>
                         <th style="width: 60px;">序号</th>
-                        <th style="width: 90px;">状态</th>
+                        <th style="width: 90px;">结果</th>
                         <th>报告名称</th>
                         <th style="width: 180px;">运行时间</th>
                         <th style="width: 100px;">环境</th>
@@ -318,6 +318,8 @@
                         <th style="width: 80px;">失败</th>
                         <th style="width: 100px;">通过率</th>
                         <th style="width: 100px;">耗时</th>
+                        <th style="width: 100px;">通知</th>
+                        <th style="width: 80px;">状态</th>
                     </tr>
                 </thead>
                 <tbody x-show="!loading && reports.length > 0">
@@ -343,6 +345,8 @@
                             <td class="failed-text" x-text="report.failed_cases"></td>
                             <td x-text="calcPassRate(report)"></td>
                             <td x-text="(report.duration_ms / 1000).toFixed(1) + 's'"></td>
+                            <td x-text="report.notify_channels || '-'"></td>
+                            <td x-text="report.notify_status || '-'"></td>
                         </tr>
                     </template>
                 </tbody>

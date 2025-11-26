@@ -351,29 +351,16 @@ def _build_case(case: CaseInstanceResult, case_score: Optional[Any] = None) -> s
 
     meta_html = f" <span class='case-meta st-meta'>{_escape_html(case_meta)}</span>" if case_meta else ""
 
-    # Notification info
-    notify_channels = ", ".join(case.notify_channels) if case.notify_channels else "-"
-    status_icons = []
-    for r in case.notify_results:
-        if r.status == "success":
-            status_icons.append(f"<span class='ok'>✓</span>")
-        else:
-            status_icons.append(f"<span class='err'>✗</span>")
-    notify_status = " ".join(status_icons) if status_icons else "-"
-
-    # Case score badge
-    score_badge_html = ""
+    # Case score (plain text)
+    score_text = ""
     if case_score is not None:
-        grade = case_score.grade.lower()
-        score_badge_html = f"<span class='score-badge score-{grade}'>{case_score.grade} ({case_score.total})</span>"
+        score_text = f" <span class='muted' style='font-weight:normal;'>{case_score.grade} ({case_score.total})</span>"
 
     head = (
         "<div class='head'>"
-        f"<div><div><b>用例：</b>{_escape_html(case.name)}{score_badge_html}{meta_html}</div>{params_html}</div>"
+        f"<div><div><b>用例：</b>{_escape_html(case.name)}{score_text}{meta_html}</div>{params_html}</div>"
         f"<div><span class='pill {case.status}'>{case.status}</span>"
-        f"<span class='muted' style='margin-left:8px;'>{case.duration_ms:.1f} ms</span>"
-        f"<span class='muted' style='margin-left:8px;'>通知: {_escape_html(notify_channels)}</span>"
-        f"<span class='muted' style='margin-left:8px;'>状态: {notify_status}</span></div>"
+        f"<span class='muted' style='margin-left:8px;'>{case.duration_ms:.1f} ms</span></div>"
         "</div>"
     )
 
