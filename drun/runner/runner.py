@@ -524,17 +524,17 @@ class Runner:
             source=str(resolved_path),
         )
         
-        # Handle export: extract variables from invoked case result
+        # Handle variable export from invoked case
+        # Collect all variables extracted during invoked case execution
+        invoked_extracts: Dict[str, Any] = {}
+        for sr in invoke_result.steps:
+            if sr.extracts:
+                invoked_extracts.update(sr.extracts)
+        
         exported_vars: Dict[str, Any] = {}
+        
         if step.export:
-            # Get variables extracted during invoked case execution
-            # These are stored in the last step's extracts or case-level context
-            invoked_extracts: Dict[str, Any] = {}
-            for sr in invoke_result.steps:
-                if sr.extracts:
-                    invoked_extracts.update(sr.extracts)
-            
-            # step.export can be a list of var names or a dict
+            # If export is specified, only export those variables (filter mode)
             if isinstance(step.export, list):
                 for var_name in step.export:
                     if var_name in invoked_extracts:
@@ -553,6 +553,13 @@ class Runner:
                             self.log.info(f"[INVOKE] Exported: {local_name} = {invoked_extracts[source_name]!r}")
                     elif self.log:
                         self.log.warning(f"[INVOKE] Export variable not found: {source_name}")
+        else:
+            # No export specified: auto-export all extracted variables
+            for var_name, var_value in invoked_extracts.items():
+                exported_vars[var_name] = var_value
+                ctx.set_base(var_name, var_value)
+                if self.log:
+                    self.log.info(f"[INVOKE] Auto-exported: {var_name} = {var_value!r}")
         
         duration_ms = (time.perf_counter() - t0) * 1000
         step_status = invoke_result.status
