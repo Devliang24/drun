@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import re
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from drun.engine.http import HTTPClient
-from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline
+from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline, load_yaml_file
+from drun.loader.collector import resolve_invoke_path
 from drun.models.case import Case
 from drun.models.report import AssertionResult, CaseInstanceResult, RunReport, StepResult
 from drun.models.step import Step
@@ -428,6 +430,151 @@ class Runner:
                 updated.update(ret)
         return updated
 
+    def _run_invoke_step(
+        self,
+        step: Step,
+        step_idx: int,
+        rendered_step_name: str,
+        variables: Dict[str, Any],
+        global_vars: Dict[str, Any],
+        funcs: Dict[str, Any] | None,
+        envmap: Dict[str, Any] | None,
+        ctx: VarContext,
+    ) -> StepResult:
+        """Execute an invoke step that calls another test case.
+        
+        Args:
+            step: The step containing invoke path
+            step_idx: Step index for logging
+            rendered_step_name: Rendered step name
+            variables: Current variables context
+            global_vars: Global variables
+            funcs: Hook functions
+            envmap: Environment variables
+            ctx: Variable context for updating extracted vars
+            
+        Returns:
+            StepResult for the invoke step
+        """
+        t0 = time.perf_counter()
+        invoke_path = step.invoke
+        
+        if self.log:
+            self.log.info(f"[STEP] Step {step_idx} Start: {rendered_step_name}")
+            self.log.info(f"[INVOKE] Loading testcase: {invoke_path}")
+        
+        # Resolve the invoke path to an actual file
+        resolved_path = resolve_invoke_path(invoke_path, Path.cwd())
+        if resolved_path is None:
+            error_msg = f"Cannot find testcase for invoke: {invoke_path}"
+            if self.log:
+                self.log.error(f"[INVOKE] {error_msg}")
+            return StepResult(
+                name=rendered_step_name,
+                status="failed",
+                error=error_msg,
+                duration_ms=(time.perf_counter() - t0) * 1000,
+            )
+        
+        if self.log:
+            self.log.info(f"[INVOKE] Resolved to: {resolved_path}")
+        
+        # Load the invoked testcase
+        try:
+            cases, _ = load_yaml_file(resolved_path)
+            if not cases:
+                error_msg = f"No testcases found in: {resolved_path}"
+                if self.log:
+                    self.log.error(f"[INVOKE] {error_msg}")
+                return StepResult(
+                    name=rendered_step_name,
+                    status="failed",
+                    error=error_msg,
+                    duration_ms=(time.perf_counter() - t0) * 1000,
+                )
+            invoked_case = cases[0]  # Use first case from file
+        except Exception as e:
+            error_msg = f"Failed to load testcase {resolved_path}: {e}"
+            if self.log:
+                self.log.error(f"[INVOKE] {error_msg}")
+            return StepResult(
+                name=rendered_step_name,
+                status="failed",
+                error=error_msg,
+                duration_ms=(time.perf_counter() - t0) * 1000,
+            )
+        
+        # Merge variables: current context + step.variables passed to invoked case
+        invoke_vars = {**variables}
+        if step.variables:
+            rendered_step_vars = self._render(step.variables, variables, funcs, envmap)
+            if isinstance(rendered_step_vars, dict):
+                invoke_vars.update(rendered_step_vars)
+        
+        # Run the invoked case
+        if self.log:
+            self.log.info(f"[INVOKE] Executing: {invoked_case.config.name or resolved_path.name}")
+        
+        invoke_result = self.run_case(
+            case=invoked_case,
+            global_vars=invoke_vars,
+            params={},
+            funcs=funcs,
+            envmap=envmap,
+            source=str(resolved_path),
+        )
+        
+        # Handle export: extract variables from invoked case result
+        exported_vars: Dict[str, Any] = {}
+        if step.export:
+            # Get variables extracted during invoked case execution
+            # These are stored in the last step's extracts or case-level context
+            invoked_extracts: Dict[str, Any] = {}
+            for sr in invoke_result.steps:
+                if sr.extracts:
+                    invoked_extracts.update(sr.extracts)
+            
+            # step.export can be a list of var names or a dict
+            if isinstance(step.export, list):
+                for var_name in step.export:
+                    if var_name in invoked_extracts:
+                        exported_vars[var_name] = invoked_extracts[var_name]
+                        ctx.set_base(var_name, invoked_extracts[var_name])
+                        if self.log:
+                            self.log.info(f"[INVOKE] Exported: {var_name} = {invoked_extracts[var_name]!r}")
+                    elif self.log:
+                        self.log.warning(f"[INVOKE] Export variable not found: {var_name}")
+            elif isinstance(step.export, dict):
+                for local_name, source_name in step.export.items():
+                    if source_name in invoked_extracts:
+                        exported_vars[local_name] = invoked_extracts[source_name]
+                        ctx.set_base(local_name, invoked_extracts[source_name])
+                        if self.log:
+                            self.log.info(f"[INVOKE] Exported: {local_name} = {invoked_extracts[source_name]!r}")
+                    elif self.log:
+                        self.log.warning(f"[INVOKE] Export variable not found: {source_name}")
+        
+        duration_ms = (time.perf_counter() - t0) * 1000
+        step_status = invoke_result.status
+        
+        if self.log:
+            status_label = "PASSED" if step_status == "passed" else "FAILED"
+            self.log.info(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | {status_label}")
+        
+        return StepResult(
+            name=rendered_step_name,
+            status=step_status,
+            extracts=exported_vars,
+            duration_ms=duration_ms,
+            # Include sub-step info in response for debugging
+            response={
+                "invoked_case": invoked_case.config.name or str(resolved_path),
+                "invoked_steps": len(invoke_result.steps),
+                "invoked_passed": sum(1 for s in invoke_result.steps if s.status == "passed"),
+                "invoked_failed": sum(1 for s in invoke_result.steps if s.status == "failed"),
+            },
+        )
+
     def run_case(self, case: Case, global_vars: Dict[str, Any], params: Dict[str, Any], *, funcs: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None, source: str | None = None) -> CaseInstanceResult:
         name = case.config.name or "Unnamed Case"
         t0 = time.perf_counter()
@@ -514,7 +661,28 @@ class Runner:
                 if not isinstance(rendered_step_name, str):
                     rendered_step_name = str(step.name)
 
-                # render request
+                # Handle invoke step type
+                if step.invoke:
+                    invoke_result = self._run_invoke_step(
+                        step=step,
+                        step_idx=step_idx,
+                        rendered_step_name=rendered_step_name,
+                        variables=variables,
+                        global_vars=global_vars,
+                        funcs=funcs,
+                        envmap=envmap,
+                        ctx=ctx,
+                    )
+                    steps_results.append(invoke_result)
+                    if invoke_result.status == "failed":
+                        status = "failed"
+                        if self.failfast:
+                            ctx.pop()
+                            break
+                    ctx.pop()
+                    continue
+
+                # render request (only for non-invoke steps)
                 req_dict = self._request_dict(step)
                 req_rendered = self._render(req_dict, variables, funcs, envmap)
                 step_locals_for_hook = rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {})
