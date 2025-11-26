@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [7.0.0] - 2025-11-27
+
+### Added
+- **内置 Mock 数据生成**: 集成 `Faker` 库，支持在 YAML 模板中直接生成随机测试数据。
+- **扁平化 Fake 函数**: 新增 `fake_name()`, `fake_email()`, `fake_address()`, `fake_date()`, `fake_ipv4()` 等一系列内置函数。
+- **简洁语法支持**: 支持无引号调用，例如 `body: { name: ${fake_name()} }`。
+
 ## [6.3.3] - 2025-11-26
 
 ### Changed
