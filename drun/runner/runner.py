@@ -1055,9 +1055,11 @@ class Runner:
         step_total = 0
         step_failed = 0
         step_skipped = 0
+        step_duration = 0.0
         for case in results:
             for step in case.steps or []:
                 step_total += 1
+                step_duration += step.duration_ms or 0.0
                 if step.status == "failed":
                     step_failed += 1
                 elif step.status == "skipped":
@@ -1079,6 +1081,7 @@ class Runner:
                     "steps_passed": step_passed,
                     "steps_failed": step_failed,
                     "steps_skipped": step_skipped,
+                    "steps_duration_ms": step_duration,
                 }
             )
 
