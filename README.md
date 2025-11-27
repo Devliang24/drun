@@ -1,6 +1,6 @@
 # Drun — Modern HTTP API Testing Framework
 
-[![Version](https://img.shields.io/badge/version-6.1.0-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.0.0-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -277,6 +277,17 @@ request:
 - `random_int(min, max)` - Random integer
 - `base64_encode(str)` - Base64 encoding
 - `hmac_sha256(key, message)` - HMAC SHA256
+- `fake_name()` - Random person name
+- `fake_email()` - Random email address
+- `fake_address()` - Random street address
+- `fake_city()` - Random city name
+- `fake_text(max_chars)` - Random text paragraph
+- `fake_url()` - Random URL
+- `fake_phone_number()` - Random phone number
+- `fake_company()` - Random company name
+- `fake_date()` - Random date string
+- `fake_ipv4()` - Random IPv4 address
+- `fake_user_agent()` - Random user agent string
 
 ### Assertions
 
@@ -846,6 +857,7 @@ jmespath = ">=1.0"      # JSON path queries
 PyYAML = ">=6.0"        # YAML parsing
 rich = ">=13.7"         # Terminal formatting
 typer = ">=0.12"        # CLI framework
+Faker = ">=24.0"        # Mock data generation (optional)
 ```
 
 ## 📖 Best Practices
@@ -1189,6 +1201,13 @@ testcases:
 No changes required! v4.0 adds new features without breaking existing tests.
 
 ## 📝 Version History
+
+### v7.0.0 (2025-11-27) - Built-in Mock Data Generation
+- **NEW**: Faker integration for mock data generation
+  - 11 new built-in functions: `fake_name()`, `fake_email()`, `fake_address()`, etc.
+  - Consistent calling style with existing functions like `uuid()`
+  - No quotes required in YAML: `body: { name: ${fake_name()} }`
+- **ADDED**: `Faker>=24.0` as optional dependency
 
 ### v6.0.1 (2024-11-25) - Web Report Server Refinements
 - **FIXED**: Width adjustments for better layout consistency
