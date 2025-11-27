@@ -87,13 +87,36 @@ cd my-api-test
 This creates:
 ```
 my-api-test/
-├── testcases/          # Individual test cases
-├── testsuites/         # Test suite orchestration
-├── data/               # CSV and test data
-├── snippets/           # Auto-generated code snippets
-├── .env                # Environment variables
-├── drun_hooks.py       # Custom functions
-└── README.md
+├── testcases/                      # 测试用例目录
+│   ├── test_demo.yaml              # HTTP 功能演示
+│   ├── test_api_health.yaml        # 健康检查示例
+│   ├── test_performance.yaml       # 性能分析示例
+│   ├── test_import_users.yaml      # CSV 参数化用例
+│   ├── test_db_assert.yaml         # 数据库断言示例
+│   ├── test_assertions.yaml        # 断言操作符示例
+│   └── test_stream.yaml            # 流式响应示例
+├── testsuites/                     # 测试套件目录
+│   ├── testsuite_smoke.yaml        # 冒烟测试套件
+│   └── testsuite_csv.yaml          # CSV 示例套件
+├── data/                           # 测试数据目录
+│   └── users.csv                   # CSV 参数数据
+├── converts/                       # 格式转换源文件
+│   ├── curl/
+│   │   └── sample.curl             # cURL 命令示例
+│   ├── postman/
+│   │   ├── sample_collection.json  # Postman Collection
+│   │   └── sample_environment.json # Postman 环境变量
+│   ├── har/
+│   │   └── sample_recording.har    # HAR 录制文件
+│   └── openapi/
+│       └── sample_openapi.json     # OpenAPI 规范
+├── reports/                        # HTML/JSON 报告输出
+├── logs/                           # 日志文件输出
+├── snippets/                       # 自动生成代码片段
+├── .env                            # 环境变量配置
+├── drun_hooks.py                   # 自定义 Hooks 函数
+├── .gitignore                      # Git 忽略规则
+└── README.md                       # 项目说明文档
 ```
 
 ### Create Your First Test
