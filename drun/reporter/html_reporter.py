@@ -775,7 +775,6 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
         body_cases.append(_build_case(c, score))
 
     tail = """
-  <div class='footer'>由 Drun 生成</div>
 </div>
 </body></html>
 """
