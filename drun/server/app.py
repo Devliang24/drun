@@ -97,7 +97,7 @@ async def get_report(report_id: int):
 @app.post("/api/reports/rescan")
 async def rescan_reports():
     """Rescan reports directory and update database"""
-    count = scan_and_index("reports", db)
+    count = scan_and_index(str(REPORTS_DIR), db)
     return {"message": f"Indexed {count} reports", "count": count}
 
 
