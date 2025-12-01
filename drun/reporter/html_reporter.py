@@ -330,8 +330,8 @@ def _build_step(step: StepResult, step_score: Optional[Any] = None) -> str:
 
 
 def _build_case(case: CaseInstanceResult, case_score: Optional[Any] = None) -> str:
-    params = case.parameters or {}
-    params_html = f"<div class='muted'>参数：<code>{_escape_html(_json(params))}</code></div>" if params else ""
+    # 不再显示 CSV 参数详情，避免报告过于冗长
+    params_html = ""
 
     case_meta: str | None = None
     src = getattr(case, "source", None)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "drun"
-version = "7.0.7"
+version = "7.0.8"
 description = "Easy-to-use API testing with DevOps automation support"
 requires-python = ">=3.10"
 authors = [{ name = "Drun Team" }]
