@@ -565,6 +565,46 @@ def _normalize_csv_columns(columns: Any) -> List[str]:
     return names
 
 
+def _auto_convert_csv_value(value: str) -> Any:
+    """自动将 CSV 字符串值转换为合适的类型
+    
+    转换规则：
+    - 整数：纯数字（包括负数），且长度 <= 15 位 -> int
+    - 浮点数：包含小数点的数字 -> float
+    - 布尔值：true/false（不区分大小写）-> bool
+    - 其他：保持字符串
+    
+    注意：超长数字字符串（如手机号、ID）保持字符串以避免精度问题
+    """
+    stripped = value.strip()
+    
+    if not stripped:
+        return value
+    
+    # 布尔值
+    if stripped.lower() == 'true':
+        return True
+    if stripped.lower() == 'false':
+        return False
+    
+    # 整数（包括负数）- 限制长度避免大数精度问题
+    digits_part = stripped.lstrip('-')
+    if digits_part.isdigit() and len(digits_part) <= 15:
+        return int(stripped)
+    
+    # 浮点数
+    try:
+        if '.' in stripped:
+            # 验证格式：只有一个小数点，其余都是数字
+            parts = stripped.lstrip('-').split('.')
+            if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                return float(stripped)
+    except ValueError:
+        pass
+    
+    return value
+
+
 def _load_csv_parameters(spec: Any, source_path: Path | None) -> List[Dict[str, Any]]:
     if isinstance(spec, str):
         cfg: Dict[str, Any] = {"path": spec}
@@ -599,6 +639,11 @@ def _load_csv_parameters(spec: Any, source_path: Path | None) -> List[Dict[str, 
     strip_values = cfg.get("strip", False)
     if strip_values not in (True, False):
         raise LoadError("CSV parameters 'strip' must be boolean when provided.")
+
+    # auto_type: 自动将数字字符串转为数字类型（默认 True）
+    auto_type = cfg.get("auto_type", True)
+    if auto_type not in (True, False):
+        raise LoadError("CSV parameters 'auto_type' must be boolean when provided.")
 
     csv_path = _resolve_csv_path(raw_path, source_path)
     if not csv_path.exists():
@@ -650,8 +695,15 @@ def _load_csv_parameters(spec: Any, source_path: Path | None) -> List[Dict[str, 
                     raise LoadError(
                         f"CSV parameters file '{csv_path}' line {line_no}: expected {expected_len} columns, got {len(raw_row)}."
                     )
+                def _process_cell(val: str) -> Any:
+                    if strip_values:
+                        val = val.strip()
+                    if auto_type:
+                        return _auto_convert_csv_value(val)
+                    return val
+                
                 row_dict = {
-                    fieldnames[idx]: (raw_row[idx].strip() if strip_values else raw_row[idx])
+                    fieldnames[idx]: _process_cell(raw_row[idx])
                     for idx in range(expected_len)
                 }
                 rows.append(row_dict)

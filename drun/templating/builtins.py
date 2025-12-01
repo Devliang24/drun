@@ -98,12 +98,27 @@ def hmac_sha256(key: str, msg: str) -> str:
     return hmac.new(key.encode(), msg.encode(), hashlib.sha256).hexdigest()
 
 
+def to_str(value: Any) -> str:
+    """将值转换为字符串"""
+    return str(value) if value is not None else ""
+
+
+def to_int(value: Any, default: int = 0) -> int:
+    """将值转换为整数"""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
 BUILTINS = {
     "now": now,
     "uuid": uuid,
     "random_int": random_int,
     "base64_encode": base64_encode,
     "hmac_sha256": hmac_sha256,
+    "to_str": to_str,
+    "to_int": to_int,
     "fake_name": fake_name,
     "fake_email": fake_email,
     "fake_address": fake_address,

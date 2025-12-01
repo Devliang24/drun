@@ -910,9 +910,28 @@ class Runner:
                             self.log.info(self._fmt_aligned("RESP", "text", text))
 
                 # extracts ($-only syntax) - moved before validation to allow using extracted vars in validate
+                # 支持两种模式：
+                # 1. JMESPath 提取：$.data.id
+                # 2. 函数调用：${append_models($.data[0].models, $chat_models)}
                 extracts: Dict[str, Any] = {}
                 for var, expr in (step.extract or {}).items():
-                    val = self._eval_extract(expr, resp_obj)
+                    if isinstance(expr, str) and "${" in expr:
+                        # 函数调用模式：先提取表达式中的 $.xxx JMESPath，再渲染模板
+                        import re
+                        jpath_pattern = r'\$\.[\w\[\]\.]+(?:\[\d+\])*(?:\.[\w\[\]]+)*'
+                        jpaths = re.findall(jpath_pattern, expr)
+                        temp_vars = dict(variables)
+                        temp_expr = expr
+                        for idx, jp in enumerate(jpaths):
+                            extracted = self._eval_extract(jp, resp_obj)
+                            temp_var_name = f"_jpath_{idx}"
+                            temp_vars[temp_var_name] = extracted
+                            # 不加 $ 前缀，直接用变量名，避免 normalize 时产生嵌套 ${}
+                            temp_expr = temp_expr.replace(jp, temp_var_name)
+                        val = self._render(temp_expr, temp_vars, funcs, envmap)
+                    else:
+                        # 原有 JMESPath 提取模式
+                        val = self._eval_extract(expr, resp_obj)
                     extracts[var] = val
                     ctx.set_base(var, val)
                     if self.log:
