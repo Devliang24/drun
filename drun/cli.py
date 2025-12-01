@@ -1271,6 +1271,7 @@ def _run_impl(
     no_snippet: bool,
     snippet_output: Optional[str],
     snippet_lang: str,
+    env: Optional[str] = None,
 ):
     """运行测试用例的核心实现"""
     # default timestamp; set up console logging first (no file) to avoid writing to a wrong file
@@ -1303,7 +1304,8 @@ def _run_impl(
 
     # Global variables from env file and CLI overrides
     # Unified env loading: --env <name> YAML + --env-file (kv or yaml) + OS ENV
-    env_name: Optional[str] = os.environ.get("DRUN_ENV")  # optional default via env var
+    # env parameter (--env) takes precedence over DRUN_ENV environment variable
+    env_name: Optional[str] = env or os.environ.get("DRUN_ENV")  # CLI --env > env var
     env_store = load_environment(env_name, env_file)
     # Sync env_store to os.environ for notification and other integrations
     for env_key, env_val in env_store.items():
@@ -1503,7 +1505,7 @@ def _run_impl(
         write_json(report_obj, report)
         log.info("[CASE] JSON report written to %s", report)
     from drun.reporter.html_reporter import write_html
-    write_html(report_obj, html_target)
+    write_html(report_obj, html_target, environment=env_name)
     log.info("[CASE] HTML report written to %s", html_target)
 
     if allure_results:
@@ -1691,13 +1693,14 @@ def run(
     no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（默认会自动生成到 snippets/ 目录）"),
     snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
     snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
+    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, staging, prod），用于报告标识"),
 ):
     """运行测试用例或测试套件"""
     return _run_impl(
         path, k, vars, failfast, report, html, allure_results,
         log_level, env_file, persist_env, log_file, httpx_logs,
         reveal_secrets, response_headers, notify, notify_only,
-        notify_attach_html, no_snippet, snippet_output, snippet_lang
+        notify_attach_html, no_snippet, snippet_output, snippet_lang, env
     )
 
 
@@ -1733,13 +1736,14 @@ def r(
     no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（默认会自动生成到 snippets/ 目录）"),
     snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
     snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
+    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, staging, prod），用于报告标识"),
 ):
     """运行测试用例或测试套件（run 的简写）"""
     return _run_impl(
         path, k, vars, failfast, report, html, allure_results,
         log_level, env_file, persist_env, log_file, httpx_logs,
         reveal_secrets, response_headers, notify, notify_only,
-        notify_attach_html, no_snippet, snippet_output, snippet_lang
+        notify_attach_html, no_snippet, snippet_output, snippet_lang, env
     )
 
 

@@ -381,11 +381,14 @@ def _build_case(case: CaseInstanceResult, case_score: Optional[Any] = None) -> s
     return f"<div class='case' data-status='{case.status}' data-duration='{case.duration_ms:.3f}'>{head}<div class='body'>{suggestions_html}{steps_html}</div></div>"
 
 
-def write_html(report: RunReport, outfile: str | Path) -> None:
+def write_html(report: RunReport, outfile: str | Path, environment: Optional[str] = None) -> None:
     from drun.utils.config import get_system_name
 
     s = report.summary or {}
     gen_time = time.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Use environment from parameter, report object, or None
+    env_name = environment or getattr(report, 'environment', None)
 
     # Header + styles (light theme, GitHub-like)
     head_parts = []
@@ -715,6 +718,26 @@ def write_html(report: RunReport, outfile: str | Path) -> None:
 })();</script>
 """
     head_parts.append(head_template.replace("Drun 测试报告", f"{system_name_html} 测试报告"))
+    
+    # Embed __REPORT_DATA__ for scanner.py to extract metadata
+    report_data = {
+        "summary": {
+            "total": s.get('total', 0),
+            "passed": s.get('passed', 0),
+            "failed": s.get('failed', 0),
+            "skipped": s.get('skipped', 0),
+            "duration_ms": s.get('duration_ms', 0.0),
+            "steps_total": s.get('steps_total', 0),
+            "steps_passed": s.get('steps_passed', 0),
+            "steps_failed": s.get('steps_failed', 0),
+            "steps_skipped": s.get('steps_skipped', 0),
+            "system_name": system_name,
+            "environment": env_name,
+        }
+    }
+    report_data_json = json.dumps(report_data, ensure_ascii=False)
+    head_parts.append(f"<script>window.__REPORT_DATA__ = {report_data_json};</script>\n")
+    
     # style tag already closed in the header string above
     head_parts.append("</head><body>\n<div class='wrap'>\n  <div class='header-sticky'>\n    <div class='headbar'>\n      <h1>Drun 测试报告</h1>\n      <div class='meta'>生成时间：" + _escape_html(gen_time) + "</div>\n    </div>\n")
     head_parts[-1] = head_parts[-1].replace("Drun 测试报告", f"{system_name_html} 测试报告")
