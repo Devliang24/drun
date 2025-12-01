@@ -47,3 +47,4 @@ class CaseInstanceResult(BaseModel):
 class RunReport(BaseModel):
     summary: Dict[str, Any]
     cases: List[CaseInstanceResult]
+    environment: Optional[str] = None  # 环境名称 (如: dev, staging, prod)
