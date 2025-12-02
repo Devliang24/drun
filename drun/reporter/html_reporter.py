@@ -702,7 +702,6 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
     });
   };
   document.addEventListener('DOMContentLoaded', function(){
-    try{ var saved=localStorage.getItem('drun_report_status')||'all'; var el=document.querySelector("input[name='status-filter'][value='"+saved+"']"); if(el) el.checked=true; }catch(e){}
     var radios=document.querySelectorAll("input[name='status-filter']");
     forEachNode(radios, function(el){ if(el && el.addEventListener){ el.addEventListener('change', window.applyFilters); } });
     // JSON highlight (preserve original indentation)
