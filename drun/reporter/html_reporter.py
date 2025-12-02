@@ -389,6 +389,8 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
     
     # Use environment from parameter, report object, or None
     env_name = environment or getattr(report, 'environment', None)
+    if env_name:
+        env_name = env_name.upper()  # 转换为大写
 
     # Header + styles (light theme, GitHub-like)
     head_parts = []

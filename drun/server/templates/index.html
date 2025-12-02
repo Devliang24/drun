@@ -153,28 +153,41 @@
             background: var(--bg);
             overflow: hidden;
         }
+        .table-scroll {
+            max-height: calc(100vh - 320px);
+            overflow-y: auto;
+        }
         table { 
             width: 100%; 
             border-collapse: collapse;
             table-layout: fixed;
         }
         th, td { 
-            padding: 12px 16px; 
+            padding: 10px 12px; 
             text-align: left; 
             border-bottom: 1px solid var(--border);
-            font-size: 14px;
+            font-size: 13px;
         }
         th { 
             background: var(--card); 
             color: var(--muted); 
             font-weight: 600;
             font-size: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         tbody tr:hover { 
             background: var(--card); 
         }
         tbody tr:last-child td {
             border-bottom: none;
+        }
+        /* 报告名称列不换行 */
+        td.report-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .status-badge { 
@@ -305,84 +318,53 @@
         
         <!-- Reports Table -->
         <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 60px;">序号</th>
-                        <th style="width: 90px;">结果</th>
-                        <th>报告名称</th>
-                        <th style="width: 180px;">运行时间</th>
-                        <th style="width: 100px;">环境</th>
-                        <th style="width: 80px;">总数</th>
-                        <th style="width: 80px;">通过</th>
-                        <th style="width: 80px;">失败</th>
-                        <th style="width: 100px;">通过率</th>
-                        <th style="width: 100px;">耗时</th>
-                        <th style="width: 100px;">通知</th>
-                        <th style="width: 80px;">状态</th>
-                    </tr>
-                </thead>
-                <tbody x-show="!loading && reports.length > 0">
-                    <template x-for="(report, index) in paginatedReports" :key="report.id">
+            <div class="table-scroll">
+                <table>
+                    <thead>
                         <tr>
-                            <td x-text="reports.length - ((currentPage - 1) * pageSize + index)"></td>
-                            <td>
-                                <span 
-                                    :class="report.failed_cases > 0 ? 'failed-text' : 'passed-text'"
-                                    x-text="report.failed_cases > 0 ? '失败' : '通过'">
-                                </span>
-                            </td>
-                            <td>
-                                <a 
-                                    :href="'/reports/' + report.file_name"
-                                    x-text="removeHtmlExtension(report.file_name)">
-                                </a>
-                            </td>
-                            <td x-text="formatTime(report.run_time)"></td>
-                            <td x-text="report.environment || '-'"></td>
-                            <td x-text="report.total_cases"></td>
-                            <td class="passed-text" x-text="report.passed_cases"></td>
-                            <td class="failed-text" x-text="report.failed_cases"></td>
-                            <td x-text="calcPassRate(report)"></td>
-                            <td x-text="(report.duration_ms / 1000).toFixed(1) + 's'"></td>
-                            <td x-text="report.notify_channels || '-'"></td>
-                            <td x-text="report.notify_status || '-'"></td>
+                            <th style="width: 45px;">序号</th>
+                            <th style="width: 55px;">结果</th>
+                            <th style="width: 320px;">报告名称</th>
+                            <th style="width: 150px;">运行时间</th>
+                            <th style="width: 60px;">环境</th>
+                            <th style="width: 50px;">总数</th>
+                            <th style="width: 50px;">通过</th>
+                            <th style="width: 50px;">失败</th>
+                            <th style="width: 70px;">通过率</th>
+                            <th style="width: 60px;">耗时</th>
+                            <th style="width: 70px;">通知</th>
+                            <th style="width: 55px;">状态</th>
                         </tr>
-                    </template>
-                </tbody>
-            </table>
-            
-            <!-- Pagination -->
-            <div x-show="totalPages > 1" class="pagination">
-                <button 
-                    @click="goToPage(currentPage - 1)" 
-                    :disabled="currentPage === 1"
-                    class="page-btn">
-                    上一页
-                </button>
-                
-                <template x-for="page in pageNumbers" :key="page">
-                    <button 
-                        @click="goToPage(page)" 
-                        :class="{ 'active': page === currentPage }"
-                        class="page-btn page-number">
-                        <span x-text="page"></span>
-                    </button>
-                </template>
-                
-                <button 
-                    @click="goToPage(currentPage + 1)" 
-                    :disabled="currentPage === totalPages"
-                    class="page-btn">
-                    下一页
-                </button>
-                
-                <span class="page-info">
-                    共 <span x-text="totalPages"></span> 页，
-                    显示 <span x-text="(currentPage - 1) * pageSize + 1"></span> - 
-                    <span x-text="Math.min(currentPage * pageSize, reports.length)"></span> / 
-                    <span x-text="reports.length"></span> 条
-                </span>
+                    </thead>
+                    <tbody x-show="!loading && reports.length > 0">
+                        <template x-for="(report, index) in paginatedReports" :key="report.id">
+                            <tr>
+                                <td x-text="reports.length - ((currentPage - 1) * pageSize + index)"></td>
+                                <td>
+                                    <span 
+                                        :class="report.failed_cases > 0 ? 'failed-text' : 'passed-text'"
+                                        x-text="report.failed_cases > 0 ? '失败' : '通过'">
+                                    </span>
+                                </td>
+                                <td class="report-name">
+                                    <a 
+                                        :href="'/reports/' + report.file_name"
+                                        x-text="removeHtmlExtension(report.file_name)">
+                                    </a>
+                                </td>
+                                <td x-text="formatTime(report.run_time)"></td>
+                                <td x-text="report.environment || '-'"></td>
+                                <td x-text="report.total_cases"></td>
+                                <td class="passed-text" x-text="report.passed_cases"></td>
+                                <td class="failed-text" x-text="report.failed_cases"></td>
+                                <td x-text="calcPassRate(report)"></td>
+                                <td x-text="(report.duration_ms / 1000).toFixed(1) + 's'"></td>
+                                <td x-text="report.notify_channels || '-'"></td>
+                                <td x-text="report.notify_status || '-'"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
             </div>
             
             <!-- Empty State -->
@@ -395,6 +377,39 @@
             <div class="loading" x-show="loading">
                 <div style="color: #57606a;">加载中...</div>
             </div>
+        </div>
+        
+        <!-- Pagination (outside table-wrapper) -->
+        <div x-show="totalPages > 1" class="pagination">
+            <button 
+                @click="goToPage(currentPage - 1)" 
+                :disabled="currentPage === 1"
+                class="page-btn">
+                上一页
+            </button>
+            
+            <template x-for="page in pageNumbers" :key="page">
+                <button 
+                    @click="goToPage(page)" 
+                    :class="{ 'active': page === currentPage }"
+                    class="page-btn page-number">
+                    <span x-text="page"></span>
+                </button>
+            </template>
+            
+            <button 
+                @click="goToPage(currentPage + 1)" 
+                :disabled="currentPage === totalPages"
+                class="page-btn">
+                下一页
+            </button>
+            
+            <span class="page-info">
+                共 <span x-text="totalPages"></span> 页，
+                显示 <span x-text="(currentPage - 1) * pageSize + 1"></span> - 
+                <span x-text="Math.min(currentPage * pageSize, reports.length)"></span> / 
+                <span x-text="reports.length"></span> 条
+            </span>
         </div>
         
     </div>

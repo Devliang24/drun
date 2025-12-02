@@ -38,7 +38,7 @@ def _sanitize_filename_component(value: str, fallback: str) -> str:
     normalized = unicodedata.normalize("NFKC", value)
     invalid_chars = {'<', '>', ':', '"', '/', '\\', '|', '?', '*'}
     cleaned_chars = []
-    for ch in normalized.lower():
+    for ch in normalized:  # 保持原始大小写
         if ord(ch) < 32:
             cleaned_chars.append("-")
             continue
