@@ -618,11 +618,11 @@ drun r test_api_health              # Finds test_api_health.yaml or .yml
 drun r testcases/test_user          # Supports paths without extension
 drun r test_api_health.yaml         # Traditional format still works
 
-# With options
+# With options (--env is required)
 drun r testcases/ \
+  --env staging \
   -k "smoke and not slow" \
   --vars api_key=secret \
-  --env-file .env.staging \
   --html reports/report.html \
   --report reports/results.json \
   --allure-results allure-results \
@@ -631,9 +631,9 @@ drun r testcases/ \
 ```
 
 **Options:**
+- `--env NAME`: **Required** - Environment name, loads `.env.<name>` (e.g., `--env dev` loads `.env.dev`)
 - `-k TAG_EXPR`: Filter by tags (e.g., `smoke and not slow`)
 - `--vars k=v`: Override variables from CLI
-- `--env-file PATH`: Specify environment file (supports aliases: `dev`, `staging`, `prod`)
 - `--html FILE`: Generate HTML report
 - `--report FILE`: Generate JSON report
 - `--allure-results DIR`: Generate Allure results

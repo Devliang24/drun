@@ -1259,7 +1259,7 @@ def _run_impl(
     html: Optional[str],
     allure_results: Optional[str],
     log_level: str,
-    env_file: Optional[str],
+    env: Optional[str],
     persist_env: Optional[str],
     log_file: Optional[str],
     httpx_logs: bool,
@@ -1271,9 +1271,37 @@ def _run_impl(
     no_snippet: bool,
     snippet_output: Optional[str],
     snippet_lang: str,
-    env: Optional[str] = None,
 ):
     """运行测试用例的核心实现"""
+    # Check if --env is provided
+    if env is None:
+        typer.echo("[ERROR] 未指定环境，请使用 --env 参数")
+        typer.echo()
+        typer.echo("使用方式:")
+        typer.echo("  drun run <path> --env <环境名>")
+        typer.echo()
+        typer.echo("环境文件命名规范:")
+        typer.echo("  .env.dev    → --env dev")
+        typer.echo("  .env.uat    → --env uat")
+        typer.echo("  .env.prod   → --env prod")
+        typer.echo()
+        typer.echo("示例:")
+        typer.echo("  drun r demo --env dev")
+        typer.echo("  drun r testcases --env uat")
+        typer.echo("  drun r testsuites --env prod")
+        raise typer.Exit(code=2)
+    
+    # Resolve env file: .env.<name>
+    env_file = f".env.{env}"
+    if not Path(env_file).exists():
+        typer.echo(f"[ERROR] 环境文件不存在: {env_file}")
+        typer.echo()
+        typer.echo("请创建环境文件，例如:")
+        typer.echo(f"  touch {env_file}")
+        typer.echo()
+        typer.echo("或检查环境名称是否正确")
+        raise typer.Exit(code=2)
+    
     # default timestamp; set up console logging first (no file) to avoid writing to a wrong file
     ts = time.strftime("%Y%m%d-%H%M%S")
     default_log = None  # will be decided after env is loaded
@@ -1284,29 +1312,10 @@ def _run_impl(
     _httpx_logger = _logging.getLogger("httpx")
     _httpx_logger.setLevel(_logging.INFO if httpx_logs else _logging.WARNING)
 
-    # Default env file (.env) when not provided
-    env_file_explicit = env_file is not None
-    env_file_input = env_file or ".env"
-    if env_file_explicit:
-        resolved_env_file, alias_used, tried_candidates = _resolve_env_file_alias(env_file_input)
-        env_file = resolved_env_file
-        if alias_used:
-            log.info(f"[ENV] Using env alias '{env_file_input}' -> '{env_file}'")
-        if not Path(env_file).exists():
-            tried_text = ", ".join(tried_candidates) if tried_candidates else env_file_input
-            raise typer.BadParameter(
-                f"Env file '{env_file_input}' not found. Tried: {tried_text}",
-                param='--env-file',
-            )
-    else:
-        env_file = env_file_input
-        log.info(f"[ENV] Using default env file: {env_file}")
+    log.info(f"[ENV] Using environment: {env} -> {env_file}")
 
     # Global variables from env file and CLI overrides
-    # Unified env loading: --env <name> YAML + --env-file (kv or yaml) + OS ENV
-    # env parameter (--env) takes precedence over DRUN_ENV environment variable
-    env_name: Optional[str] = env or os.environ.get("DRUN_ENV")  # CLI --env > env var
-    env_store = load_environment(env_name, env_file)
+    env_store = load_environment(env, env_file)
     # Sync env_store to os.environ for notification and other integrations
     for env_key, env_val in env_store.items():
         if env_key and isinstance(env_val, str) and env_key.upper() == env_key:  # Only uppercase keys (skip lowercase duplicates)
@@ -1319,17 +1328,14 @@ def _run_impl(
     # reconfigure logging with file handler now that we know the correct path
     setup_logging(log_level, log_file=default_log)
     log = get_logger("drun.cli")
-    # Preflight: warn when default env file is missing and no BASE_URL provided anywhere
-    from pathlib import Path as _Path
-    _env_exists = _Path(env_file).exists() if env_file else False
+    # Preflight: warn when BASE_URL is missing
     _base_any = os.environ.get("BASE_URL") or os.environ.get("base_url") or None
     if not _base_any:
         _base_any = env_store.get("BASE_URL") or env_store.get("base_url")
-    if (not _env_exists) and (not env_file_explicit) and (not _base_any):
+    if not _base_any:
         log.warning(
-            "[ENV] Default .env not found and BASE_URL is missing. Relative URLs may fail. "
-            "Create a .env or pass --env-file/--vars. Example .env:\n"
-            "BASE_URL=http://localhost:8000\nUSER_USERNAME=test_user\nUSER_PASSWORD=test_pass\nSHIPPING_ADDRESS=Test Address"
+            f"[ENV] BASE_URL not found in {env_file}. Relative URLs may fail. "
+            f"Add BASE_URL to {env_file}."
         )
     cli_vars = parse_kv(vars)
     # Only CLI --vars go into templating variables directly
@@ -1451,14 +1457,10 @@ def _run_impl(
                     "[ERROR] base_url is required for cases using relative URLs.",
                     f"        Case: {c.config.name or 'Unnamed'} | Source: {meta.get('file', path)}",
                     "        Provide base_url in one of the following ways:",
-                    f"          - Create an env file: {env_file} (recommended)",
+                    f"          - Add to env file: {env_file}",
                     "              BASE_URL=http://localhost:8000",
-                    "              USER_USERNAME=test_user",
-                    "              USER_PASSWORD=test_pass",
-                    "              SHIPPING_ADDRESS=Test Address",
                     "          - Or pass CLI vars: --vars base_url=http://localhost:8000",
                     "          - Or export env:   export BASE_URL=http://localhost:8000",
-                    "        Tip: use --env-file <path> to specify a different env file.",
                 ]
                 for line in msg_lines:
                     typer.echo(line)
@@ -1510,7 +1512,7 @@ def _run_impl(
         write_json(report_obj, report)
         log.info("[CASE] JSON report written to %s", report)
     from drun.reporter.html_reporter import write_html
-    write_html(report_obj, html_target, environment=env_name)
+    write_html(report_obj, html_target, environment=env)
     log.info("[CASE] HTML report written to %s", html_target)
 
     if allure_results:
@@ -1676,8 +1678,8 @@ def run(
     html: Optional[str] = typer.Option(None, "--html", help="输出 HTML 报告到文件（默认 reports/report-<timestamp>.html）"),
     allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
     log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
-    env_file: Optional[str] = typer.Option(None, "--env-file", help=".env 文件路径（默认 .env）"),
-    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env 或使用 --env-file 的文件）"),
+    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, uat, prod），自动加载 .env.<name> 文件"),
+    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env.<env> 文件）"),
     log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（默认 logs/run-<ts>.log）"),
     httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
     reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="在日志和报告中显示敏感字段明文（password、tokens）", show_default=True),
@@ -1698,14 +1700,13 @@ def run(
     no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（默认会自动生成到 snippets/ 目录）"),
     snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
     snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
-    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, staging, prod），用于报告标识"),
 ):
     """运行测试用例或测试套件"""
     return _run_impl(
         path, k, vars, failfast, report, html, allure_results,
-        log_level, env_file, persist_env, log_file, httpx_logs,
+        log_level, env, persist_env, log_file, httpx_logs,
         reveal_secrets, response_headers, notify, notify_only,
-        notify_attach_html, no_snippet, snippet_output, snippet_lang, env
+        notify_attach_html, no_snippet, snippet_output, snippet_lang,
     )
 
 
@@ -1719,8 +1720,8 @@ def r(
     html: Optional[str] = typer.Option(None, "--html", help="输出 HTML 报告到文件（默认 reports/report-<timestamp>.html）"),
     allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
     log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
-    env_file: Optional[str] = typer.Option(None, "--env-file", help=".env 文件路径（默认 .env）"),
-    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env 或使用 --env-file 的文件）"),
+    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, uat, prod），自动加载 .env.<name> 文件"),
+    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env.<env> 文件）"),
     log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（默认 logs/run-<ts>.log）"),
     httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
     reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="在日志和报告中显示敏感字段明文（password、tokens）", show_default=True),
@@ -1741,14 +1742,13 @@ def r(
     no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（默认会自动生成到 snippets/ 目录）"),
     snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
     snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
-    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, staging, prod），用于报告标识"),
 ):
     """运行测试用例或测试套件（run 的简写）"""
     return _run_impl(
         path, k, vars, failfast, report, html, allure_results,
-        log_level, env_file, persist_env, log_file, httpx_logs,
+        log_level, env, persist_env, log_file, httpx_logs,
         reveal_secrets, response_headers, notify, notify_only,
-        notify_attach_html, no_snippet, snippet_output, snippet_lang, env
+        notify_attach_html, no_snippet, snippet_output, snippet_lang,
     )
 
 
