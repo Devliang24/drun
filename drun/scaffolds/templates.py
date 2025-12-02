@@ -1437,38 +1437,35 @@ USER_PASSWORD=test_pass123
 ### 3. 运行测试
 
 ```bash
-# 运行单个测试用例
-drun run testcases/test_api_health.yaml
+# 运行单个测试用例（必须指定环境）
+drun run testcases/test_api_health.yaml --env dev
 
 # 运行数据库断言示例
-drun run testcases/test_db_assert.yaml
+drun run testcases/test_db_assert.yaml --env dev
 
 # 运行整个测试目录
-drun run testcases
+drun run testcases --env dev
 
 # 运行测试套件
-drun run testsuites/testsuite_smoke.yaml
+drun run testsuites/testsuite_smoke.yaml --env dev
 
 # 运行 CSV 数据驱动示例
-drun run testcases/test_import_users.yaml
-
-# 或运行 CSV 套件（包含相同用例）
-drun run testsuites/testsuite_csv.yaml
+drun run testcases/test_import_users.yaml --env dev
 
 # 使用标签过滤
-drun run testcases -k "smoke and not slow"
+drun run testcases -k "smoke and not slow" --env dev
 
 # 生成 HTML 报告
-drun run testcases --html reports/report.html
+drun run testcases --html reports/report.html --env dev
 
 # 启用详细日志
-drun run testcases --log-level debug
+drun run testcases --log-level debug --env dev
 
 # 查看运行时长（使用响应 elapsed_ms）并生成 JSON 报告
-drun run testcases --report reports/run.json
+drun run testcases --report reports/run.json --env dev
 ```
 
-> 提示：未显式指定 `--env-file` 时会自动读取当前目录的 `.env`。如果需要加载其他文件，可运行如 `drun run testcases --env-file configs/staging.env`。
+> 提示：必须使用 `--env <环境名>` 指定环境，会自动加载 `.env.<环境名>` 文件。例如 `--env dev` 会加载 `.env.dev`。
 >
 > 性能分析：自 2.1.0 起移除了 httpstat 分解视图，请使用 `elapsed_ms` 结合断言（示例：`- le: [$elapsed_ms, 2000]`）或外部工具（如 `curl -w`、`k6`、APM）进行性能监控。
 
@@ -1709,12 +1706,12 @@ jobs:
 
 ### 常见问题
 
-1. **找不到 .env 文件**
-   - 确保 `.env` 文件在项目根目录
-   - 使用 `--env-file` 指定路径
+1. **环境文件不存在**
+   - 确保 `.env.<环境名>` 文件存在（如 `.env.dev`, `.env.uat`, `.env.prod`）
+   - 使用 `--env <环境名>` 指定正确的环境
 
 2. **BASE_URL 缺失**
-   - 检查 `.env` 文件中是否配置了 `BASE_URL`
+   - 检查环境文件中是否配置了 `BASE_URL`
    - 或通过 `--vars base_url=http://...` 传递
 
 3. **变量未定义**
@@ -1724,7 +1721,7 @@ jobs:
 ### 启用调试日志
 
 ```bash
-drun run testcases --log-level debug --httpx-logs --env-file .env
+drun run testcases --log-level debug --httpx-logs --env dev
 ```
 
 ## 📄 许可证
