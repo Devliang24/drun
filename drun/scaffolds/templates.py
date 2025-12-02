@@ -134,17 +134,17 @@ steps:
       - lt: [$elapsed_ms, $perf_threshold]
 """
 
-# 测试套件模板
+# 测试套件模板（caseflow 格式）
 DEMO_TESTSUITE = """config:
   name: 冒烟测试套件
   tags: [smoke]
 
-testcases:
+caseflow:
   - name: API 健康检查
-    testcase: testcases/test_api_health.yaml
+    invoke: test_api_health
 
   - name: 认证流程测试
-    testcase: testcases/test_demo.yaml
+    invoke: test_demo
 """
 
 # CSV 数据示例
@@ -223,14 +223,14 @@ steps:
       - eq: [$api_status, ${expected_sql_value($api_user_id)}]
 """
 
-# CSV 示例测试套件
+# CSV 示例测试套件（caseflow 格式）
 CSV_DATA_TESTSUITE = """config:
   name: 数据驱动示例套件
   tags: [csv, demo]
 
-testcases:
+caseflow:
   - name: CSV 参数化注册
-    testcase: testcases/test_import_users.yaml
+    invoke: test_import_users
 """
 
 # CSV 导出示例用例

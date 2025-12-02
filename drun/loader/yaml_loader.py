@@ -20,8 +20,9 @@ def _is_suite(doc: Dict[str, Any]) -> bool:
     return "cases" in doc
 
 
-def _is_testsuite_reference(doc: Dict[str, Any]) -> bool:
-    return isinstance(doc, dict) and isinstance(doc.get("testcases"), list)
+def _is_caseflow(doc: Dict[str, Any]) -> bool:
+    """检测是否为 caseflow 格式的测试套件"""
+    return isinstance(doc, dict) and isinstance(doc.get("caseflow"), list)
 
 
 def _escape_template_expressions_in_yaml(raw_text: str) -> str:
@@ -234,112 +235,46 @@ def load_yaml_file(path: Path) -> Tuple[List[Case], Dict[str, Any]]:
         raise LoadError(f"Failed to parse YAML: {path}: {e}")
 
     cases: List[Case] = []
-    # New-style reference testsuite: { config: {}, testcases: [ {testcase: path, name?, variables?, parameters?, tags?}, ... ] }
-    if _is_testsuite_reference(obj):
-        promoted_from_config: set[str] = set()
-        suite_setup_hooks: List[str] = []
-        suite_teardown_hooks: List[str] = []
-        if isinstance(obj.get("config"), dict):
-            for hk_field in ("setup_hooks", "teardown_hooks"):
-                if hk_field in obj["config"]:
-                    items = obj["config"].get(hk_field)
-                    if items is None:
-                        items = []
-                    if not isinstance(items, list):
-                        raise LoadError(
-                            f"Invalid config.{hk_field} entry type {type(items).__name__}; expected list of '${{func(...)}}'"
-                        )
-                    for item in items:
-                        if not isinstance(item, str):
-                            raise LoadError(
-                                f"Invalid suite {hk_field} entry type {type(item).__name__}; expected string like '${{func(...)}}'"
-                            )
-                        text = item.strip()
-                        if not text:
-                            raise LoadError(f"Invalid empty suite {hk_field} entry")
-                        if not (text.startswith("${") and text.endswith("}")):
-                            raise LoadError(
-                                f"Invalid suite {hk_field} entry '{item}': must use expression syntax '${{func(...)}}'"
-                            )
-                    if hk_field == "setup_hooks":
-                        suite_setup_hooks = list(items)
-                    else:
-                        suite_teardown_hooks = list(items)
-                    promoted_from_config.add(hk_field)
-                    obj["config"].pop(hk_field, None)
-        for hk_field in ("setup_hooks", "teardown_hooks"):
-            if hk_field in obj and hk_field not in promoted_from_config:
-                raise LoadError(
-                    f"Invalid top-level '{hk_field}': suite-level hooks must be declared under 'config.{hk_field}'."
-                )
-
-        suite_cfg = Config.model_validate(obj.get("config") or {})
-        # iterate referenced testcases
-        items = obj.get("testcases") or []
-        if not isinstance(items, list):
-            raise LoadError("Invalid testsuite: 'testcases' must be a list")
-
-        for idx, it in enumerate(items):
-            # item can be a string path or a dict
-            if isinstance(it, str):
-                tc_path = it
-                item_name = None
-                item_vars: Dict[str, Any] = {}
-                item_params: Any = None
-                item_tags: List[str] = []
-            elif isinstance(it, dict):
-                tc_path = it.get("testcase") or it.get("path") or it.get("file")
-                if not tc_path:
-                    raise LoadError(f"Invalid testsuite item at index {idx}: missing 'testcase' path")
-                item_name = it.get("name")
-                item_vars = dict(it.get("variables") or {})
-                item_params = it.get("parameters")
-                item_tags = list(it.get("tags") or [])
-            else:
-                raise LoadError(f"Invalid testsuite item type at index {idx}: {type(it).__name__}")
-
-            # resolve referenced path relative to testsuite file
-            ref = Path(tc_path)
-            if not ref.is_absolute():
-                candidate = (path.parent / ref).resolve()
-                if candidate.exists():
-                    ref = candidate
-                else:
-                    ref = (Path.cwd() / ref).resolve()
-            if not ref.exists():
-                raise LoadError(f"Referenced testcase not found: {tc_path}")
-
-            loaded_cases, _meta = load_yaml_file(ref)
-            if len(loaded_cases) != 1:
-                raise LoadError(
-                    f"Referenced testcase '{tc_path}' resolved to {len(loaded_cases)} cases; expected exactly 1."
-                )
-            base_case = loaded_cases[0]
-            merged = base_case.model_copy(deep=True)
-            # inherit/merge from suite config
-            if not merged.config.base_url:
-                merged.config.base_url = suite_cfg.base_url
-            merged.config.variables = {
-                **(suite_cfg.variables or {}),
-                **(merged.config.variables or {}),
-                **(item_vars or {}),
+    # Caseflow format: { config: {name, tags}, caseflow: [ {name, invoke, variables?}, ... ] }
+    if _is_caseflow(obj):
+        # 解析 config（只取 name 和 tags，不支持 base_url/parameters）
+        raw_cfg = obj.get("config") or {}
+        suite_cfg = Config(
+            name=raw_cfg.get("name", "Unnamed Caseflow"),
+            tags=raw_cfg.get("tags", []),
+        )
+        
+        # 将 caseflow 项转换为 invoke steps
+        steps: List[Step] = []
+        caseflow_items = obj.get("caseflow") or []
+        if not isinstance(caseflow_items, list):
+            raise LoadError("Invalid caseflow: 'caseflow' must be a list")
+        
+        for idx, item in enumerate(caseflow_items):
+            if not isinstance(item, dict):
+                raise LoadError(f"Invalid caseflow item at index {idx}: expected dict")
+            
+            invoke_path = item.get("invoke")
+            if not invoke_path:
+                raise LoadError(f"Caseflow item at index {idx}: missing 'invoke'")
+            
+            step_dict = {
+                "name": item.get("name", f"Step {idx + 1}"),
+                "invoke": invoke_path,
+                "variables": item.get("variables", {}),
             }
-            merged.config.headers = {**(suite_cfg.headers or {}), **(merged.config.headers or {})}
-            merged.config.tags = list({*(suite_cfg.tags or []), *merged.config.tags, *item_tags})
-            # item-level name override
-            if item_name:
-                merged.config.name = item_name
-            # item-level parameters override (simple override to avoid ambiguous compositions)
-            if item_params is not None:
-                merged.parameters = item_params
-            # inherit suite hooks
-            merged.suite_setup_hooks = list(suite_setup_hooks or [])
-            merged.suite_teardown_hooks = list(suite_teardown_hooks or [])
-            cases.append(merged)
+            steps.append(Step.model_validate_obj(step_dict))
+        
+        # 构建虚拟 Case
+        virtual_case = Case(
+            config=suite_cfg,
+            steps=steps,
+        )
+        cases.append(virtual_case)
 
     elif _is_suite(obj):
         # Legacy inline suite with 'cases:' is no longer supported
-        raise LoadError("Legacy inline suite ('cases:') is not supported. Please use reference testsuite with 'testcases:'.")
+        raise LoadError("Legacy inline suite ('cases:') is not supported. Please use caseflow format.")
     else:
         # single case file: normalize validators
         obj = _normalize_case_dict(obj, path=path, raw_text=processed_raw)
