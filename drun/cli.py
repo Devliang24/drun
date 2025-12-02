@@ -633,22 +633,22 @@ def _resolve_output_paths(
     return [Path(f"{default_prefix}_{i}.yaml") for i in range(1, count + 1)]
 
 
-def _write_testsuite_reference(paths: List[Path], names: List[str], *, suite_path: str, suite_name: Optional[str] = None) -> None:
+def _write_caseflow(paths: List[Path], names: List[str], *, suite_path: str, suite_name: Optional[str] = None) -> None:
+    """生成 caseflow 格式的测试套件文件"""
     obj = {
         "config": {
-            "name": suite_name or "Imported Testsuite",
+            "name": suite_name or "Imported Caseflow",
         },
-        "testcases": [
-            {"name": nm, "testcase": str(p)} for nm, p in zip(names, paths)
+        "caseflow": [
+            {"name": nm, "invoke": p.stem} for nm, p in zip(names, paths)
         ],
     }
     from pathlib import Path as _Path
-    from typing import Any as _Any
     out = yaml.dump(obj, Dumper=_YamlDumper, sort_keys=False, allow_unicode=True)
     _p = _Path(suite_path)
     _p.parent.mkdir(parents=True, exist_ok=True)
     _p.write_text(out, encoding="utf-8")
-    typer.echo(f"[CONVERT] Wrote testsuite to {suite_path}")
+    typer.echo(f"[CONVERT] Wrote caseflow to {suite_path}")
 
 
 def _write_imported_cases(
@@ -955,7 +955,7 @@ def convert_postman(
             else:
                 typer.echo("[CONVERT] --suite-out requires --split-output or --outfile to materialize case files")
                 raise typer.Exit(code=2)
-        _write_testsuite_reference(paths, names, suite_path=suite_out, suite_name=case_name or icase.name)
+        _write_caseflow(paths, names, suite_path=suite_out, suite_name=case_name or icase.name)
 
 
 def convert_har(
@@ -1421,10 +1421,15 @@ def _run_impl(
     def _need_base_url(case: Case) -> bool:
         try:
             for st in case.steps:
+                # Skip invoke steps (they don't have request, the invoked case has its own base_url)
+                if st.invoke:
+                    continue
+                if not st.request:
+                    continue
                 path = getattr(st.request, "path", "") or ""
                 u = str(path).strip()
                 # if not absolute (no scheme), we treat it as relative and require base_url
-                if not (u.startswith("http://") or u.startswith("https://")):
+                if u and not (u.startswith("http://") or u.startswith("https://")):
                     return True
             return False
         except Exception:

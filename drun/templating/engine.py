@@ -190,11 +190,23 @@ class TemplateEngine:
         # Only support ${...} / $var dollar-style expressions
         self.env = None
 
+    def _strip_escape_quotes(self, value: str) -> str:
+        """移除 _escape_template_expressions_in_yaml 添加的双引号
+        
+        例如: _test_"${short_uid(6)}" -> _test_${short_uid(6)}
+        """
+        # 匹配 "${...}" 格式，移除外层双引号
+        pattern = r'"(\$\{[^}]*\})"'
+        return re.sub(pattern, r'\1', value)
+
     def render_value(self, value: Any, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None) -> Any:
         if isinstance(value, str):
             try:
-                text = _normalize_simple_tokens(value)
-                # Inject ENV function that reads from provided envmap or OS
+                # 先移除 _escape_template_expressions_in_yaml 添加的双引号
+                # 例如: _test_"${short_uid(6)}" -> _test_${short_uid(6)}
+                text = self._strip_escape_quotes(value)
+
+                # Build context first
                 def ENV(name: str, default: Any = None) -> Any:  # noqa: N802 - uppercase by design
                     if envmap is not None and name in envmap:
                         value = envmap.get(name)
@@ -205,6 +217,23 @@ class TemplateEngine:
                 dyn_funcs: Dict[str, Callable[..., Any]] = {"ENV": ENV}
                 ctx: Dict[str, Any] = {**BUILTINS, **dyn_funcs, **(functions or {}), **variables}
 
+                # Optimization: Try to evaluate as a single expression directly first
+                # This handles ${func($var)} correctly by avoiding string interpolation
+                # which can break AST parsing when variables contain special chars (e.g. commas)
+                if text.startswith("${") and text.endswith("}"):
+                    inner = text[2:-1]
+                    # Replace $name tokens to name for AST parsing (e.g. $var -> var)
+                    # This is safe because we are treating it as code, not string interpolation
+                    inner_processed = re.sub(r"\$([A-Za-z_][A-Za-z0-9_]*)", r"\1", inner)
+                    try:
+                        node = ast.parse(inner_processed, mode="eval")
+                        return _safe_eval(node, ctx)
+                    except Exception:
+                        # Fall through to standard string interpolation if direct eval fails
+                        pass
+
+                text = _normalize_simple_tokens(text)
+                
                 cur = text
                 for _ in range(5):
                     single_token_match = re.fullmatch(r"\$\{([^{}]+)\}", cur)

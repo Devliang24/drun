@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from drun.engine.http import HTTPClient
-from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline, load_yaml_file
+from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline, load_yaml_file, expand_parameters
 from drun.loader.collector import resolve_invoke_path
 from drun.models.case import Case
 from drun.models.report import AssertionResult, CaseInstanceResult, RunReport, StepResult
@@ -69,8 +69,11 @@ class Runner:
 
     def _build_client(self, case: Case) -> HTTPClient:
         cfg = case.config
+        # For caseflow (invoke-only cases), base_url may be None
+        # Use a placeholder URL since the client won't be used for invoke steps
+        base_url = cfg.base_url or "http://placeholder.local"
         return HTTPClient(
-            base_url=cfg.base_url,
+            base_url=base_url,
             timeout=cfg.timeout,
             verify=cfg.verify,
             headers=cfg.headers,
@@ -440,6 +443,7 @@ class Runner:
         funcs: Dict[str, Any] | None,
         envmap: Dict[str, Any] | None,
         ctx: VarContext,
+        params: Dict[str, Any] | None,
     ) -> StepResult:
         """Execute an invoke step that calls another test case.
         
@@ -510,26 +514,78 @@ class Runner:
             rendered_step_vars = self._render(step.variables, variables, funcs, envmap)
             if isinstance(rendered_step_vars, dict):
                 invoke_vars.update(rendered_step_vars)
+                if self.log:
+                    for k, v in rendered_step_vars.items():
+                        self.log.info(f"[INVOKE] Passing variable: {k} = {v!r}")
+
+        # Ensure invoked case has a usable base_url (similar to CLI behavior)
+        invoked_base_url = invoked_case.config.base_url
+        if not invoked_base_url:
+            fallback_base = (
+                invoke_vars.get("base_url")
+                or invoke_vars.get("BASE_URL")
+                or (envmap or {}).get("base_url")
+                or (envmap or {}).get("BASE_URL")
+            )
+            if fallback_base:
+                invoked_case.config.base_url = fallback_base
+                invoked_base_url = fallback_base
+
+        if isinstance(invoked_base_url, str) and ("${" in invoked_base_url or "{{" in invoked_base_url):
+            try:
+                invoked_case.config.base_url = self._render(invoked_base_url, invoke_vars, funcs, envmap)
+            except Exception as exc:
+                if self.log:
+                    self.log.error(f"[INVOKE] Failed to render base_url '{invoked_base_url}': {exc}")
+                raise
         
         # Run the invoked case
         if self.log:
             self.log.info(f"[INVOKE] Executing: {invoked_case.config.name or resolved_path.name}")
         
-        invoke_result = self.run_case(
-            case=invoked_case,
-            global_vars=invoke_vars,
-            params={},
-            funcs=funcs,
-            envmap=envmap,
-            source=str(resolved_path),
-        )
+        # Handle parameters (e.g., CSV data-driven tests)
+        param_sets = expand_parameters(invoked_case.parameters, source_path=str(resolved_path))
+        if self.log and len(param_sets) > 1:
+            self.log.info(f"[INVOKE] Expanding {len(param_sets)} parameter sets")
+        
+        # Execute for each parameter set and collect results
+        all_step_results: List[StepResult] = []
+        final_status = "passed"
+        accumulated_vars = {**invoke_vars}  # Track accumulated variables across iterations
+        
+        for ps in param_sets:
+            # Merge accumulated vars with parameter set
+            merged_vars = {**accumulated_vars, **ps}
+            
+            invoke_result = self.run_case(
+                case=invoked_case,
+                global_vars=merged_vars,
+                params=ps,
+                funcs=funcs,
+                envmap=envmap,
+                source=str(resolved_path),
+            )
+            
+            # Update accumulated_vars with extracted variables for next iteration
+            # Only update if the new value is non-empty (to preserve accumulated values)
+            for sr in invoke_result.steps:
+                if sr.extracts:
+                    for k, v in sr.extracts.items():
+                        should_update = bool(v) or k not in accumulated_vars
+                        # Only update if new value is non-empty, or if key doesn't exist yet
+                        if should_update:
+                            accumulated_vars[k] = v
+            
+            all_step_results.extend(invoke_result.steps)
+            if invoke_result.status == "failed":
+                final_status = "failed"
+                if self.failfast:
+                    break
         
         # Handle variable export from invoked case
-        # Collect all variables extracted during invoked case execution
-        invoked_extracts: Dict[str, Any] = {}
-        for sr in invoke_result.steps:
-            if sr.extracts:
-                invoked_extracts.update(sr.extracts)
+        # Use accumulated_vars which correctly tracks extracted variables across iterations
+        # (using all_step_results would cause later empty values to overwrite earlier ones)
+        invoked_extracts = {k: v for k, v in accumulated_vars.items() if k not in invoke_vars or accumulated_vars[k] != invoke_vars.get(k)}
         
         exported_vars: Dict[str, Any] = {}
         
@@ -562,23 +618,22 @@ class Runner:
                     self.log.info(f"[INVOKE] Auto-exported: {var_name} = {var_value!r}")
         
         duration_ms = (time.perf_counter() - t0) * 1000
-        step_status = invoke_result.status
         
         if self.log:
-            status_label = "PASSED" if step_status == "passed" else "FAILED"
+            status_label = "PASSED" if final_status == "passed" else "FAILED"
             self.log.info(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | {status_label}")
         
         return StepResult(
             name=rendered_step_name,
-            status=step_status,
+            status=final_status,
             extracts=exported_vars,
             duration_ms=duration_ms,
             # Include sub-step info in response for debugging
             response={
                 "invoked_case": invoked_case.config.name or str(resolved_path),
-                "invoked_steps": len(invoke_result.steps),
-                "invoked_passed": sum(1 for s in invoke_result.steps if s.status == "passed"),
-                "invoked_failed": sum(1 for s in invoke_result.steps if s.status == "failed"),
+                "invoked_steps": len(all_step_results),
+                "invoked_passed": sum(1 for s in all_step_results if s.status == "passed"),
+                "invoked_failed": sum(1 for s in all_step_results if s.status == "failed"),
             },
         )
 
@@ -590,11 +645,16 @@ class Runner:
         last_resp_obj: Dict[str, Any] | None = None
 
         # Evaluate case-level variables once to fix values across steps
+        # global_vars (from invoke) take precedence over case.config.variables
         base_vars_raw: Dict[str, Any] = {**(case.config.variables or {}), **(params or {})}
         # Resolve sequentially so variables can reference earlier ones
-        rendered_base = {}
+        # Use global_vars as initial context so invoke-passed variables are available
+        rendered_base = {**global_vars}
         for key, value in base_vars_raw.items():
-            rendered_base[key] = self._render(value, rendered_base, funcs, envmap)
+            # Only render if not already set by global_vars (invoke takes precedence)
+            if key not in global_vars:
+                rendered_base[key] = self._render(value, rendered_base, funcs, envmap)
+            # else: keep the value from global_vars
         ctx = VarContext(rendered_base)
         client = self._build_client(case)
 
@@ -655,11 +715,11 @@ class Runner:
                     continue
 
                 # variables: case -> step -> CLI/global overrides
-                ctx.push(step.variables)
-                variables = ctx.get_merged(global_vars)
-                # render step-level variables so expressions like ${token} inside values are resolved
-                rendered_locals = self._render(step.variables, variables, funcs, envmap)
-                ctx.pop()
+                # First, get base variables WITHOUT step.variables to render step-level expressions
+                base_variables = ctx.get_merged(global_vars)
+                # render step-level variables so expressions like ${token_key} inside values are resolved
+                # Use base_variables (without step.variables) so $token_key resolves to the actual value
+                rendered_locals = self._render(step.variables, base_variables, funcs, envmap)
                 ctx.push(rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {}))
                 variables = ctx.get_merged(global_vars)
 
@@ -679,6 +739,7 @@ class Runner:
                         funcs=funcs,
                         envmap=envmap,
                         ctx=ctx,
+                        params=params,
                     )
                     steps_results.append(invoke_result)
                     if invoke_result.status == "failed":
@@ -928,7 +989,12 @@ class Runner:
                             temp_vars[temp_var_name] = extracted
                             # 不加 $ 前缀，直接用变量名，避免 normalize 时产生嵌套 ${}
                             temp_expr = temp_expr.replace(jp, temp_var_name)
-                        val = self._render(temp_expr, temp_vars, funcs, envmap)
+
+                        # 直接使用模板引擎的 eval_expr 来计算表达式，避免字符串拼接造成的语法问题
+                        val = self.templater.eval_expr(temp_expr, temp_vars, funcs, envmap)
+                        if val is None:
+                            # eval_expr 解析失败时回退到 render，保持向后兼容
+                            val = self._render(temp_expr, temp_vars, funcs, envmap)
                     else:
                         # 原有 JMESPath 提取模式
                         val = self._eval_extract(expr, resp_obj)
