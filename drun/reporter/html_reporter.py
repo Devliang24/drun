@@ -164,7 +164,7 @@ def _build_stream_response_panel(response_map: Dict[str, Any]) -> str:
     )
 
 
-def _build_step(step: StepResult, step_score: Optional[Any] = None) -> str:
+def _build_step(step: StepResult, step_score: Optional[Any] = None, step_idx: Optional[int] = None) -> str:
     pass_cnt = sum(1 for a in (step.asserts or []) if a.passed)
     fail_cnt = sum(1 for a in (step.asserts or []) if not a.passed)
 
@@ -226,7 +226,8 @@ def _build_step(step: StepResult, step_score: Optional[Any] = None) -> str:
         meta_snippets.append(f"<span class='st-meta'>{_escape_html(status_meta_text)}</span>")
     left_meta_html = " ".join(meta_snippets)
 
-    head_left = f"<div><b>步骤：</b>{_escape_html(step.name)}"
+    step_prefix = f"步骤 {step_idx}: " if step_idx is not None else "步骤: "
+    head_left = f"<div><b>{step_prefix}</b>{_escape_html(step.name)}"
     if left_meta_html:
         head_left += f" {left_meta_html}"
     head_left += "</div>"
@@ -329,7 +330,7 @@ def _build_step(step: StepResult, step_score: Optional[Any] = None) -> str:
     return f"<div class='step'><div>{head}</div>{body}</div>"
 
 
-def _build_case(case: CaseInstanceResult, case_score: Optional[Any] = None) -> str:
+def _build_case(case: CaseInstanceResult, case_score: Optional[Any] = None, case_idx: Optional[int] = None) -> str:
     # 不再显示 CSV 参数详情，避免报告过于冗长
     params_html = ""
 
@@ -356,9 +357,10 @@ def _build_case(case: CaseInstanceResult, case_score: Optional[Any] = None) -> s
     if case_score is not None:
         score_text = f" <span class='muted' style='font-weight:normal;'>{case_score.grade} ({case_score.total})</span>"
 
+    case_prefix = f"用例 {case_idx}: " if case_idx is not None else "用例: "
     head = (
         "<div class='head'>"
-        f"<div><div><b>用例：</b>{_escape_html(case.name)}{score_text}{meta_html}</div>{params_html}</div>"
+        f"<div><div><b>{case_prefix}</b>{_escape_html(case.name)}{score_text}{meta_html}</div>{params_html}</div>"
         f"<div><span class='pill {case.status}'>{case.status}</span>"
         f"<span class='muted' style='margin-left:8px;'>{case.duration_ms:.1f} ms</span></div>"
         "</div>"
@@ -367,9 +369,14 @@ def _build_case(case: CaseInstanceResult, case_score: Optional[Any] = None) -> s
     # Build steps with scores
     step_scores = case_score.steps if case_score else []
     steps_html_parts = []
+    total_steps = len(case.steps or [])
     for idx, s in enumerate(case.steps or []):
-        step_score = step_scores[idx] if idx < len(step_scores) else None
-        steps_html_parts.append(_build_step(s, step_score))
+        # 如果只有一个打分但有多个步骤，所有步骤都使用这个打分
+        if len(step_scores) == 1 and total_steps > 1:
+            step_score = step_scores[0]
+        else:
+            step_score = step_scores[idx] if idx < len(step_scores) else None
+        steps_html_parts.append(_build_step(s, step_score, step_idx=idx + 1 if total_steps > 1 else None))
     steps_html = "".join(steps_html_parts)
     
     # Suggestions (show if score < 70)
@@ -379,6 +386,31 @@ def _build_case(case: CaseInstanceResult, case_score: Optional[Any] = None) -> s
         suggestions_html = f"<div class='suggestions'><b>改进建议:</b><ul>{suggestions_items}</ul></div>"
     
     return f"<div class='case' data-status='{case.status}' data-duration='{case.duration_ms:.3f}'>{head}<div class='body'>{suggestions_html}{steps_html}</div></div>"
+
+
+def _merge_parameterized_cases(cases: List[CaseInstanceResult]) -> List[CaseInstanceResult]:
+    """合并同名参数化用例为单个用例，步骤合并显示"""
+    merged: Dict[tuple, CaseInstanceResult] = {}
+    for case in cases:
+        key = (case.name, getattr(case, 'source', None))
+        if key not in merged:
+            # 创建新的合并用例
+            merged[key] = CaseInstanceResult(
+                name=case.name,
+                parameters={},
+                steps=list(case.steps or []),
+                status=case.status,
+                duration_ms=case.duration_ms,
+                source=getattr(case, 'source', None),
+            )
+        else:
+            # 合并步骤和状态
+            existing = merged[key]
+            existing.steps.extend(case.steps or [])
+            existing.duration_ms += case.duration_ms
+            if case.status == "failed":
+                existing.status = "failed"
+    return list(merged.values())
 
 
 def write_html(report: RunReport, outfile: str | Path, environment: Optional[str] = None) -> None:
@@ -792,11 +824,12 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
     head_parts.append("    </div>\n")
     head_parts.append("    <div class='toolbar'>\n      <div class='filters'>\n        <label class='chip'><input type='radio' name='status-filter' id='f-all' value='all' checked /> 全部</label>\n        <label class='chip'><input type='radio' name='status-filter' id='f-passed' value='passed' /> 通过</label>\n        <label class='chip'><input type='radio' name='status-filter' id='f-failed' value='failed' /> 失败</label>\n        <label class='chip'><input type='radio' name='status-filter' id='f-skipped' value='skipped' /> 跳过</label>\n      </div>\n      <button id='btn-toggle-expand' title='展开/收起全部' onclick=\"window.toggleAllSteps && window.toggleAllSteps(this)\">展开全部</button>\n    </div>\n  </div>\n")
 
-    # Cases
+    # Cases - 合并同名参数化用例
+    merged_cases = _merge_parameterized_cases(report.cases)
     body_cases = []
-    for c in report.cases:
+    for idx, c in enumerate(merged_cases):
         score = case_scores.get(c.name)
-        body_cases.append(_build_case(c, score))
+        body_cases.append(_build_case(c, score, case_idx=idx + 1 if len(merged_cases) > 1 else None))
 
     tail = """
 </div>
