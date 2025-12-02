@@ -1,12 +1,12 @@
 # Drun — Modern HTTP API Testing Framework
 
-[![Version](https://img.shields.io/badge/version-7.0.0-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.0.14-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **Drun** — Easy-to-use API testing with DevOps automation support. Write tests in simple YAML, run anywhere with CI/CD integration.
 
-## 🎯 Why Drun?
+## Why Drun?
 
 - **Zero Code Required**: Write tests in simple YAML, no programming knowledge needed
 - **Postman-Like Experience**: Variable extraction, environment management, and test chaining
@@ -15,41 +15,43 @@
 - **Format Agnostic**: Import from cURL, Postman, HAR, OpenAPI; export to cURL
 - **Modern Stack**: Built on httpx, Pydantic v2, and typer for reliability
 
-## ✨ Key Features
+## Key Features
 
 ### Core Testing Capabilities
-- ✅ **YAML DSL**: Intuitive test case syntax with `config`, `steps`, `extract`, `validate`, `export`
-- ✅ **Dollar Templating**: `$var` and `${func(...)}` for dynamic values
-- ✅ **Rich Assertions**: 12 validators (eq, ne, lt, contains, regex, len_eq, etc.)
-- ✅ **Data-Driven**: CSV parameters for batch testing
-- ✅ **CSV Export**: Export API response arrays to CSV files (v4.2)
-- ✅ **Streaming Support**: SSE (Server-Sent Events) with per-event assertions
-- ✅ **File Uploads**: Multipart/form-data support
-- ✅ **Smart File Discovery**: Run tests without `.yaml` extension (NEW in v5.0)
+- **YAML DSL**: Intuitive test case syntax with `config`, `steps`, `extract`, `validate`, `export`
+- **Dollar Templating**: `$var` and `${func(...)}` for dynamic values
+- **Rich Assertions**: 12 validators (eq, ne, lt, contains, regex, len_eq, etc.)
+- **Data-Driven**: CSV parameters for batch testing
+- **CSV Export**: Export API response arrays to CSV files
+- **Streaming Support**: SSE (Server-Sent Events) with per-event assertions
+- **File Uploads**: Multipart/form-data support
+- **Smart File Discovery**: Run tests without `.yaml` extension
+- **Test Case Invoke**: Nested test case calls with variable passing (NEW in v6.2)
+- **Quality Scoring**: Test case quality assessment system (NEW in v6.3)
 
-### Variable Management (NEW in v4.0)
-- ✅ **Auto-Persist**: Extracted variables automatically saved to `.env`
-- ✅ **Smart Naming**: `token` → `TOKEN`, `apiKey` → `API_KEY` conversion
-- ✅ **Memory Passing**: Variables shared between test cases in suites
-- ✅ **Environment Files**: Support for `.env`, YAML env files, and OS variables
+### Variable Management
+- **Auto-Persist**: Extracted variables automatically saved to `.env`
+- **Smart Naming**: `token` → `TOKEN`, `apiKey` → `API_KEY` conversion
+- **Memory Passing**: Variables shared between test cases in suites
+- **Environment Files**: Support for `.env`, YAML env files, and OS variables
 
 ### Advanced Features
-- ✅ **Custom Hooks**: Python functions for setup/teardown and request signing
-- ✅ **Test Suites**: Ordered execution with variable chaining
-- ✅ **Authentication**: Basic/Bearer auth with auto-injection
-- ✅ **Tag Filtering**: Boolean expressions like `smoke and not slow`
-- ✅ **Database Assertions**: MySQL integration for data validation
+- **Custom Hooks**: Python functions for setup/teardown and request signing
+- **Test Suites**: Ordered execution with variable chaining and caseflow
+- **Authentication**: Basic/Bearer auth with auto-injection
+- **Tag Filtering**: Boolean expressions like `smoke and not slow`
+- **Database Assertions**: MySQL integration for data validation
 
 ### Reports & Integrations
-- ✅ **HTML Reports**: Single-file, shareable test reports
-- ✅ **JSON/Allure**: Structured results for CI/CD pipelines
-- ✅ **Notifications**: Feishu, DingTalk, Email alerts on failure
-- ✅ **Format Conversion**: Import/export with cURL, Postman, HAR, OpenAPI
-- ✅ **Code Snippets**: Auto-generate executable Shell and Python scripts (v4.2)
-- ✅ **Unified Logging**: Consistent log format with timestamps (NEW in v5.0)
-- ✅ **Web Report Server**: Real-time HTML report viewing with SQLite database (NEW in v6.0)
+- **HTML Reports**: Single-file, shareable test reports
+- **JSON/Allure**: Structured results for CI/CD pipelines
+- **Notifications**: Feishu, DingTalk, Email alerts on failure
+- **Format Conversion**: Import/export with cURL, Postman, HAR, OpenAPI
+- **Code Snippets**: Auto-generate executable Shell and Python scripts
+- **Unified Logging**: Consistent log format with timestamps
+- **Web Report Server**: Real-time HTML report viewing with SQLite database
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -75,7 +77,7 @@ uv pip install --upgrade drun
 
 **Requirements**: Python 3.10+
 
-> 💡 推荐使用 [uv](https://docs.astral.sh/uv/) 管理虚拟环境。也支持传统方式：`pip install drun`
+> Recommended to use [uv](https://docs.astral.sh/uv/) for virtual environment management. Traditional method also works: `pip install drun`
 
 ### Initialize a Project
 
@@ -87,36 +89,36 @@ cd my-api-test
 This creates:
 ```
 my-api-test/
-├── testcases/                      # 测试用例目录
-│   ├── test_demo.yaml              # HTTP 功能演示
-│   ├── test_api_health.yaml        # 健康检查示例
-│   ├── test_performance.yaml       # 性能分析示例
-│   ├── test_import_users.yaml      # CSV 参数化用例
-│   ├── test_db_assert.yaml         # 数据库断言示例
-│   ├── test_assertions.yaml        # 断言操作符示例
-│   └── test_stream.yaml            # 流式响应示例
-├── testsuites/                     # 测试套件目录
-│   ├── testsuite_smoke.yaml        # 冒烟测试套件
-│   └── testsuite_csv.yaml          # CSV 示例套件
-├── data/                           # 测试数据目录
-│   └── users.csv                   # CSV 参数数据
-├── converts/                       # 格式转换源文件
+├── testcases/                      # Test cases directory
+│   ├── test_demo.yaml              # HTTP feature demo
+│   ├── test_api_health.yaml        # Health check example
+│   ├── test_performance.yaml       # Performance analysis example
+│   ├── test_import_users.yaml      # CSV parameterization example
+│   ├── test_db_assert.yaml         # Database assertion example
+│   ├── test_assertions.yaml        # Assertion operators example
+│   └── test_stream.yaml            # Streaming response example
+├── testsuites/                     # Test suites directory
+│   ├── testsuite_smoke.yaml        # Smoke test suite
+│   └── testsuite_csv.yaml          # CSV example suite
+├── data/                           # Test data directory
+│   └── users.csv                   # CSV parameter data
+├── converts/                       # Format conversion source files
 │   ├── curl/
-│   │   └── sample.curl             # cURL 命令示例
+│   │   └── sample.curl             # cURL command example
 │   ├── postman/
 │   │   ├── sample_collection.json  # Postman Collection
-│   │   └── sample_environment.json # Postman 环境变量
+│   │   └── sample_environment.json # Postman environment
 │   ├── har/
-│   │   └── sample_recording.har    # HAR 录制文件
+│   │   └── sample_recording.har    # HAR recording file
 │   └── openapi/
-│       └── sample_openapi.json     # OpenAPI 规范
-├── reports/                        # HTML/JSON 报告输出
-├── logs/                           # 日志文件输出
-├── snippets/                       # 自动生成代码片段
-├── .env                            # 环境变量配置
-├── drun_hooks.py                   # 自定义 Hooks 函数
-├── .gitignore                      # Git 忽略规则
-└── README.md                       # 项目说明文档
+│       └── sample_openapi.json     # OpenAPI spec
+├── reports/                        # HTML/JSON report output
+├── logs/                           # Log file output
+├── snippets/                       # Auto-generated code snippets
+├── .env                            # Environment variables
+├── drun_hooks.py                   # Custom Hooks functions
+├── .gitignore                      # Git ignore rules
+└── README.md                       # Project documentation
 ```
 
 ### Create Your First Test
@@ -181,7 +183,7 @@ drun r testcases -k "smoke and not slow"
 drun r testsuite_e2e
 ```
 
-## 📚 Core Concepts
+## Core Concepts
 
 ### Test Case Structure
 
@@ -198,6 +200,8 @@ config:
 
 steps:
   - name: Step name
+    setup_hooks:
+      - ${custom_function($request)}
     request:
       method: POST
       path: /endpoint
@@ -217,13 +221,11 @@ steps:
     validate:
       - eq: [status_code, 200]
       - contains: [$.data.message, success]
-    setup_hooks:
-      - ${custom_function($request)}
     teardown_hooks:
       - ${cleanup_function()}
 ```
 
-### Variable Extraction & Auto-Persist (v4.0)
+### Variable Extraction & Auto-Persist
 
 **Extraction automatically persists to environment:**
 
@@ -257,20 +259,51 @@ steps:
         user_id: ${ENV(USER_ID)}            # Uses extracted userId
 ```
 
-### Test Suites & Execution Order
+### Test Suites & Caseflow (NEW in v6.2)
+
+**Modern caseflow syntax with invoke:**
 
 ```yaml
 # testsuites/testsuite_e2e.yaml
 config:
   name: E2E Test Flow
-  base_url: ${ENV(BASE_URL)}
   tags: [e2e, critical]
 
+caseflow:
+  - name: Login and Get Token
+    invoke: test_login              # Extracts: token, userId (auto-exported)
+
+  - name: Create Order
+    variables:
+      user_id: $userId              # Use variable from previous step
+    invoke: test_create_order       # Extracts: orderId
+
+  - name: Process Payment
+    variables:
+      order_id: $orderId
+      token: $token
+    invoke: test_payment
+
+  - name: Verify Order Status
+    variables:
+      order_id: $orderId
+    invoke: test_verify
+```
+
+> **Note**: In caseflow, `variables` comes before `invoke`. Extracted variables are automatically exported to subsequent steps - no explicit `export` needed.
+
+**Legacy testcases syntax (still supported):**
+
+```yaml
+config:
+  name: E2E Test Flow
+  base_url: ${ENV(BASE_URL)}
+
 testcases:
-  - testcases/test_login.yaml          # 1. Extract token
-  - testcases/test_create_order.yaml   # 2. Use token, extract orderId
-  - testcases/test_payment.yaml        # 3. Use token & orderId
-  - testcases/test_verify.yaml         # 4. Final verification
+  - testcases/test_login.yaml
+  - testcases/test_create_order.yaml
+  - testcases/test_payment.yaml
+  - testcases/test_verify.yaml
 ```
 
 **Execution characteristics:**
@@ -377,7 +410,7 @@ steps:
 
 Drun will execute the test 3 times (once per CSV row).
 
-### CSV Export (NEW in v4.2)
+### CSV Export
 
 Export API response arrays to CSV files, similar to Postman's data export:
 
@@ -411,48 +444,12 @@ export:
     delimiter: ","                       # CSV delimiter
 ```
 
-**Common use cases:**
+### Code Snippets
 
-```yaml
-# Filter and export
-export:
-  csv:
-    data: $.users[?status=='active']    # JMESPath filter
-    file: data/active_users.csv
-
-# Paginated export with append
-config:
-  parameters:
-    - page: [1, 2, 3, 4, 5]
-steps:
-  - name: Export page $page
-    request:
-      method: GET
-      path: /api/products?page=$page
-    export:
-      csv:
-        data: $.data.items
-        file: data/all_products.csv
-        mode: append                     # Append to file
-```
-
-**Comparison with extract:**
-
-| Feature | extract | export |
-|---------|---------|--------|
-| Target | Memory variables | Disk files |
-| Data type | Any type | Arrays only |
-| Purpose | Temporary usage | Persistent storage |
-| Example | `userId: $.data.id` | `csv: {data: $.data.users, file: users.csv}` |
-
-CSV export functionality is fully documented above with complete examples.
-
-### Code Snippets (NEW in v4.2)
-
-Automatically generate executable Shell and Python scripts from test steps, similar to Postman's code snippet feature:
+Automatically generate executable Shell and Python scripts from test steps:
 
 ```bash
-# Run test - code snippets are generated automatically (extension optional in v5.0)
+# Run test - code snippets are generated automatically
 $ drun r test_login
 
 2025-11-24 14:23:18.551 | INFO | [CASE] Total: 1 Passed: 1 Failed: 0 Skipped: 0
@@ -460,61 +457,10 @@ $ drun r test_login
 2025-11-24 14:23:18.559 | INFO | [SNIPPET] Code snippets saved to snippets/20251124-143025/
 2025-11-24 14:23:18.560 | INFO | [SNIPPET]   - step1_login_curl.sh
 2025-11-24 14:23:18.560 | INFO | [SNIPPET]   - step1_login_python.py
-2025-11-24 14:23:18.561 | INFO | [SNIPPET]   - step2_get_user_info_curl.sh
-2025-11-24 14:23:18.561 | INFO | [SNIPPET]   - step2_get_user_info_python.py
-2025-11-24 14:23:18.562 | INFO | [SNIPPET]   - step3_update_profile_curl.sh
-2025-11-24 14:23:18.562 | INFO | [SNIPPET]   - step3_update_profile_python.py
-```
-
-**Generated Shell script (step1_login_curl.sh):**
-```bash
-#!/bin/bash
-set -e  # Exit on error
-
-echo "=== Step 1: Login ==="
-
-curl -X POST 'https://api.example.com/api/v1/login' \
-  -H 'Content-Type: application/json' \
-  --data-raw '{"username":"admin","password":"pass123"}'
-
-echo ""
-echo "✅ Request completed"
-```
-
-**Generated Python script (step1_login_python.py):**
-```python
-import requests
-import json
-
-url = "https://api.example.com/api/v1/login"
-
-payload = json.dumps({
-  "username": "admin",
-  "password": "pass123"
-})
-headers = {
-  "Content-Type": "application/json"
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
-```
-
-**Execute generated scripts:**
-```bash
-# Run shell script
-$ bash snippets/20251124-143025/step1_login_curl.sh
-
-# Run Python script
-$ python3 snippets/20251124-143025/step1_login_python.py
 ```
 
 **CLI Options:**
 ```bash
-# Extension optional (NEW in v5.0)
-$ drun r test_api
-
 # Disable snippet generation
 $ drun r test_api --no-snippet
 
@@ -527,13 +473,6 @@ $ drun r test_api --snippet-lang curl
 # Custom output directory
 $ drun r test_api --snippet-output exports/
 ```
-
-**Features:**
-- ✅ Each step generates independent executable files
-- ✅ Timestamp-based directory management (no overwrite)
-- ✅ Auto-detect variable dependencies with hints
-- ✅ Scripts include shebang and execute permissions
-- ✅ Support for all HTTP methods, headers, body, auth, timeout
 
 ### Custom Hooks
 
@@ -562,7 +501,6 @@ def setup_hook_sign_request(hook_ctx):
 
 def teardown_hook_cleanup(hook_ctx):
     """Cleanup test data"""
-    # Implement cleanup logic
     pass
 ```
 
@@ -583,9 +521,9 @@ steps:
       - ${teardown_hook_cleanup()}
 ```
 
-## 🔧 CLI Reference
+## CLI Reference
 
-### Web Report Server (NEW in v6.0)
+### Web Report Server
 
 ```bash
 # Start report server
@@ -601,11 +539,45 @@ drun s --reload
 # Features:
 # - Auto-scans reports/ directory
 # - Real-time report indexing with SQLite
-# - Paginated list view (15 reports per page)
+# - Paginated list view (18 reports per page)
 # - Detailed report view with back navigation
 # - Statistics dashboard
 # - RESTful API at /api/reports
 ```
+
+### Test Case Scoring (NEW in v6.3)
+
+Evaluate test case quality to improve test standards:
+
+```bash
+# Score a directory
+drun score testcases/
+
+# Score a single file
+drun score testcases/test_api.yaml
+```
+
+**Scoring Dimensions:**
+
+| Level | Dimension | Weight | Description |
+|-------|-----------|--------|-------------|
+| Step | Assertions | 50% | Number of validate rules |
+| Step | Extraction | 30% | Variable extraction usage |
+| Step | Retry | 20% | Retry mechanism usage |
+| Case | Parameters | 50% | Data-driven parameterization |
+| Case | Hooks | 30% | Setup/teardown hooks usage |
+| Case | Reuse | 20% | Test case invoke usage |
+
+**Score Grades:**
+- **A** (90+): Excellent - Green badge
+- **B** (70-89): Good - Blue badge
+- **C** (50-69): Fair - Yellow badge
+- **D** (<50): Needs improvement - Red badge
+
+**HTML Report Integration:**
+- Average score displayed in report header
+- Per-case and per-step scores shown
+- Improvement suggestions provided
 
 ### Run Tests
 
@@ -613,7 +585,7 @@ drun s --reload
 # Basic execution
 drun r PATH
 
-# Smart file discovery (NEW in v5.0) - extension optional
+# Smart file discovery - extension optional
 drun r test_api_health              # Finds test_api_health.yaml or .yml
 drun r testcases/test_user          # Supports paths without extension
 drun r test_api_health.yaml         # Traditional format still works
@@ -646,8 +618,8 @@ drun r testcases/ \
 - `--notify CHANNELS`: Enable notifications (feishu, dingtalk, email)
 - `--notify-only POLICY`: Notification policy (always, failed, passed)
 - `--no-snippet`: Disable code snippet generation
-- `--snippet-output DIR`: Custom output directory for snippets (default: snippets/{timestamp}/)
-- `--snippet-lang LANG`: Generate snippets in specific language: all|curl|python (default: all)
+- `--snippet-output DIR`: Custom output directory for snippets
+- `--snippet-lang LANG`: Generate snippets in specific language: all|curl|python
 
 ### Format Conversion
 
@@ -721,7 +693,7 @@ drun init my-project --force
 drun --version
 ```
 
-## 🎨 Reports & Notifications
+## Reports & Notifications
 
 ### HTML Reports
 
@@ -736,6 +708,7 @@ drun r testcases --html reports/report.html --mask-secrets
 - Execution timeline
 - Secret masking
 - Responsive design
+- Quality scores (NEW in v6.3)
 
 ### JSON Reports
 
@@ -808,13 +781,14 @@ drun r testcases \
   --notify-attach-html
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 ### Module Structure
 
 ```
 drun/                           # ~8,500 lines across 52 modules
 ├── cli.py                      # CLI interface (typer)
+├── scorer.py                   # Test case quality scoring (NEW)
 ├── engine/
 │   └── http.py                 # HTTP client (httpx wrapper)
 ├── loader/
@@ -853,7 +827,7 @@ drun/                           # ~8,500 lines across 52 modules
 ├── exporters/
 │   └── curl.py                 # cURL export
 ├── utils/
-│   ├── env_writer.py           # Environment file writer (NEW v4.0)
+│   ├── env_writer.py           # Environment file writer
 │   ├── logging.py              # Structured logging
 │   ├── mask.py                 # Secret masking
 │   └── errors.py               # Error handling
@@ -880,10 +854,12 @@ jmespath = ">=1.0"      # JSON path queries
 PyYAML = ">=6.0"        # YAML parsing
 rich = ">=13.7"         # Terminal formatting
 typer = ">=0.12"        # CLI framework
-Faker = ">=24.0"        # Mock data generation (optional)
+Faker = ">=24.0"        # Mock data generation
+fastapi = ">=0.104"     # Web report server
+uvicorn = ">=0.24"      # ASGI server
 ```
 
-## 📖 Best Practices
+## Best Practices
 
 ### Project Structure
 
@@ -1036,7 +1012,48 @@ jobs:
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
 ```
 
-## 🚧 Advanced Topics
+## Advanced Topics
+
+### Test Case Invoke (NEW in v6.2)
+
+Call other test cases from within a test case, enabling modular test design:
+
+**Basic invoke:**
+```yaml
+steps:
+  - name: Execute Login Flow
+    variables:
+      username: admin               # Pass variables to invoked case
+    invoke: test_login              # Extracted variables auto-exported
+
+  - name: Use Extracted Token
+    request:
+      method: GET
+      path: /api/users/$userId      # Use variables from previous step
+      headers:
+        Authorization: Bearer $token
+```
+
+**Path resolution:**
+- `test_login` → Searches in `testcases/`, `testsuites/`
+- `test_login.yaml` → With extension
+- `testcases/auth/test_login` → With directory
+- `testcases/auth/test_login.yaml` → Full path
+
+**Nested invoke (A → B → C):**
+```yaml
+# test_full_flow.yaml
+steps:
+  - name: Complete Authentication
+    invoke: test_auth_flow          # test_auth_flow invokes test_login
+                                    # Extracted variables auto-exported
+```
+
+**Use cases:**
+- Reusable authentication flows
+- Common setup/teardown procedures
+- Modular test composition
+- Reduce code duplication
 
 ### File Upload Testing
 
@@ -1138,7 +1155,7 @@ steps:
       - ge: [$.data.length, 100]
 ```
 
-## 📦 Development
+## Development
 
 ### Running from Source
 
@@ -1163,161 +1180,61 @@ python -m drun.cli --version
 - **Test Coverage**: Comprehensive (unit + integration)
 - **Code Style**: PEP 8, type hints, Pydantic models
 
-### Module Breakdown
-
-| Module | Files | Purpose |
-|--------|-------|---------|
-| CLI | 1 | Command-line interface |
-| Engine | 1 | HTTP client wrapper |
-| Loader | 4 | Test discovery and parsing |
-| Models | 6 | Data models (Pydantic) |
-| Runner | 3 | Test execution |
-| Templating | 3 | Template engine |
-| Reporter | 3 | Report generation |
-| Notifier | 4 | Notifications |
-| Importers | 5 | Format conversion (import) |
-| Exporters | 1 | Format conversion (export) |
-| Utils | 7 | Utilities |
-| Scaffolds | 1 | Project templates |
-
-## 🎉 What's New in v4.0
-
-### Postman-Like Variable Management
-
-**Auto-Persist Extracted Variables:**
-- Variables automatically saved to `.env` after extraction
-- Smart naming: `token` → `TOKEN`, `apiKey` → `API_KEY`
-- No manual configuration needed
-
-**Memory-Based Variable Passing:**
-- Extracted variables immediately available in subsequent tests
-- Test suites share variables via memory (no file I/O)
-- Single `.env` file read at startup for optimal performance
-
-**Example:**
-```yaml
-# Step 1: Login (extracts token)
-extract:
-  token: $.data.token  # Auto-saved as TOKEN=value in .env
-
-# Step 2: Create Resource (uses token)
-headers:
-  Authorization: Bearer ${ENV(TOKEN)}  # Available immediately
-```
-
-### Execution Order Control
-
-**Test Suites Define Strict Order:**
-```yaml
-testcases:
-  - test_login.yaml       # 1. First
-  - test_create.yaml      # 2. Second (uses login token)
-  - test_verify.yaml      # 3. Third (uses created resource)
-```
-
-### Breaking Changes
-
-- None! v4.0 is fully backward compatible with v3.x
-
-### Migration from v3.x
-
-No changes required! v4.0 adds new features without breaking existing tests.
-
-## 📝 Version History
+## Version History
 
 ### v7.0.0 (2025-11-27) - Built-in Mock Data Generation
 - **NEW**: Faker integration for mock data generation
   - 11 new built-in functions: `fake_name()`, `fake_email()`, `fake_address()`, etc.
   - Consistent calling style with existing functions like `uuid()`
   - No quotes required in YAML: `body: { name: ${fake_name()} }`
-- **ADDED**: `Faker>=24.0` as optional dependency
+- **ADDED**: `Faker>=24.0` as dependency
 
-### v6.0.1 (2024-11-25) - Web Report Server Refinements
-- **FIXED**: Width adjustments for better layout consistency
-  - List page: 1460px container (1420px content area)
-  - Detail page: 1400px container (1360px content area)
-  - Enhanced CSS specificity for reliable width override
-  - Table layout fixed to ensure full container width usage
+### v6.3.0 (2025-11-26) - Test Case Quality Scoring
+- **NEW**: Test case scoring system for quality assessment
+  - Step-level scoring: assertions (50%), extraction (30%), retry (20%)
+  - Case-level scoring: parameterization (50%), hooks (30%), reuse (20%)
+  - Score grades: A (90+ green), B (70-89 blue), C (50-69 yellow), D (<50 red)
+  - CLI command: `drun score testcases/`
+  - HTML report integration with average scores and improvement suggestions
+
+### v6.3.2/v6.3.3 (2025-11-26) - Report List Enhancements
+- **IMPROVED**: Report list page with notification and result columns
+- **IMPROVED**: Score display style (gray text like `A (95)`)
+- **CHANGED**: Default page size from 15 to 18 reports
+
+### v6.2.0 (2025-11-26) - Test Case Invoke
+- **NEW**: `invoke` step type for nested test case calls
+  - Syntax: `invoke: test_login` or `invoke: testcases/auth/test_login.yaml`
+  - Smart path resolution (shorthand, extension, directory)
+  - Variable passing via `variables` (placed before `invoke`)
+  - Extracted variables automatically exported to subsequent steps
+  - Support for nested invokes (A → B → C)
 
 ### v6.0.0 (2024-11-25) - Web Report Server
 - **NEW**: Web-based report server with live indexing
   - Real-time HTML report viewing at `http://0.0.0.0:8080`
   - Automatic report scanning and indexing
-  - SQLite-based report database for fast querying
+  - SQLite-based report database
   - RESTful API for report management
-  - Responsive UI with Alpine.js
   - Command: `drun s --port 8080 --no-open`
-- **NEW**: Report list page with comprehensive features
-  - Statistics cards (total reports, passed/failed counts, average duration)
-  - Sortable table with report metadata (status, name, time, environment, stats)
-  - Pagination support (15 items per page)
-  - Chinese localization
-  - Clean minimalist design
-- **NEW**: Report detail page enhancements
-  - Dynamic back button injection
-  - Unified styling with list page (consistent header spacing)
-  - Text-only button styles (no borders/backgrounds)
-  - All toolbar buttons converted to link-style
-- **IMPROVED**: Public network access support with 0.0.0.0 binding
-- **IMPROVED**: Report scanning with HTML badge parsing fallback
-
-### v5.0.1 (2024-11-24) - Documentation Cleanup
-- **IMPROVED**: Simplified documentation structure
-  - Removed 10 obsolete documentation files (4 release notes, 5 feature guides, 1 course outline)
-  - Consolidated all feature documentation into README.md
-  - Total reduction: 1,988 lines of redundant documentation
-- **IMPROVED**: Easier project navigation with focused core documentation (README.md + CHANGELOG.md)
+- **NEW**: Report list and detail pages with pagination
 
 ### v5.0.0 (2024-11-24) - Enhanced User Experience
 - **NEW**: Smart file discovery - Run tests without `.yaml`/`.yml` extension
-  - `drun r test_api_health` automatically finds `test_api_health.yaml` or `.yml`
-  - Supports paths: `drun r testcases/test_user`
-  - Auto-searches in `testcases/` and `testsuites/` directories
-  - Backward compatible: full filenames still work
-- **IMPROVED**: Unified logging format for code snippet generation
-  - Code snippet logs now include timestamps and log levels
-  - Consistent format with other log outputs: `YYYY-MM-DD HH:MM:SS.mmm | LEVEL | [TAG] message`
-- **IMPROVED**: Enhanced CLI usability with simplified command patterns
+- **IMPROVED**: Unified logging format for code snippets
 
 ### v4.2.0 (2024-11-24) - Code Snippet & CSV Export
-- **NEW**: Code Snippet - Auto-generate executable Shell and Python scripts from test steps
-  - Each step generates independent `.sh` and `.py` files with execute permissions
-  - Timestamp-based directory management (no overwrite history)
-  - Auto-detect variable dependencies with hints
-  - CLI options: `--no-snippet`, `--snippet-output`, `--snippet-lang`
+- **NEW**: Code Snippet - Auto-generate Shell and Python scripts
 - **NEW**: CSV Export - Export API response arrays to CSV files
-  - `export.csv` configuration with `data` and `file` fields
-  - Support column selection, append mode, custom encoding
-  - Full JMESPath syntax support (filter, slice, projection)
-- **NEW**: Scaffolds auto-create `snippets/` directory
 
 ### v4.0.0 (2024-11-20) - Postman-Like Variable Management
 - **NEW**: Auto-persist extracted variables to `.env`
 - **NEW**: Memory-based variable passing in test suites
 - **NEW**: Smart variable name conversion (camelCase → UPPER_CASE)
-- **IMPROVED**: Single `.env` read per execution for performance
-- **IMPROVED**: Test suite execution with variable chaining
-
-### v3.6.9 (2024-11-19)
-- **FIXED**: Removed blank lines between variables in `.env` files
-- **IMPROVED**: Compact `.env` file format
-
-### v3.6.7 (2024-11-18)
-- **NEW**: Automatic environment variable persistence
-- **NEW**: `--persist-env` CLI option
-- **NEW**: `env_writer` utility module
-
-### v3.5.1 (2024-11-16)
-- **FIXED**: Variable reference resolution in `config.variables`
-- **IMPROVED**: Sequential variable resolution for dependencies
-
-### v2.3.0 (2024-10-29)
-- **CHANGED**: CSV file paths now relative to project root
-- **IMPROVED**: Consistent path resolution across scaffolds
 
 See [CHANGELOG.md](CHANGELOG.md) for complete history.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please:
 
@@ -1327,18 +1244,17 @@ Contributions are welcome! Please:
 4. Ensure `drun check` passes
 5. Submit a pull request
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## 🔗 Links
+## Links
 
 - **Repository**: https://github.com/Devliang24/drun
 - **Issues**: https://github.com/Devliang24/drun/issues
 - **PyPI**: https://pypi.org/project/drun/
-- **Documentation**: See `docs/` directory
 
-## 💡 Tips
+## Tips
 
 - Use `drun check` before commits
 - Enable `--mask-secrets` in CI/CD
@@ -1348,9 +1264,11 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - Review HTML reports for debugging
 - Use hooks for custom logic
 - Keep `.env` out of version control
+- Use `drun score` to evaluate test quality
 
 ---
 
-**Built with ❤️ by the Drun Team**
+**Built with care by the Drun Team**
 
 *Simplifying API testing, one YAML at a time.*
+

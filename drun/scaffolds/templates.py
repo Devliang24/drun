@@ -134,7 +134,8 @@ steps:
       - lt: [$elapsed_ms, $perf_threshold]
 """
 
-# 测试套件模板（caseflow 格式）
+# 测试套件模板（caseflow 格式，展示 invoke 功能）
+# Note: caseflow 中 variables 放在 invoke 之前，提取的变量会自动导出到后续步骤
 DEMO_TESTSUITE = """config:
   name: 冒烟测试套件
   tags: [smoke]
@@ -144,7 +145,12 @@ caseflow:
     invoke: test_api_health
 
   - name: 认证流程测试
+    variables:
+      custom_user_agent: Drun-Smoke-Test
     invoke: test_demo
+
+  - name: 性能基准测试
+    invoke: test_performance
 """
 
 # CSV 数据示例
@@ -1399,19 +1405,17 @@ README_TEMPLATE = """# Drun API 测试项目
 │   ├── test_performance.yaml # HTTP 性能分析示例
 │   ├── test_db_assert.yaml # 数据库断言示例
 │   └── test_import_users.yaml # CSV 参数化用例
-├── testsuites/             # 测试套件目录
+├── testsuites/             # 测试套件目录（支持 caseflow + invoke）
 │   ├── testsuite_smoke.yaml # 冒烟测试套件
 │   └── testsuite_csv.yaml  # CSV 示例套件
 ├── data/                   # 数据文件目录
 │   └── users.csv           # CSV 参数数据
 ├── converts/               # 格式转换源文件
-│   ├── sample.curl         # cURL 命令示例
-│   # └── README.md         # 转换命令说明（已删除）
+│   └── sample.curl         # cURL 命令示例
 ├── reports/                # HTML/JSON 报告输出
 ├── logs/                   # 日志文件输出
 ├── .env                    # 环境变量配置
-├── drun_hooks.py           # 自定义 Hooks 函数
-# └── README.md             # 本文档（已删除）
+└── drun_hooks.py           # 自定义 Hooks 函数
 ```
 
 ## 🚀 快速开始
@@ -1571,6 +1575,36 @@ steps:
       path: /api/secure/endpoint
     validate:
       - eq: [status_code, 200]
+```
+
+### 使用 invoke 调用其他用例（v6.2+）
+
+```yaml
+# 在测试用例中调用其他用例
+steps:
+  - name: 执行登录流程
+    variables:
+      username: admin            # 传递变量给被调用用例
+    invoke: test_login           # 智能路径解析，提取的变量自动导出
+
+  - name: 使用登录 token
+    request:
+      method: GET
+      path: /api/users/$userId   # 使用上一步提取的变量
+      headers:
+        Authorization: Bearer $token
+```
+
+### 用例质量评分（v6.3+）
+
+```bash
+# 评估用例质量
+drun score testcases/
+
+# 评分维度：
+# - 步骤级：断言(50%)、变量提取(30%)、重试(20%)
+# - 用例级：参数化(50%)、Hooks(30%)、复用(20%)
+# 评分等级：A(90+)、B(70-89)、C(50-69)、D(<50)
 ```
 
 ## 🔄 格式转换
