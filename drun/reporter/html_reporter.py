@@ -402,7 +402,7 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
 <style>
   :root { --bg:#ffffff; --fg:#24292f; --muted:#57606a; --ok:#1a7f37; --fail:#cf222e; --skip:#6e7781; --card:#f6f8fa; --accent:#0969da; --border:#d0d7de; --panel-head-bg:#f6f8fa; --step-head-bg:#f6f8fa; --chip-bg:#f6f8fa; --btn-bg:#ffffff; --input-bg:#ffffff; --code-key:#0550ae; --code-str:#0a3069; --code-num:#953800; --code-bool:#1a7f37; --code-null:#6e7781; --code-punct:#57606a; }
   html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font: 14px/1.45 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px 64px; }
+  html body .wrap { max-width: 1310px !important; margin: 0 auto !important; padding: 0 !important; }
   h1 { font-size: 20px; margin: 0; }
   .header-sticky { position: sticky; top: 0; z-index: 999; background: var(--bg); padding: 12px 0 10px; border-bottom: 1px solid var(--border); }
   .headbar { display:flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
