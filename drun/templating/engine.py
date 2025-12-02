@@ -70,11 +70,29 @@ def _try_parse_json(value: Any) -> Any:
     return value
 
 
+# System variables that should be skipped during token normalization
+# These are handled by the runner (e.g. for validation checks), not by the template engine
+_RESERVED_SYSTEM_VARS = {
+    "body",
+    "headers",
+    "status_code",
+    "elapsed_ms",
+    "url",
+    "method",
+    "stream_events",
+    "stream_summary",
+    "stream_raw_chunks",
+}
+
 def _normalize_simple_tokens(text: str) -> str:
     """Expand bare $var tokens into ${var} for downstream evaluation."""
 
     def repl(match: re.Match[str]) -> str:
         name = match.group(1)
+        # Skip reserved system variables (e.g. $status_code)
+        # Also allow $length(...) if it's a function call, but here we only match identifier
+        if name in _RESERVED_SYSTEM_VARS:
+            return match.group(0)
         return f"${{{name}}}"
 
     # Skip ${...} tokens by ensuring the dollar isn't followed by {

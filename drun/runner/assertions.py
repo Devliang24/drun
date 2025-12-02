@@ -21,6 +21,10 @@ def op_le(a: Any, b: Any) -> bool: return a <= b
 def op_gt(a: Any, b: Any) -> bool: return a > b
 def op_ge(a: Any, b: Any) -> bool: return a >= b
 def op_len_eq(a: Any, b: Any) -> bool: return _len(a) == int(b)
+def op_len_gt(a: Any, b: Any) -> bool: return _len(a) > int(b)
+def op_len_ge(a: Any, b: Any) -> bool: return _len(a) >= int(b)
+def op_len_lt(a: Any, b: Any) -> bool: return _len(a) < int(b)
+def op_len_le(a: Any, b: Any) -> bool: return _len(a) <= int(b)
 def op_in(a: Any, b: Any) -> bool: return a in b if b is not None else False
 def op_not_in(a: Any, b: Any) -> bool: return a not in b if b is not None else True
 def op_contains_all(a: Any, b: Any) -> bool:
@@ -36,6 +40,10 @@ def op_match_regex_all(a: Any, b: Any) -> bool:
         return False
     pattern = str(b)
     return all(bool(re.search(pattern, str(item))) for item in a)
+def op_exists(a: Any, b: Any) -> bool:
+    """Check if value exists (is not None)"""
+    should_exist = str(b).lower() == "true" if isinstance(b, str) else bool(b)
+    return (a is not None) == should_exist
 
 
 OPS: Dict[str, Callable[[Any, Any], bool]] = {
@@ -49,10 +57,15 @@ OPS: Dict[str, Callable[[Any, Any], bool]] = {
     "gt": op_gt,
     "ge": op_ge,
     "len_eq": op_len_eq,
+    "len_gt": op_len_gt,
+    "len_ge": op_len_ge,
+    "len_lt": op_len_lt,
+    "len_le": op_len_le,
     "in": op_in,
     "not_in": op_not_in,
     "contains_all": op_contains_all,
     "match_regex_all": op_match_regex_all,
+    "exists": op_exists,
 }
 
 
