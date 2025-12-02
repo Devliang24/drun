@@ -444,7 +444,7 @@ class Runner:
         envmap: Dict[str, Any] | None,
         ctx: VarContext,
         params: Dict[str, Any] | None,
-    ) -> StepResult:
+    ) -> List[StepResult]:
         """Execute an invoke step that calls another test case.
         
         Args:
@@ -458,7 +458,7 @@ class Runner:
             ctx: Variable context for updating extracted vars
             
         Returns:
-            StepResult for the invoke step
+            List of StepResults for all sub-steps executed
         """
         t0 = time.perf_counter()
         invoke_path = step.invoke
@@ -473,12 +473,12 @@ class Runner:
             error_msg = f"Cannot find testcase for invoke: {invoke_path}"
             if self.log:
                 self.log.error(f"[INVOKE] {error_msg}")
-            return StepResult(
+            return [StepResult(
                 name=rendered_step_name,
                 status="failed",
                 error=error_msg,
                 duration_ms=(time.perf_counter() - t0) * 1000,
-            )
+            )]
         
         if self.log:
             self.log.info(f"[INVOKE] Resolved to: {resolved_path}")
@@ -490,23 +490,23 @@ class Runner:
                 error_msg = f"No testcases found in: {resolved_path}"
                 if self.log:
                     self.log.error(f"[INVOKE] {error_msg}")
-                return StepResult(
+                return [StepResult(
                     name=rendered_step_name,
                     status="failed",
                     error=error_msg,
                     duration_ms=(time.perf_counter() - t0) * 1000,
-                )
+                )]
             invoked_case = cases[0]  # Use first case from file
         except Exception as e:
             error_msg = f"Failed to load testcase {resolved_path}: {e}"
             if self.log:
                 self.log.error(f"[INVOKE] {error_msg}")
-            return StepResult(
+            return [StepResult(
                 name=rendered_step_name,
                 status="failed",
                 error=error_msg,
                 duration_ms=(time.perf_counter() - t0) * 1000,
-            )
+            )]
         
         # Merge variables: current context + step.variables passed to invoked case
         invoke_vars = {**variables}
@@ -623,19 +623,8 @@ class Runner:
             status_label = "PASSED" if final_status == "passed" else "FAILED"
             self.log.info(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | {status_label}")
         
-        return StepResult(
-            name=rendered_step_name,
-            status=final_status,
-            extracts=exported_vars,
-            duration_ms=duration_ms,
-            # Include sub-step info in response for debugging
-            response={
-                "invoked_case": invoked_case.config.name or str(resolved_path),
-                "invoked_steps": len(all_step_results),
-                "invoked_passed": sum(1 for s in all_step_results if s.status == "passed"),
-                "invoked_failed": sum(1 for s in all_step_results if s.status == "failed"),
-            },
-        )
+        # 直接返回子步骤列表，每个子步骤独立显示在报告中
+        return all_step_results
 
     def run_case(self, case: Case, global_vars: Dict[str, Any], params: Dict[str, Any], *, funcs: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None, source: str | None = None) -> CaseInstanceResult:
         name = case.config.name or "Unnamed Case"
@@ -730,7 +719,7 @@ class Runner:
 
                 # Handle invoke step type
                 if step.invoke:
-                    invoke_result = self._run_invoke_step(
+                    invoke_results = self._run_invoke_step(
                         step=step,
                         step_idx=step_idx,
                         rendered_step_name=rendered_step_name,
@@ -741,8 +730,9 @@ class Runner:
                         ctx=ctx,
                         params=params,
                     )
-                    steps_results.append(invoke_result)
-                    if invoke_result.status == "failed":
+                    steps_results.extend(invoke_results)  # 展开添加所有子步骤
+                    # 检查是否有失败的子步骤
+                    if any(r.status == "failed" for r in invoke_results):
                         status = "failed"
                         if self.failfast:
                             ctx.pop()
