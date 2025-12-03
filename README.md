@@ -82,8 +82,9 @@ uv pip install --upgrade drun
 ### Initialize a Project
 
 ```bash
-drun init my-api-test
-cd my-api-test
+drun init myproject
+drun init myproject --ci    # Include GitHub Actions workflow
+cd myproject
 ```
 
 This creates:
@@ -686,8 +687,9 @@ drun fix testcases/ --only-spacing
 drun fix testcases/ --only-hooks
 
 # Initialize new project
-drun init my-project
-drun init my-project --force
+drun init myproject
+drun init myproject --ci       # With CI workflow
+drun init myproject --force    # Overwrite existing
 
 # Version info
 drun --version

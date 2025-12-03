@@ -1668,48 +1668,6 @@ def _run_impl(
         raise typer.Exit(code=1)
 
 
-@app.command()
-def run(
-    path: str = typer.Argument(..., help="要运行的文件或目录"),
-    k: Optional[str] = typer.Option(None, "-k", help="标签过滤表达式（支持 and/or/not）"),
-    vars: List[str] = typer.Option([], "--vars", help="变量覆盖 k=v（可重复）"),
-    failfast: bool = typer.Option(False, "--failfast", help="遇到第一个失败时停止"),
-    report: Optional[str] = typer.Option(None, "--report", help="输出 JSON 报告到文件"),
-    html: Optional[str] = typer.Option(None, "--html", help="输出 HTML 报告到文件（默认 reports/report-<timestamp>.html）"),
-    allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
-    log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
-    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, uat, prod），自动加载 .env.<name> 文件"),
-    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env.<env> 文件）"),
-    log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（默认 logs/run-<ts>.log）"),
-    httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
-    reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="在日志和报告中显示敏感字段明文（password、tokens）", show_default=True),
-    response_headers: bool = typer.Option(
-        False,
-        "--response-headers/--no-response-headers",
-        help="记录 HTTP 响应头（默认关闭）",
-        show_default=False,
-    ),
-    notify: Optional[str] = typer.Option(None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"),
-    notify_only: Optional[str] = typer.Option(
-        None,
-        "--notify-only",
-        help="通知策略：failed|always（默认 $DRUN_NOTIFY_ONLY 或 'failed'）",
-        show_default=False,
-    ),
-    notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="在邮件中附加 HTML 报告（如果启用邮件）", show_default=False),
-    no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（默认会自动生成到 snippets/ 目录）"),
-    snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
-    snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
-):
-    """运行测试用例或测试套件"""
-    return _run_impl(
-        path, k, vars, failfast, report, html, allure_results,
-        log_level, env, persist_env, log_file, httpx_logs,
-        reveal_secrets, response_headers, notify, notify_only,
-        notify_attach_html, no_snippet, snippet_output, snippet_lang,
-    )
-
-
 @app.command("r")
 def r(
     path: str = typer.Argument(..., help="要运行的文件或目录"),
@@ -1743,7 +1701,7 @@ def r(
     snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（默认为 snippets/<timestamp>/）"),
     snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
 ):
-    """运行测试用例或测试套件（run 的简写）"""
+    """Run test cases or suites."""
     return _run_impl(
         path, k, vars, failfast, report, html, allure_results,
         log_level, env, persist_env, log_file, httpx_logs,
@@ -2025,25 +1983,17 @@ def fix(
 
 @app.command("init")
 def init_project(
-    name: Optional[str] = typer.Argument(None, help="项目名称（默认为当前目录）"),
-    force: bool = typer.Option(False, "--force", help="强制覆盖已存在的文件"),
+    name: Optional[str] = typer.Argument(None, help="Project name (default: current directory)"),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing files"),
+    ci: bool = typer.Option(False, "--ci", help="Generate CI workflow (GitHub Actions)"),
 ) -> None:
-    """初始化 Drun 测试项目脚手架
+    """Initialize Drun test project scaffold.
 
-    生成完整的项目目录结构，包含：
-    - testcases/: 测试用例示例
-    - testsuites/: 测试套件示例
-    - converts/: 格式转换源文件目录
-    - reports/: 报告输出目录
-    - logs/: 日志输出目录
-    - .env: 环境配置
-    - drun_hooks.py: Hooks 函数
-    # README.md: 快速上手文档（已删除）
-
-    示例:
-        drun init                    # 在当前目录初始化
-        drun init my-api-test        # 创建新项目目录
-        drun init --force            # 强制覆盖已存在文件
+    Examples:
+        drun init                    # Initialize in current directory
+        drun init my-api-test        # Create new project directory
+        drun init --force            # Overwrite existing files
+        drun init --ci               # Include GitHub Actions workflow
     """
     from drun import scaffolds
     
@@ -2075,26 +2025,24 @@ def init_project(
     else:
         typer.echo(f"\nInitializing Drun project in current directory\n")
 
-    # 创建目录结构
+    # Create directory structure
     dirs_to_create = {
-        "testcases": "测试用例目录",
-        "testsuites": "测试套件目录",
-        "data": "数据文件目录",
-        "converts": "格式转换源文件目录",
-        "reports": "报告输出目录",
-        "logs": "日志输出目录",
-        "snippets": "代码片段输出目录",
-        ".github/workflows": "GitHub Actions 工作流目录",
+        "testcases": "Test cases",
+        "testsuites": "Test suites",
+        "data": "Test data",
+        "converts": "Format conversion",
+        "reports": "Reports output",
+        "logs": "Logs output",
+        "snippets": "Code snippets",
     }
 
     for dir_name, desc in dirs_to_create.items():
         dir_path = target_dir / dir_name
         dir_path.mkdir(parents=True, exist_ok=True)
 
-    # 创建 converts/ 子目录
-    convert_subdirs = ["curl", "postman", "har", "openapi"]
-    for subdir in convert_subdirs:
-        (target_dir / "converts" / subdir).mkdir(parents=True, exist_ok=True)
+    # CI workflow directory (optional)
+    if ci:
+        (target_dir / ".github/workflows").mkdir(parents=True, exist_ok=True)
 
     # 在 reports、logs 和 snippets 目录放置 .gitkeep
     for empty_dir in ["reports", "logs", "snippets"]:
@@ -2110,116 +2058,67 @@ def init_project(
         existed_before = file_path.exists()
         if existed_before and not force:
             skipped_files.append(rel_path)
-            typer.echo(f"[SKIP] {rel_path} 已存在，使用 --force 可覆盖。")
+            typer.echo(f"[SKIP] {rel_path} exists, use --force to overwrite")
             return
         file_path.write_text(content, encoding="utf-8")
         if existed_before and force:
             overwritten_files.append(rel_path)
 
-    # testcases/test_demo.yaml
+    # Test cases
     _write_template("testcases/test_demo.yaml", scaffolds.DEMO_TESTCASE)
-
-    # testcases/test_api_health.yaml
     _write_template("testcases/test_api_health.yaml", scaffolds.HEALTH_TESTCASE)
-
-    # testcases/test_stream.yaml
-    _write_template("testcases/test_stream.yaml", scaffolds.STREAM_TESTCASE)
-
-    # testcases/test_assertions.yaml
-    _write_template("testcases/test_assertions.yaml", scaffolds.ASSERTIONS_TESTCASE)
-
-    # data/users.csv
-    _write_template("data/users.csv", scaffolds.CSV_USERS_SAMPLE)
-
-    # testcases/test_db_assert.yaml
-    _write_template("testcases/test_db_assert.yaml", scaffolds.DB_ASSERT_TESTCASE)
-
-    # testcases/test_import_users.yaml
     _write_template("testcases/test_import_users.yaml", scaffolds.CSV_DATA_TESTCASE)
 
-    # testsuites/testsuite_smoke.yaml
+    # Test data
+    _write_template("data/users.csv", scaffolds.CSV_USERS_SAMPLE)
+
+    # Test suites
     _write_template("testsuites/testsuite_smoke.yaml", scaffolds.DEMO_TESTSUITE)
 
-    # testsuites/testsuite_csv.yaml
-    _write_template("testsuites/testsuite_csv.yaml", scaffolds.CSV_DATA_TESTSUITE)
+    # Format conversion sample
+    _write_template("converts/sample.curl", scaffolds.SAMPLE_CURL)
 
-    # converts/README.md
-    _write_template("converts/README.md", scaffolds.CONVERTS_README)
-
-    # converts/curl/sample.curl
-    _write_template("converts/curl/sample.curl", scaffolds.SAMPLE_CURL)
-
-    # converts/postman/sample_collection.json
-    _write_template("converts/postman/sample_collection.json", scaffolds.SAMPLE_POSTMAN_COLLECTION)
-
-    # converts/postman/sample_environment.json
-    _write_template("converts/postman/sample_environment.json", scaffolds.SAMPLE_POSTMAN_ENVIRONMENT)
-
-    # converts/har/sample_recording.har
-    _write_template("converts/har/sample_recording.har", scaffolds.SAMPLE_HAR)
-
-    # converts/openapi/sample_openapi.json
-    _write_template("converts/openapi/sample_openapi.json", scaffolds.SAMPLE_OPENAPI)
-
-    # .env
+    # Config files
     _write_template(".env", scaffolds.ENV_TEMPLATE)
-
-    # drun_hooks.py
     _write_template("drun_hooks.py", scaffolds.HOOKS_TEMPLATE)
-
-    # .gitignore
     _write_template(".gitignore", scaffolds.GITIGNORE_TEMPLATE)
 
-    # README.md - 已删除，不再生成项目文档
-    # _write_template("README.md", scaffolds.README_TEMPLATE)
+    # CI workflow (optional)
+    if ci:
+        _write_template(".github/workflows/test.yml", scaffolds.GITHUB_WORKFLOW_TEMPLATE)
 
-    # GitHub Actions workflow
-    _write_template(".github/workflows/test.yml", scaffolds.GITHUB_WORKFLOW_TEMPLATE)
-
-    # GitLab CI pipeline
-    _write_template(".gitlab-ci.yml", scaffolds.GITLAB_CI_TEMPLATE)
-
-    # 输出创建的文件列表（tree 风格）
+    # Output file tree
     project_name = name if name else "."
 
     tree_entries = [
         ("├── ", "testcases/", ""),
-        ("│   ├── ", "test_demo.yaml", "完整认证流程示例"),
-        ("│   ├── ", "test_api_health.yaml", "健康检查示例"),
-        ("│   ├── ", "test_stream.yaml", "流式响应 (SSE) 示例"),
-        ("│   ├── ", "test_db_assert.yaml", "数据库断言示例"),
-        ("│   ├── ", "test_import_users.yaml", "CSV 参数化示例"),
-        ("│   └── ", "test_assertions.yaml", "断言操作符完整示例"),
+        ("│   ├── ", "test_demo.yaml", "HTTP demo"),
+        ("│   ├── ", "test_api_health.yaml", "Health check"),
+        ("│   └── ", "test_import_users.yaml", "CSV data-driven"),
         ("├── ", "testsuites/", ""),
-        ("│   ├── ", "testsuite_smoke.yaml", "冒烟测试套件"),
-        ("│   └── ", "testsuite_csv.yaml", "CSV 示例套件"),
+        ("│   └── ", "testsuite_smoke.yaml", "Smoke test suite"),
         ("├── ", "data/", ""),
-        ("│   └── ", "users.csv", "CSV 参数数据示例"),
+        ("│   └── ", "users.csv", "Sample CSV data"),
         ("├── ", "converts/", ""),
-        # ("│   ├── ", "README.md", "格式转换完整指南"),
-        ("│   ├── ", "curl/", ""),
-        ("│   │   └── ", "sample.curl", "cURL 命令示例"),
-        ("│   ├── ", "postman/", ""),
-        ("│   │   ├── ", "sample_collection.json", "Postman Collection"),
-        ("│   │   └── ", "sample_environment.json", "Postman 环境变量"),
-        ("│   ├── ", "har/", ""),
-        ("│   │   └── ", "sample_recording.har", "HAR 录屏示例"),
-        ("│   └── ", "openapi/", ""),
-        ("│       └── ", "sample_openapi.json", "OpenAPI 规范"),
-        ("├── ", "reports/", "测试报告输出目录"),
-        ("├── ", "logs/", "运行日志输出目录"),
-        ("├── ", "snippets/", "代码片段输出目录"),
-        ("├── ", ".github/", "GitHub 配置目录"),
-        ("│   └── ", "workflows/", "GitHub Actions 工作流"),
-        ("│       └── ", "test.yml", "默认 CI 流水线"),
-        ("├── ", ".gitlab-ci.yml", "GitLab CI 流水线"),
-        ("├── ", ".env", "环境变量配置"),
-        ("├── ", "drun_hooks.py", "自定义 Hooks 函数"),
-        ("├── ", ".gitignore", "Git 忽略规则"),
-        # ("└── ", "README.md", "项目文档"),
+        ("│   └── ", "sample.curl", "cURL sample"),
+        ("├── ", "reports/", "Reports output"),
+        ("├── ", "logs/", "Logs output"),
+        ("├── ", "snippets/", "Code snippets"),
     ]
 
-    pad = max(len(prefix + entry) for prefix, entry, desc in tree_entries if desc) + 8
+    if ci:
+        tree_entries.extend([
+            ("├── ", ".github/workflows/", ""),
+            ("│   └── ", "test.yml", "CI workflow"),
+        ])
+
+    tree_entries.extend([
+        ("├── ", ".env", "Environment config"),
+        ("├── ", "drun_hooks.py", "Custom hooks"),
+        ("└── ", ".gitignore", "Git ignore"),
+    ])
+
+    pad = max(len(prefix + entry) for prefix, entry, desc in tree_entries if desc) + 4
 
     typer.echo(f"{project_name}")
     for prefix, entry, desc in tree_entries:
@@ -2229,33 +2128,33 @@ def init_project(
         else:
             typer.echo(full)
     typer.echo("")
-    typer.echo("10 directories, 19 files")
+
+    dir_count = 8 if ci else 7
+    file_count = 10 if ci else 9
+    typer.echo(f"{dir_count} directories, {file_count} files")
 
     if skipped_files:
         typer.echo("")
-        typer.echo("保留已有文件（未覆盖）:")
+        typer.echo("Skipped (already exists):")
         for rel_path in skipped_files:
             typer.echo(f"  - {rel_path}")
 
     if overwritten_files:
         typer.echo("")
-        typer.echo("已覆盖文件 (--force):")
+        typer.echo("Overwritten (--force):")
         for rel_path in overwritten_files:
             typer.echo(f"  - {rel_path}")
 
     typer.echo("")
-    typer.echo("✅ 项目初始化完成！")
+    typer.echo("Project initialized!")
     typer.echo("")
-    typer.echo("快速开始:")
+    typer.echo("Quick start:")
     if name:
         typer.echo(f"  cd {name}")
-    typer.echo("  drun run testcases/test_api_health.yaml")
-    typer.echo("  drun run testcases/test_stream.yaml")
-    typer.echo("  drun run testcases/test_db_assert.yaml")
-    typer.echo("  drun run testcases/test_import_users.yaml")
-    typer.echo("  drun run testcases/test_assertions.yaml")
+    typer.echo("  drun r testcases --env dev")
+    typer.echo("  drun r testsuite_smoke --env dev")
     typer.echo("")
-    typer.echo("文档: https://github.com/Devliang24/drun")
+    typer.echo("Docs: https://github.com/Devliang24/drun")
 
 
 @app.command("convert-openapi")
