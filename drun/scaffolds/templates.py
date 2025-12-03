@@ -1,31 +1,24 @@
 """
-Drun 项目脚手架模板内容
-用于 drun init 命令生成项目结构
+Drun project scaffold templates
+Used by `drun init` command to generate project structure
 """
 
-# 测试用例模板：HTTP 功能演示
+# Demo test case template (GET + POST with extract)
 DEMO_TESTCASE = """config:
-  name: HTTP 测试功能演示
+  name: HTTP Demo
   base_url: ${ENV(BASE_URL)}
   tags: [demo, smoke]
-  variables:
-    test_data: test_value_${short_uid(6)}
-    user_agent: Drun-Test-Client
 
 steps:
-  - name: GET 请求 - 查询参数
+  - name: GET Request
     request:
       method: GET
       path: /get?page=1&limit=10
-      headers:
-        User-Agent: $user_agent
     validate:
       - eq: [status_code, 200]
-      - eq: [$.args.page, 1]
-      - eq: [$.args.limit, 10]
-      - contains: [$.headers.User-Agent, Drun-Test-Client]
+      - eq: [$.args.page, "1"]
 
-  - name: POST 请求 - 提交 JSON 数据
+  - name: POST Request with Extract
     request:
       method: POST
       path: /post
@@ -33,1032 +26,115 @@ steps:
         Content-Type: application/json
       body:
         username: ${ENV(USER_USERNAME)}
-        data: $test_data
-        timestamp: ${ts()}
+        data: test_${short_uid(6)}
     extract:
       posted_data: $.json.data
-      posted_username: $.json.username
     validate:
       - eq: [status_code, 200]
-      - eq: [$.json.username, test_user]
-      - eq: [$.json.data, $test_data]
-      - contains: [headers.Content-Type, application/json]
-
-  - name: Basic 认证请求
-    request:
-      method: GET
-      path: /basic-auth/${ENV(USER_USERNAME)}/${ENV(USER_PASSWORD)}
-      auth:
-        type: basic
-        username: ${ENV(USER_USERNAME)}
-        password: ${ENV(USER_PASSWORD)}
-    validate:
-      - eq: [status_code, 200]
-      - eq: [$.authenticated, true]
-      - eq: [$.user, test_user]
-
-  - name: 响应延迟测试
-    request:
-      method: GET
-      path: /delay/1
-    validate:
-      - eq: [status_code, 200]
-      - lt: [$elapsed_ms, 2000]
-      - gt: [$elapsed_ms, 900]
-
-  - name: 不同状态码测试
-    request:
-      method: GET
-      path: /status/201
-    validate:
-      - eq: [status_code, 201]
+      - contains: [$.json.username, ${ENV(USER_USERNAME)}]
 """
 
-# 测试用例模板：简单健康检查
+# Health check test case
 HEALTH_TESTCASE = """config:
-  name: API 健康检查
+  name: API Health Check
   base_url: ${ENV(BASE_URL)}
   tags: [smoke, health]
 
 steps:
-  - name: 检查服务状态
+  - name: Check Service Status
     request:
       method: GET
       path: /get
-    extract:
-      response_url: $.url
     validate:
       - eq: [status_code, 200]
       - contains: [headers.Content-Type, application/json]
-      - eq: [$.url, $response_url]
 """
 
-# 测试用例模板：HTTP 性能分析演示
-PERF_TESTCASE = """config:
-  name: HTTP 性能分析示例
-  base_url: ${ENV(BASE_URL)}
-  tags: [performance, demo]
-  variables:
-    perf_threshold: 2000  # 响应时间阈值（毫秒）
-
-steps:
-  - name: 快速响应测试
-    request:
-      method: GET
-      path: /get?test=fast
-    validate:
-      - eq: [status_code, 200]
-      - lt: [$elapsed_ms, $perf_threshold]
-
-  - name: 延迟响应测试（1秒）
-    request:
-      method: GET
-      path: /delay/1
-    validate:
-      - eq: [status_code, 200]
-      - gt: [$elapsed_ms, 900]
-      - lt: [$elapsed_ms, 1500]
-
-  - name: POST 请求性能测试
-    request:
-      method: POST
-      path: /post
-      headers:
-        Content-Type: application/json
-      body:
-        test_id: ${short_uid(8)}
-        timestamp: ${ts()}
-        large_data: ${repeat("x", 100)}
-    validate:
-      - eq: [status_code, 200]
-      - lt: [$elapsed_ms, $perf_threshold]
-"""
-
-# 测试套件模板（caseflow 格式，展示 invoke 功能）
-# Note: caseflow 中 variables 放在 invoke 之前，提取的变量会自动导出到后续步骤
+# Smoke test suite (caseflow format)
 DEMO_TESTSUITE = """config:
-  name: 冒烟测试套件
+  name: Smoke Test Suite
   tags: [smoke]
 
 caseflow:
-  - name: API 健康检查
+  - name: Health Check
     invoke: test_api_health
 
-  - name: 认证流程测试
-    variables:
-      custom_user_agent: Drun-Smoke-Test
+  - name: Demo Flow
     invoke: test_demo
-
-  - name: 性能基准测试
-    invoke: test_performance
 """
 
-# CSV 数据示例
-CSV_USERS_SAMPLE = """username,email,password,role
-alice,alice@example.com,P@ssw0rd123,member
-bob,bob@example.com,P@ssw0rd123,admin
-carol,carol@example.com,P@ssw0rd123,guest
+# CSV sample data
+CSV_USERS_SAMPLE = """username,email,role
+alice,alice@example.com,admin
+bob,bob@example.com,user
 """
 
-# 基于 CSV 的数据驱动用例示例
+# CSV data-driven test case
 CSV_DATA_TESTCASE = """config:
-  name: "数据驱动：CSV 示例"
+  name: CSV Data-Driven Test
   base_url: ${ENV(BASE_URL)}
-  tags: [demo, csv]
+  tags: [csv]
   parameters:
     - csv:
         path: data/users.csv
-        strip: true
 
 steps:
-  - name: 提交注册请求
+  - name: Register User $username
     request:
       method: POST
       path: /anything/register
-      headers:
-        Content-Type: application/json
       body:
         username: $username
         email: $email
-        password: $password
         role: $role
-        source: csv-demo
-    extract:
-      echoed_username: $.json.username
-      echoed_role: $.json.role
     validate:
       - eq: [status_code, 200]
       - eq: [$.json.username, $username]
-      - eq: [$.json.email, $email]
-      - eq: [$.json.role, $role]
-      - eq: [$.json.source, csv-demo]
-
-  - name: 校验回显头部
-    request:
-      method: GET
-      path: /anything/verify
-      headers:
-        X-Demo-User: $echoed_username
-        X-User-Role: $role
-    validate:
-      - eq: [status_code, 200]
-      - eq: [$.headers.X-Demo-User, $echoed_username]
-      - eq: [$.headers.X-User-Role, $role]
 """
 
-# SQL 断言示例用例
-DB_ASSERT_TESTCASE = """config:
-  name: "数据库断言示例"
-  base_url: ${ENV(BASE_URL)}
-  tags: [demo, db]
-  variables:
-    user_id: 1
-
-steps:
-  - name: 获取用户详情
-    setup_hooks:
-      - ${setup_hook_assert_sql($user_id)}
-    request:
-      method: GET
-      path: /api/users/${user_id}
-    extract:
-      api_user_id: $.data.id
-      api_status: $.data.status
-    validate:
-      - eq: [status_code, 200]
-      - eq: [$api_status, ${expected_sql_value($api_user_id)}]
-"""
-
-# CSV 示例测试套件（caseflow 格式）
-CSV_DATA_TESTSUITE = """config:
-  name: 数据驱动示例套件
-  tags: [csv, demo]
-
-caseflow:
-  - name: CSV 参数化注册
-    invoke: test_import_users
-"""
-
-# CSV 导出示例用例
-CSV_EXPORT_TESTCASE = """config:
-  name: "CSV 导出示例"
-  base_url: ${ENV(BASE_URL)}
-  tags: [demo, export]
-
-steps:
-  - name: 导出用户数据
-    request:
-      method: GET
-      path: /api/users
-    extract:
-      userCount: $.data.total
-    export:
-      csv:
-        data: $.data.users
-        file: data/exported_users.csv
-    validate:
-      - eq: [status_code, 200]
-      - gt: [$userCount, 0]
-
-  - name: 导出订单摘要（指定列）
-    request:
-      method: GET
-      path: /api/orders
-    export:
-      csv:
-        data: $.data.orders
-        file: reports/orders_summary.csv
-        columns: [orderId, customerName, totalAmount, status]
-    validate:
-      - eq: [status_code, 200]
-"""
-
-# cURL 示例文件
-SAMPLE_CURL = """# 示例 1: GET 请求（带查询参数）
-curl -X GET 'https://api.example.com/api/v1/products?category=electronics&limit=10' \\
-  -H 'Accept: application/json'
-
-# 示例 2: POST 请求（带 JSON body 和认证）
-curl -X POST 'https://api.example.com/api/v1/auth/login' \\
+# cURL sample
+SAMPLE_CURL = """# Sample: POST request with JSON body
+curl -X POST 'https://api.example.com/api/v1/login' \\
   -H 'Content-Type: application/json' \\
-  -H 'Accept: application/json' \\
-  --data-raw '{
-    "username": "test_user",
-    "password": "test_pass123"
-  }'
+  --data-raw '{"username": "test", "password": "pass123"}'
 
-# 示例 3: 带 Authorization header 的 GET 请求
-curl -X GET 'https://api.example.com/api/v1/users/me' \\
-  -H 'Accept: application/json' \\
-  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
-
-# 转换命令示例:
-# drun convert converts/curl/sample.curl --outfile testcases/from_curl.yaml --redact Authorization --placeholders
+# Convert: drun convert sample.curl --outfile testcases/from_curl.yaml --placeholders
 """
 
-# Postman Collection 示例模板
-SAMPLE_POSTMAN_COLLECTION = """{
-  "info": {
-    "name": "Drun Sample API Collection",
-    "_postman_id": "12345678-1234-1234-1234-123456789012",
-    "description": "Drun 格式转换示例 - Postman Collection v2.1\\n\\n转换命令:\\ndrun convert converts/postman/sample_collection.json --split-output --suite-out testsuites/from_postman.yaml --postman-env converts/postman/sample_environment.json --placeholders",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "用户管理",
-      "item": [
-        {
-          "name": "获取用户列表",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/users?page=1&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "users"],
-              "query": [
-                {"key": "page", "value": "1"},
-                {"key": "limit", "value": "10"}
-              ]
-            }
-          }
-        },
-        {
-          "name": "创建用户",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\\n  \\"username\\": \\"test_user\\",\\n  \\"email\\": \\"test@example.com\\",\\n  \\"password\\": \\"password123\\"\\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/users",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "users"]
-            }
-          }
-        },
-        {
-          "name": "获取用户详情",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "users", "{{user_id}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "健康检查",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{base_url}}/health",
-          "host": ["{{base_url}}"],
-          "path": ["health"]
-        }
-      }
-    }
-  ]
-}
-"""
-
-# Postman Environment 示例模板
-SAMPLE_POSTMAN_ENVIRONMENT = """{
-  "name": "Development Environment",
-  "values": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8000",
-      "enabled": true
-    },
-    {
-      "key": "token",
-      "value": "your-api-token-here",
-      "enabled": true
-    },
-    {
-      "key": "user_id",
-      "value": "123",
-      "enabled": true
-    },
-    {
-      "key": "api_key",
-      "value": "your-api-key-here",
-      "enabled": true
-    }
-  ],
-  "_postman_variable_scope": "environment"
-}
-"""
-
-# HAR 文件示例模板
-SAMPLE_HAR = """{
-  "log": {
-    "version": "1.2",
-    "creator": {
-      "name": "Drun Sample HAR",
-      "version": "1.0"
-    },
-    "entries": [
-      {
-        "startedDateTime": "2025-01-01T00:00:00.000Z",
-        "time": 145,
-        "request": {
-          "method": "GET",
-          "url": "http://localhost:8000/api/v1/products?category=electronics",
-          "httpVersion": "HTTP/1.1",
-          "headers": [
-            {"name": "Accept", "value": "application/json"},
-            {"name": "User-Agent", "value": "Mozilla/5.0"}
-          ],
-          "queryString": [
-            {"name": "category", "value": "electronics"}
-          ],
-          "cookies": [],
-          "headersSize": -1,
-          "bodySize": 0
-        },
-        "response": {
-          "status": 200,
-          "statusText": "OK",
-          "httpVersion": "HTTP/1.1",
-          "headers": [
-            {"name": "Content-Type", "value": "application/json"}
-          ],
-          "cookies": [],
-          "content": {
-            "size": 150,
-            "mimeType": "application/json",
-            "text": "{\\"success\\": true, \\"data\\": [\\"item1\\", \\"item2\\"]}"
-          },
-          "redirectURL": "",
-          "headersSize": -1,
-          "bodySize": 150
-        },
-        "cache": {},
-        "timings": {
-          "send": 0,
-          "wait": 145,
-          "receive": 0
-        }
-      },
-      {
-        "startedDateTime": "2025-01-01T00:00:01.000Z",
-        "time": 89,
-        "request": {
-          "method": "POST",
-          "url": "http://localhost:8000/api/v1/auth/login",
-          "httpVersion": "HTTP/1.1",
-          "headers": [
-            {"name": "Content-Type", "value": "application/json"}
-          ],
-          "queryString": [],
-          "cookies": [],
-          "headersSize": -1,
-          "bodySize": 50,
-          "postData": {
-            "mimeType": "application/json",
-            "text": "{\\"username\\": \\"test\\", \\"password\\": \\"pass123\\"}"
-          }
-        },
-        "response": {
-          "status": 200,
-          "statusText": "OK",
-          "httpVersion": "HTTP/1.1",
-          "headers": [
-            {"name": "Content-Type", "value": "application/json"}
-          ],
-          "cookies": [],
-          "content": {
-            "size": 100,
-            "mimeType": "application/json",
-            "text": "{\\"success\\": true, \\"data\\": {\\"token\\": \\"abc123\\"}}"
-          },
-          "redirectURL": "",
-          "headersSize": -1,
-          "bodySize": 100
-        },
-        "cache": {},
-        "timings": {
-          "send": 0,
-          "wait": 89,
-          "receive": 0
-        }
-      },
-      {
-        "startedDateTime": "2025-01-01T00:00:02.000Z",
-        "time": 12,
-        "request": {
-          "method": "GET",
-          "url": "http://localhost:8000/static/logo.png",
-          "httpVersion": "HTTP/1.1",
-          "headers": [],
-          "queryString": [],
-          "cookies": [],
-          "headersSize": -1,
-          "bodySize": 0
-        },
-        "response": {
-          "status": 200,
-          "statusText": "OK",
-          "httpVersion": "HTTP/1.1",
-          "headers": [
-            {"name": "Content-Type", "value": "image/png"}
-          ],
-          "cookies": [],
-          "content": {
-            "size": 5000,
-            "mimeType": "image/png"
-          },
-          "redirectURL": "",
-          "headersSize": -1,
-          "bodySize": 5000
-        },
-        "cache": {},
-        "timings": {
-          "send": 0,
-          "wait": 12,
-          "receive": 0
-        }
-      },
-      {
-        "startedDateTime": "2025-01-01T00:00:03.000Z",
-        "time": 234,
-        "request": {
-          "method": "GET",
-          "url": "http://localhost:8000/api/v1/orders/999",
-          "httpVersion": "HTTP/1.1",
-          "headers": [
-            {"name": "Authorization", "value": "Bearer abc123"}
-          ],
-          "queryString": [],
-          "cookies": [],
-          "headersSize": -1,
-          "bodySize": 0
-        },
-        "response": {
-          "status": 404,
-          "statusText": "Not Found",
-          "httpVersion": "HTTP/1.1",
-          "headers": [
-            {"name": "Content-Type", "value": "application/json"}
-          ],
-          "cookies": [],
-          "content": {
-            "size": 50,
-            "mimeType": "application/json",
-            "text": "{\\"success\\": false, \\"error\\": \\"Order not found\\"}"
-          },
-          "redirectURL": "",
-          "headersSize": -1,
-          "bodySize": 50
-        },
-        "cache": {},
-        "timings": {
-          "send": 0,
-          "wait": 234,
-          "receive": 0
-        }
-      }
-    ]
-  }
-}
-"""
-
-# OpenAPI 规范示例模板
-SAMPLE_OPENAPI = """{
-  "openapi": "3.0.3",
-  "info": {
-    "title": "Drun Sample API",
-    "description": "Drun 格式转换示例 - OpenAPI 3.0 规范\\n\\n转换命令:\\ndrun convert-openapi converts/openapi/sample_openapi.json --tags users --split-output --outfile testcases/from_openapi.yaml --placeholders",
-    "version": "1.0.0"
-  },
-  "servers": [
-    {
-      "url": "http://localhost:8000",
-      "description": "Development server"
-    }
-  ],
-  "tags": [
-    {"name": "users", "description": "用户管理"},
-    {"name": "orders", "description": "订单管理"}
-  ],
-  "paths": {
-    "/api/v1/users": {
-      "get": {
-        "tags": ["users"],
-        "summary": "获取用户列表",
-        "operationId": "listUsers",
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {"type": "integer", "default": 1}
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {"type": "integer", "default": 10}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {"type": "boolean"},
-                    "data": {
-                      "type": "array",
-                      "items": {"$ref": "#/components/schemas/User"}
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": ["users"],
-        "summary": "创建用户",
-        "operationId": "createUser",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {"$ref": "#/components/schemas/UserInput"}
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "创建成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {"type": "boolean"},
-                    "data": {"$ref": "#/components/schemas/User"}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/users/{userId}": {
-      "get": {
-        "tags": ["users"],
-        "summary": "获取用户详情",
-        "operationId": "getUser",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "schema": {"type": "integer"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {"type": "boolean"},
-                    "data": {"$ref": "#/components/schemas/User"}
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "用户不存在"
-          }
-        }
-      }
-    },
-    "/api/v1/orders": {
-      "get": {
-        "tags": ["orders"],
-        "summary": "获取订单列表",
-        "operationId": "listOrders",
-        "security": [{"bearerAuth": []}],
-        "responses": {
-          "200": {
-            "description": "成功"
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "schemas": {
-      "User": {
-        "type": "object",
-        "properties": {
-          "id": {"type": "integer"},
-          "username": {"type": "string"},
-          "email": {"type": "string", "format": "email"},
-          "full_name": {"type": "string"},
-          "is_active": {"type": "boolean"}
-        }
-      },
-      "UserInput": {
-        "type": "object",
-        "required": ["username", "email", "password"],
-        "properties": {
-          "username": {"type": "string", "example": "test_user"},
-          "email": {"type": "string", "format": "email", "example": "test@example.com"},
-          "password": {"type": "string", "example": "password123"},
-          "full_name": {"type": "string", "example": "Test User"}
-        }
-      }
-    },
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT"
-      }
-    }
-  }
-}
-"""
-
-# converts 目录说明文档
-CONVERTS_README = """# 格式转换目录
-
-本目录包含 Drun 支持的所有格式转换示例文件，帮助你快速将现有 API 资产迁移为 Drun 测试用例。
-
-## 📁 文件清单
-
-```
-converts/
-# └── README.md                    # 本文档（已删除）
-├── curl/
-│   └── sample.curl                # cURL 命令示例（3 个命令）
-├── postman/
-│   ├── sample_collection.json     # Postman Collection v2.1 示例
-│   └── sample_environment.json    # Postman 环境变量示例
-├── har/
-│   └── sample_recording.har       # 浏览器录制的 HAR 文件示例
-└── openapi/
-    └── sample_openapi.json        # OpenAPI 3.x 规范示例
-```
-
-## 1. cURL 转 YAML
-
-### 示例文件
-- `curl/sample.curl` - 包含 3 个 cURL 命令示例（GET、POST、带认证的 GET）
-
-### 基础转换
-
-```bash
-# 单文件转换
-drun convert converts/curl/sample.curl --outfile testcases/from_curl.yaml
-
-# 脱敏并使用变量占位符
-drun convert converts/curl/sample.curl \\
-  --outfile testcases/from_curl.yaml \\
-  --redact Authorization,Cookie \\
-  --placeholders
-
-# 分割为多个文件（每个 cURL 命令生成一个文件）
-drun convert converts/curl/sample.curl \\
-  --split-output \\
-  --outfile testcases/from_curl.yaml
-```
-
-### 常用选项
-- `--redact Authorization`: 脱敏认证头
-- `--placeholders`: 将敏感信息转换为变量（推荐）
-- `--split-output`: 多条命令分割为多个文件
-- `--into testcases/existing.yaml`: 追加到现有用例
-
-### 注意事项
-- cURL 文件必须使用 `.curl` 后缀
-- 支持多条命令（换行分隔）
-- 自动解析 `-H`、`-d`、`--data-raw` 等选项
-
-## 2. Postman 转 YAML
-
-### 示例文件
-- `postman/sample_collection.json` - Collection v2.1 示例（包含文件夹分组）
-- `postman/sample_environment.json` - 环境变量示例（base_url、token 等）
-
-### 基础转换
-
-```bash
-# 转换为单个用例文件
-drun convert converts/postman/sample_collection.json \\
-  --outfile testcases/from_postman.yaml
-
-# 分割输出并生成测试套件（推荐）
-drun convert converts/postman/sample_collection.json \\
-  --split-output \\
-  --suite-out testsuites/from_postman.yaml \\
-  --redact Authorization \\
-  --placeholders
-
-# 导入环境变量
-drun convert converts/postman/sample_collection.json \\
-  --postman-env converts/postman/sample_environment.json \\
-  --outfile testcases/from_postman.yaml \\
-  --placeholders
-```
-
-### 常用选项
-- `--postman-env`: 导入环境变量到 `config.variables`
-- `--split-output`: 每个请求生成独立文件
-- `--suite-out`: 同时生成引用型测试套件
-- `--redact` + `--placeholders`: 脱敏并变量化
-
-### 注意事项
-- 支持 Collection v2.0 和 v2.1
-- 文件夹结构会保留在用例名称中
-- {{variable}} 语法会转换为 $variable
-
-## 3. HAR 转 YAML
-
-### 示例文件
-- `har/sample_recording.har` - 浏览器录制示例（包含静态资源、不同状态码）
-
-### 如何录制 HAR
-1. 打开 Chrome DevTools (F12)
-2. 切换到 Network 标签
-3. 勾选 "Preserve log"
-4. 执行要录制的操作
-5. 右键点击请求列表 → "Save all as HAR with content"
-
-### 基础转换
-
-```bash
-# 基础转换（自动过滤静态资源）
-drun convert converts/har/sample_recording.har \\
-  --outfile testcases/from_har.yaml
-
-# 仅保留成功响应（2xx 状态码）
-drun convert converts/har/sample_recording.har \\
-  --exclude-static \\
-  --only-2xx \\
-  --outfile testcases/from_har.yaml
-
-# 使用正则排除特定 URL
-drun convert converts/har/sample_recording.har \\
-  --exclude-pattern '(\\.png$|\\.css$|/cdn/)' \\
-  --outfile testcases/from_har.yaml
-
-# 分割输出
-drun convert converts/har/sample_recording.har \\
-  --exclude-static \\
-  --split-output \\
-  --outfile testcases/from_har.yaml
-```
-
-### 常用选项
-- `--exclude-static`: 过滤图片、CSS、JS、字体等（默认开启）
-- `--only-2xx`: 仅保留 2xx 状态码的响应
-- `--exclude-pattern`: 正则排除特定 URL 或 mimeType
-- `--split-output`: 每个请求生成独立文件
-
-### 注意事项
-- HAR 文件通常包含大量噪音，建议使用过滤选项
-- 导入后需要手动整理业务步骤
-- Cookie 和 Session 信息需要手动处理
-
-## 4. OpenAPI 转 YAML
-
-### 示例文件
-- `openapi/sample_openapi.json` - OpenAPI 3.x 规范示例（包含 tags、认证配置）
-
-### 基础转换
-
-```bash
-# 转换全部接口
-drun convert-openapi converts/openapi/sample_openapi.json \\
-  --outfile testcases/from_openapi.yaml
-
-# 按 tag 过滤
-drun convert-openapi converts/openapi/sample_openapi.json \\
-  --tags users,orders \\
-  --outfile testcases/from_openapi.yaml
-
-# 分割输出（推荐）
-drun convert-openapi converts/openapi/sample_openapi.json \\
-  --split-output \\
-  --outfile testcases/from_openapi.yaml \\
-  --redact Authorization \\
-  --placeholders
-
-# 指定 base_url
-drun convert-openapi converts/openapi/sample_openapi.json \\
-  --base-url http://localhost:8000 \\
-  --outfile testcases/from_openapi.yaml
-```
-
-### 常用选项
-- `--tags`: 按标签过滤接口（逗号分隔）
-- `--split-output`: 每个 Operation 生成独立文件
-- `--base-url`: 覆盖规范中的 servers
-- `--redact` + `--placeholders`: 脱敏并变量化
-
-### 注意事项
-- 支持 OpenAPI 3.0.x 和 3.1.x
-- 自动从 schema 生成示例请求体
-- 需要手动补充测试数据和断言
-- Security schemes 会转换为认证配置
-
-## 通用选项说明
-
-### 脱敏选项
-- `--redact Authorization,Cookie`: 将指定 header 值替换为 `***`
-- `--placeholders`: 将敏感信息提取到 `config.variables` 并引用
-
-### 输出选项
-- `--outfile`: 指定输出文件路径
-- `--split-output`: 将多个请求分割为独立文件
-- `--into`: 追加到现有 YAML 文件（仅 cURL、Postman、HAR）
-
-### 套件选项
-- `--suite-out`: 生成引用测试套件（需配合 `--split-output`）
-
-## 最佳实践
-
-1. **始终使用 `--placeholders`**: 自动将敏感信息（token、密钥）提取为变量
-2. **大型资产使用 `--split-output`**: 便于管理和维护
-3. **HAR 文件务必过滤**: 使用 `--exclude-static`、`--only-2xx` 减少噪音
-4. **转换后补充内容**:
-   - 添加有意义的断言（不仅仅是状态码）
-   - 补充变量提取逻辑（extract）
-   - 整理业务步骤命名
-5. **脱敏处理**: 提交到版本控制前使用 `--redact` 保护敏感信息
-
-## 快速参考
-
-| 格式 | 命令 | 推荐选项 |
-|------|------|----------|
-| cURL | `drun convert <file>.curl` | `--placeholders --split-output` |
-| Postman | `drun convert <file>.json` | `--split-output --suite-out --postman-env` |
-| HAR | `drun convert <file>.har` | `--exclude-static --only-2xx --split-output` |
-| OpenAPI | `drun convert-openapi <file>.json` | `--tags --split-output --placeholders` |
-
-## 更多文档
-
-- 完整转换指南: [docs/FORMAT_CONVERSION.md](../docs/FORMAT_CONVERSION.md)
-- CLI 参数详解: [docs/CLI.md](../docs/CLI.md)
-# - 项目主文档: [README.md](../README.md) - 已删除
-
-## 需要帮助？
-
-- 查看示例文件了解格式结构
-- 运行 `drun convert --help` 查看完整选项
-- 参考 `docs/FORMAT_CONVERSION.md` 获取详细说明
-"""
-
-# .env 环境配置模板
-ENV_TEMPLATE = """# ==================== API 基础配置 ====================
-# 选项 1: httpbin.org - 专为 HTTP 测试设计，功能全面（推荐）
+# Environment config template
+ENV_TEMPLATE = """# API Configuration
 BASE_URL=https://httpbin.org
-
-# 选项 2: JSONPlaceholder - 模拟 RESTful API，更稳定
-# BASE_URL=https://jsonplaceholder.typicode.com
-
-# 选项 3: 本地服务
-# BASE_URL=http://localhost:8000
-
-# 测试用户凭证（用于 Basic Auth 演示）
 USER_USERNAME=test_user
 USER_PASSWORD=test_password
 
-# ==================== 数据库配置（可选）====================
-# 采用 MYSQL_<DB>__<ROLE>__<FIELD> 形式。
-# 常用字段：DSN、HOST、PORT、USER、PASSWORD、DATABASE、CHARSET、ENABLED、TAGS
-# 示例：
+# System Name (for notifications and reports)
+SYSTEM_NAME=My Test System
+
+# Database (optional)
 # MYSQL_MAIN__DEFAULT__DSN=mysql://user:pass@localhost:3306/app
-# MYSQL_MAIN__DEFAULT__CHARSET=utf8mb4
-# MYSQL_ANALYTICS__READER__DSN=mysql://analytics:pass@localhost:3306/analytics
-# MYSQL_ANALYTICS__READER__TAGS=reporting,readonly
 
-# ==================== 系统信息 ====================
-# 系统名称（用于通知标题和报告）
-SYSTEM_NAME=我的测试系统
+# Feishu Notification (optional)
+# FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 
-# ==================== 通知配置 ====================
-# 启用通知渠道：drun run --notify feishu,email,dingtalk
-# 通知策略（环境变量）：DRUN_NOTIFY_ONLY=failed|always（默认 failed）
+# DingTalk Notification (optional)
+# DINGTALK_WEBHOOK=https://oapi.dingtalk.com/robot/send?access_token=xxx
 
-# ---- 飞书通知 ----
-# FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxxxx
-# FEISHU_SECRET=your-secret-key                          # 可选，启用签名验证
-# FEISHU_MENTION=13800138000,ou_user_id                  # 可选，@用户（手机号或 open_id）
-# FEISHU_STYLE=card                                      # 消息样式：text 或 card（推荐）
-# REPORT_URL=https://ci.example.com/artifacts/report.html # 可选，报告链接（card 模式显示按钮）
-
-# ---- 钉钉通知 ----
-# DINGTALK_WEBHOOK=https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxx
-# DINGTALK_SECRET=your-secret-key                        # 可选，启用签名验证
-# DINGTALK_AT_MOBILES=13800138000,13900139000            # 可选，@指定手机号（逗号分隔）
-# DINGTALK_AT_ALL=false                                  # 可选，@所有人（true/false）
-# DINGTALK_STYLE=markdown                                # 消息样式：text 或 markdown（推荐，支持加粗、链接等）
-# DINGTALK_TITLE=Drun 测试结果                            # 可选，markdown 模式的标题
-
-# ---- 邮件通知 ----
-# SMTP_HOST=smtp.example.com                             # SMTP 服务器地址
-# SMTP_PORT=465                                          # SMTP 端口（465 for SSL，587 for TLS）
-# SMTP_USER=noreply@example.com                          # SMTP 用户名
-# SMTP_PASS=your-app-password                            # SMTP 密码或应用专用密码
-# MAIL_FROM=noreply@example.com                          # 发件人地址
-# MAIL_TO=qa@example.com,dev@example.com                 # 收件人（逗号分隔多个）
+# Email Notification (optional)
+# SMTP_HOST=smtp.example.com
+# SMTP_PORT=465
+# SMTP_USER=noreply@example.com
+# SMTP_PASS=your-password
+# MAIL_FROM=noreply@example.com
+# MAIL_TO=qa@example.com
 """
 
-# drun_hooks.py 模板（基于当前项目的实际文件）
+# Hooks template
 HOOKS_TEMPLATE = '''"""
-Drun Hooks 示例文件
+Drun Hooks - Custom functions for test cases
 
-此文件包含可在测试用例中使用的自定义函数：
-1. 模板辅助函数：在 ${} 表达式中调用，用于生成数据
-2. 生命周期 Hooks：在 setup_hooks/teardown_hooks 中使用
-
-使用方法：
-- 模板函数: ${ts()}, ${uid()}, ${md5($password)}
-- Hooks 函数: setup_hooks: [${setup_hook_sign_request($request)}]
+Usage:
+- Template functions: ${ts()}, ${uid()}, ${md5($password)}
+- Setup hooks: setup_hooks: [${setup_hook_sign_request($request)}]
 """
 import hashlib
 import hmac
@@ -1069,146 +145,58 @@ from typing import Any
 from drun.db.database_proxy import get_db
 
 
-# ==================== 模板辅助函数 ====================
+# ==================== Template Functions ====================
 
 def ts() -> int:
-    """返回当前 Unix 时间戳（秒）
-
-    用法: ${ts()}
-    示例: headers: { X-Timestamp: ${ts()} }
-    """
+    """Return current Unix timestamp (seconds)"""
     return int(time.time())
 
 
 def uid() -> str:
-    """生成完整的 UUID（带连字符）
-
-    用法: ${uid()}
-    示例: email: user_${uid()}@example.com
-    """
+    """Generate UUID with hyphens"""
     return str(uuid.uuid4())
 
 
 def short_uid(length: int = 8) -> str:
-    """生成短 UUID（去除连字符，截取指定长度）
-
-    参数:
-        length: 返回的字符串长度（默认 8）
-
-    用法: ${short_uid(12)}
-    示例: username: user_${short_uid(8)}
-    """
+    """Generate short UUID (no hyphens, truncated)"""
     return str(uuid.uuid4()).replace("-", "")[:length]
 
 
 def md5(text: str) -> str:
-    """计算字符串的 MD5 哈希值
-
-    用法: ${md5($password)}
-    示例: headers: { X-Sign: ${md5($timestamp + $secret)} }
-    """
+    """Calculate MD5 hash"""
     return hashlib.md5(str(text).encode("utf-8")).hexdigest()
 
 
 def sha256(text: str) -> str:
-    """计算字符串的 SHA256 哈希值
-
-    用法: ${sha256($data)}
-    """
+    """Calculate SHA256 hash"""
     return hashlib.sha256(str(text).encode("utf-8")).hexdigest()
 
 
-# ==================== 生命周期 Hooks ====================
+# ==================== Setup Hooks ====================
 
 def setup_hook_sign_request(request: dict, variables: dict = None, env: dict = None) -> dict:
-    """请求签名 Hook 示例：添加 HMAC-SHA256 签名
-
-    此 Hook 会：
-    1. 生成当前时间戳
-    2. 使用 APP_SECRET 对请求进行签名
-    3. 添加 X-Timestamp 和 X-Signature 头
-
-    使用方法:
-        steps:
-          - name: 调用需要签名的接口
-            setup_hooks:
-              - ${setup_hook_sign_request($request)}
-            request:
-              method: POST
-              path: /api/secure/endpoint
-
-    参数:
-        request: 当前请求对象（方法、URL、headers 等）
-        variables: 当前会话变量
-        env: 环境变量
-
-    返回:
-        dict: 返回的变量会注入到当前步骤的变量作用域
-    """
+    """Add HMAC-SHA256 signature to request headers"""
     env = env or {}
-    secret = env.get("APP_SECRET", "default-secret-key").encode()
-
+    secret = env.get("APP_SECRET", "default-secret").encode()
     method = request.get("method", "GET")
     url = request.get("url", "")
     timestamp = str(int(time.time()))
 
-    # 计算签名：HMAC-SHA256(method|url|timestamp)
     message = f"{method}|{url}|{timestamp}".encode()
     signature = hmac.new(secret, message, hashlib.sha256).hexdigest()
 
-    # 添加签名相关的 headers
     headers = request.setdefault("headers", {})
     headers["X-Timestamp"] = timestamp
     headers["X-Signature"] = signature
 
-    # 可选：返回签名信息供后续步骤使用
-    return {
-        "last_signature": signature,
-        "last_timestamp": timestamp,
-    }
+    return {"last_signature": signature, "last_timestamp": timestamp}
 
 
-def teardown_hook_log_response(response: dict, variables: dict = None, env: dict = None):
-    """响应日志 Hook 示例：记录响应关键信息
-
-    使用方法:
-        steps:
-          - name: 创建订单
-            teardown_hooks:
-              - ${teardown_hook_log_response($response)}
-
-    参数:
-        response: 响应对象（status_code、body 等）
-        variables: 当前会话变量
-        env: 环境变量
-    """
-    status = response.get("status_code")
-    body = response.get("body", {})
-
-    # 可以在这里添加自定义日志逻辑
-    print(f"[Hook] Response: status={status}, body_keys={list(body.keys() if isinstance(body, dict) else [])}")
-
-
-def teardown_hook_validate_status(response: dict, variables: dict = None, env: dict = None):
-    """响应验证 Hook 示例：确保状态码为 2xx
-
-    使用方法:
-        steps:
-          - name: 调用接口
-            teardown_hooks:
-              - ${teardown_hook_validate_status($response)}
-    """
-    status = response.get("status_code", 0)
-    if not (200 <= status < 300):
-        raise AssertionError(f"Expected 2xx status code, got {status}")
-
-
-# ==================== 数据库辅助函数 ====================
+# ==================== Database Functions ====================
 
 def _get_db_proxy(db_name: str = "main", role: str | None = None):
-    """内部工具：按库名/角色获取数据库代理。"""
-    manager = get_db()
-    return manager.get(db_name, role)
+    """Get database proxy by name/role"""
+    return get_db().get(db_name, role)
 
 
 def setup_hook_assert_sql(
@@ -1217,32 +205,12 @@ def setup_hook_assert_sql(
     query: str | None = None,
     db_name: str = "main",
     role: str | None = None,
-    fail_message: str | None = None,
 ) -> dict:
-    """在步骤前执行 SQL 并判空，常用于校验前置数据是否存在。
-
-    用法:
-        setup_hooks:
-          - ${setup_hook_assert_sql($variables.user_id)}
-        # 指定数据库角色或自定义 SQL:
-        # - ${setup_hook_assert_sql($user_id, query="SELECT * FROM users WHERE id=${user_id}", db_name="analytics", role="read")}
-
-    返回:
-        dict: 默认返回 `{"sql_assert_ok": True}`，可用于在后续步骤判断断言是否执行。
-    """
+    """Assert SQL query returns non-empty result before step execution"""
     proxy = _get_db_proxy(db_name=db_name, role=role)
-    sql = query
-    if sql is None:
-        try:
-            uid = int(identifier)
-            sql = f"SELECT id, status FROM users WHERE id = {uid}"
-        except (TypeError, ValueError):
-            sql = f"SELECT id, status FROM users WHERE id = '{identifier}'"
-    row = proxy.query(sql)
-    if not row:
-        message = fail_message or f"SQL 返回为空，无法继续执行：{sql}"
-        raise AssertionError(message)
-    # 返回标记，后续步骤如果需要可判断
+    sql = query or f"SELECT * FROM users WHERE id = {identifier}"
+    if not proxy.query(sql):
+        raise AssertionError(f"SQL returned empty: {sql}")
     return {"sql_assert_ok": True}
 
 
@@ -1253,101 +221,27 @@ def expected_sql_value(
     column: str = "status",
     db_name: str = "main",
     role: str | None = None,
-    default: Any | None = None,
 ) -> Any:
-    """在 validate 断言中调用，返回 SQL 查询的指定列值。
-
-    用法:
-        validate:
-          - eq: [$api_status, ${expected_sql_value($api_user_id)}]
-        # 自定义 SQL 与列名:
-          - eq: [$.data.total, ${expected_sql_value($order_id, query="SELECT SUM(amount) AS total FROM orders WHERE order_id=${order_id}", column="total", db_name="report")}]
-    """
+    """Get column value from SQL query for validation"""
     proxy = _get_db_proxy(db_name=db_name, role=role)
-    sql = query
-    if sql is None:
-        try:
-            uid = int(identifier)
-            sql = f"SELECT {column} FROM users WHERE id = {uid}"
-        except (TypeError, ValueError):
-            sql = f"SELECT {column} FROM users WHERE id = '{identifier}'"
+    sql = query or f"SELECT {column} FROM users WHERE id = {identifier}"
     row = proxy.query(sql)
     if not row:
-        if default is not None:
-            return default
-        raise AssertionError(f"SQL 返回为空，无法获取列 {column}: {sql}")
-    if column not in row:
-        raise AssertionError(f"SQL 结果缺少列 {column}: {row.keys()}")
-    return row[column]
-
-
-# ==================== Suite 级别 Hooks ====================
-
-def suite_setup():
-    """Suite 开始前的准备工作
-
-    使用方法（在测试套件中）:
-        config:
-          setup_hooks:
-            - ${suite_setup()}
-    """
-    print("[Suite Hook] Suite setup: 准备测试环境...")
-    # 可以在这里执行：
-    # - 清理测试数据库
-    # - 初始化测试数据
-    # - 启动 mock 服务
-    return {}
-
-
-def suite_teardown():
-    """Suite 结束后的清理工作
-
-    使用方法（在测试套件中）:
-        config:
-          teardown_hooks:
-            - ${suite_teardown()}
-    """
-    print("[Suite Hook] Suite teardown: 清理测试环境...")
-    # 可以在这里执行：
-    # - 清理测试数据
-    # - 停止 mock 服务
-    # - 生成额外报告
-
-
-def case_setup():
-    """Case 开始前的准备工作
-
-    使用方法（在测试用例中）:
-        config:
-          setup_hooks:
-            - ${case_setup()}
-    """
-    print("[Case Hook] Case setup: 准备用例数据...")
-    return {}
-
-
-def case_teardown():
-    """Case 结束后的清理工作
-
-    使用方法（在测试用例中）:
-        config:
-          teardown_hooks:
-            - ${case_teardown()}
-    """
-    print("[Case Hook] Case teardown: 清理用例数据...")
+        raise AssertionError(f"SQL returned empty: {sql}")
+    return row.get(column)
 '''
 
-# .gitignore 模板
-GITIGNORE_TEMPLATE = """# 报告和日志
+# .gitignore template
+GITIGNORE_TEMPLATE = """# Reports and logs
 reports/
 logs/
 allure-results/
 *.log
 
-# 代码片段（自动生成）
+# Code snippets (auto-generated)
 snippets/
 
-# 环境配置（包含敏感信息）
+# Environment (sensitive)
 .env
 .env.*
 !.env.example
@@ -1355,333 +249,101 @@ snippets/
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-.pytest_cache/
+dist/
+build/
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 .DS_Store
-
-# 临时文件
-*.tmp
-*.bak
-*.orig
 """
 
-# README.md 项目文档模板
-README_TEMPLATE = """# Drun API 测试项目
+# Project README template
+README_TEMPLATE = """# Drun API Test Project
 
-本项目使用 [Drun](https://github.com/Devliang24/drun) 框架进行 HTTP API 自动化测试。
+API automation testing with [Drun](https://github.com/Devliang24/drun).
 
-## 📁 项目结构
+## Project Structure
 
 ```
 .
-├── testcases/              # 测试用例目录
-│   ├── test_demo.yaml      # 完整认证流程示例
-│   ├── test_api_health.yaml # 健康检查示例
-│   ├── test_performance.yaml # HTTP 性能分析示例
-│   ├── test_db_assert.yaml # 数据库断言示例
-│   └── test_import_users.yaml # CSV 参数化用例
-├── testsuites/             # 测试套件目录（支持 caseflow + invoke）
-│   ├── testsuite_smoke.yaml # 冒烟测试套件
-│   └── testsuite_csv.yaml  # CSV 示例套件
-├── data/                   # 数据文件目录
-│   └── users.csv           # CSV 参数数据
-├── converts/               # 格式转换源文件
-│   └── sample.curl         # cURL 命令示例
-├── reports/                # HTML/JSON 报告输出
-├── logs/                   # 日志文件输出
-├── .env                    # 环境变量配置
-└── drun_hooks.py           # 自定义 Hooks 函数
+├── testcases/           # Test cases
+│   ├── test_demo.yaml
+│   ├── test_api_health.yaml
+│   └── test_import_users.yaml
+├── testsuites/          # Test suites (caseflow)
+│   └── testsuite_smoke.yaml
+├── data/                # Test data
+│   └── users.csv
+├── .env                 # Environment variables
+└── drun_hooks.py        # Custom hooks
 ```
 
-## 🚀 快速开始
-
-### 1. 安装 Drun
+## Quick Start
 
 ```bash
-pip install -e /path/to/drun
-# 或者从 GitHub 安装（如果已发布）
-# pip install drun
+# Install drun
+pip install drun
+
+# Run tests
+drun r testcases --env dev --html reports/report.html
+
+# Run test suite
+drun r testsuite_smoke --env dev
+
+# Run with tag filter
+drun r testcases -k "smoke" --env dev
 ```
 
-### 2. 配置环境变量
-
-编辑 `.env` 文件，设置你的 API 基础地址：
-
-```env
-BASE_URL=http://localhost:8000
-USER_USERNAME=test_user
-USER_PASSWORD=test_pass123
-```
-
-### 3. 运行测试
-
-```bash
-# 运行单个测试用例（必须指定环境）
-drun run testcases/test_api_health.yaml --env dev
-
-# 运行数据库断言示例
-drun run testcases/test_db_assert.yaml --env dev
-
-# 运行整个测试目录
-drun run testcases --env dev
-
-# 运行测试套件
-drun run testsuites/testsuite_smoke.yaml --env dev
-
-# 运行 CSV 数据驱动示例
-drun run testcases/test_import_users.yaml --env dev
-
-# 使用标签过滤
-drun run testcases -k "smoke and not slow" --env dev
-
-# 生成 HTML 报告
-drun run testcases --html reports/report.html --env dev
-
-# 启用详细日志
-drun run testcases --log-level debug --env dev
-
-# 查看运行时长（使用响应 elapsed_ms）并生成 JSON 报告
-drun run testcases --report reports/run.json --env dev
-```
-
-> 提示：必须使用 `--env <环境名>` 指定环境，会自动加载 `.env.<环境名>` 文件。例如 `--env dev` 会加载 `.env.dev`。
->
-> 性能分析：自 2.1.0 起移除了 httpstat 分解视图，请使用 `elapsed_ms` 结合断言（示例：`- le: [$elapsed_ms, 2000]`）或外部工具（如 `curl -w`、`k6`、APM）进行性能监控。
-
-### 4. 查看报告
-
-测试运行后，查看生成的报告：
-
-```bash
-# HTML 报告（浏览器打开）
-open reports/report-*.html
-
-# JSON 报告（供 CI/CD 集成）
-cat reports/run.json
-```
-
-## 📊 数据驱动示例（CSV）
-
-- CSV 数据文件：`data/users.csv`
-- 对应用例：`testcases/test_import_users.yaml`
-- 示例套件：`testsuites/testsuite_csv.yaml`
-- 默认假设 `BASE_URL` 指向 [httpbin](https://httpbin.org)，以便 `/anything` 接口回显请求数据。
-
-运行命令：
-
-```bash
-drun run testcases/test_import_users.yaml
-
-# 或运行套件
-drun run testsuites/testsuite_csv.yaml
-```
-
-> 疑似失败时，可检查 CSV 内容与环境变量是否匹配，例如确认 `BASE_URL` 是否对外提供 `/anything` 接口。
-
-## 🗄️ 数据库断言示例
-
-- 关联 Hook：`setup_hook_assert_sql`（前置 SQL 校验）、`expected_sql_value`（在 `validate` 预期值中执行查询）。
-- 对应用例：`testcases/test_db_assert.yaml`
-- 依赖环境：在 `.env` 中配置 `MYSQL_<DB>__<ROLE>__<FIELD>` 环境变量（至少提供 DSN），并确保数据库可连通。
-
-运行命令：
-
-```bash
-drun run testcases/test_db_assert.yaml
-```
-
-用例会先在步骤前执行 `setup_hook_assert_sql` 判定数据库中是否存在目标记录，并在断言阶段通过 `expected_sql_value` 获取最新字段值用于对比，从而实现“仅保留一种断言写法”的 SQL 校验。
-
-## 📝 编写测试用例
-
-### 基本结构
+## Test Case Example
 
 ```yaml
 config:
-  name: 测试用例名称
+  name: My Test
   base_url: ${ENV(BASE_URL)}
-  tags: [smoke, p0]
+  tags: [smoke]
 
 steps:
-  - name: 步骤名称
-    request:
-      method: GET
-      path: /api/endpoint
-    validate:
-      - eq: [status_code, 200]
-      - eq: [$.data.status, success]
-```
-
-### 变量和提取
-
-```yaml
-steps:
-  - name: 登录
+  - name: Login
     request:
       method: POST
-      path: /api/auth/login
+      path: /login
       body:
         username: ${ENV(USER_USERNAME)}
-        password: ${ENV(USER_PASSWORD)}
     extract:
-      token: $.data.access_token  # 提取 token
-    validate:
-      - eq: [status_code, 200]
-
-  - name: 访问受保护资源
-    request:
-      method: GET
-      path: /api/users/me
-      headers:
-        Authorization: Bearer $token  # 使用提取的 token
+      token: $.data.token
     validate:
       - eq: [status_code, 200]
 ```
 
-### 使用 Hooks
+## Test Suite Example (caseflow)
 
 ```yaml
-steps:
-  - name: 调用需要签名的接口
-    setup_hooks:
-      - ${setup_hook_sign_request($request)}
-    request:
-      method: POST
-      path: /api/secure/endpoint
-    validate:
-      - eq: [status_code, 200]
-```
+config:
+  name: E2E Flow
+  tags: [e2e]
 
-### 使用 invoke 调用其他用例（v6.2+）
+caseflow:
+  - name: Login
+    invoke: test_login
 
-```yaml
-# 在测试用例中调用其他用例
-steps:
-  - name: 执行登录流程
+  - name: Create Order
     variables:
-      username: admin            # 传递变量给被调用用例
-    invoke: test_login           # 智能路径解析，提取的变量自动导出
-
-  - name: 使用登录 token
-    request:
-      method: GET
-      path: /api/users/$userId   # 使用上一步提取的变量
-      headers:
-        Authorization: Bearer $token
+      token: $token
+    invoke: test_create_order
 ```
 
-### 用例质量评分（v6.3+）
+## More
 
-```bash
-# 评估用例质量
-drun score testcases/
+- [Drun Documentation](https://github.com/Devliang24/drun)
+"""
 
-# 评分维度：
-# - 步骤级：断言(50%)、变量提取(30%)、重试(20%)
-# - 用例级：参数化(50%)、Hooks(30%)、复用(20%)
-# 评分等级：A(90+)、B(70-89)、C(50-69)、D(<50)
-```
+# .gitkeep content
+GITKEEP_CONTENT = "# Keep this directory in version control\n"
 
-## 🔄 格式转换
-
-将现有的 API 请求转换为 Drun 测试用例：
-
-### cURL 转 YAML
-
-```bash
-drun convert converts/curl/sample.curl \\
-  --outfile testcases/from_curl.yaml \\
-  --redact Authorization \\
-  --placeholders
-```
-
-### Postman Collection 转 YAML
-
-```bash
-drun convert your_collection.json \\
-  --split-output \\
-  --suite-out testsuites/from_postman.yaml \\
-  --redact Authorization \\
-  --placeholders
-```
-
-### HAR 文件转 YAML
-
-```bash
-drun convert recording.har \\
-  --exclude-static \\
-  --only-2xx \\
-  --outfile testcases/from_har.yaml
-```
-
-# 更多转换选项请查看 `converts/README.md` - 已删除。
-
-## 🏷️ 标签管理
-
-查看项目中使用的所有标签：
-
-```bash
-drun tags testcases
-```
-
-使用标签过滤测试：
-
-```bash
-# 运行 smoke 测试
-drun run testcases -k "smoke"
-
-# 排除 slow 测试
-drun run testcases -k "not slow"
-
-# 组合条件
-drun run testcases -k "(smoke or regression) and not flaky"
-```
-
-## 🔍 验证和检查
-
-验证 YAML 文件语法：
-
-```bash
-drun check testcases
-```
-
-自动修复格式问题：
-
-```bash
-drun fix testcases
-```
-
-## 📊 CI/CD 集成
-
-### GitHub Actions 示例
-
-```yaml
-name: API Tests
+# GitHub Actions workflow template
+GITHUB_WORKFLOW_TEMPLATE = """name: API Tests
 
 on: [push, pull_request]
 
@@ -1689,538 +351,26 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Install Drun
-        run: pip install -e /path/to/drun
+      - name: Install
+        run: pip install drun
 
       - name: Run Tests
         env:
-          BASE_URL: ${{ secrets.API_BASE_URL }}
-          USER_USERNAME: ${{ secrets.TEST_USERNAME }}
-          USER_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          BASE_URL: ${{ secrets.BASE_URL }}
         run: |
-          drun run testcases \\
+          drun r testcases \\
             --html reports/report.html \\
-            --report reports/run.json
+            --mask-secrets
 
       - name: Upload Reports
-        uses: actions/upload-artifact@v3
         if: always()
+        uses: actions/upload-artifact@v3
         with:
-          name: test-reports
+          name: reports
           path: reports/
-```
-
-### 性能监控示例
-
-在 CI 中通过断言约束响应时间，避免性能回退：
-
-```yaml
-      - name: Run API tests with latency guard
-        run: |
-          drun run testcases --report reports/run-${{ github.sha }}.json
-```
-
-建议：
-- 在用例中为关键接口添加耗时断言：`- le: [$elapsed_ms, 2000]`
-- 持续性能测试可使用 `k6`/`wrk`，错误追踪用 APM（如 SkyWalking、Jaeger）。
-
-## 📚 更多资源
-
-- [Drun 官方文档](https://github.com/Devliang24/drun)
-- [完整参考文档](https://github.com/Devliang24/drun/blob/main/docs/REFERENCE.md)
-- [格式转换指南](https://github.com/Devliang24/drun/blob/main/docs/FORMAT_CONVERSION.md)
-- [CI/CD 集成示例](https://github.com/Devliang24/drun/blob/main/docs/CI_CD.md)
-
-## 🐛 问题排查
-
-### 常见问题
-
-1. **环境文件不存在**
-   - 确保 `.env.<环境名>` 文件存在（如 `.env.dev`, `.env.uat`, `.env.prod`）
-   - 使用 `--env <环境名>` 指定正确的环境
-
-2. **BASE_URL 缺失**
-   - 检查环境文件中是否配置了 `BASE_URL`
-   - 或通过 `--vars base_url=http://...` 传递
-
-3. **变量未定义**
-   - 检查变量名拼写
-   - 确认变量在 `config.variables` 或 `extract` 中定义
-
-### 启用调试日志
-
-```bash
-drun run testcases --log-level debug --httpx-logs --env dev
-```
-
-## 📄 许可证
-
-本项目使用 MIT 许可证。
-"""
-
-# 流式响应测试用例模板
-STREAM_TESTCASE = """config:
-  name: 流式响应测试示例
-  base_url: ${ENV(BASE_URL)}
-  tags: [stream, demo]
-  variables:
-    api_key: ${ENV(API_KEY, demo-key)}
-
-steps:
-  - name: 流式聊天对话
-    request:
-      method: POST
-      path: /v1/chat/completions
-      headers:
-        Authorization: Bearer $api_key
-        Content-Type: application/json
-      body:
-        model: "gpt-3.5-turbo"
-        messages:
-          - role: user
-            content: "你好，请简单介绍一下自己"
-        stream: true          # API 参数：启用流式响应
-      stream: true            # Drun 配置：启用流式处理
-      stream_timeout: 30      # 流式超时（秒）
-    
-    extract:
-      # 提取第一个事件的内容
-      first_content: $.stream_events[0].data.choices[0].delta.content
-      # 提取最后一个事件的完成原因
-      finish_reason: $.stream_events[-1].data.choices[0].finish_reason
-      # 提取事件总数
-      event_count: $.stream_summary.event_count
-      # 提取首包时间
-      first_chunk_ms: $.stream_summary.first_chunk_ms
-    
-    validate:
-      # 验证 HTTP 状态码
-      - eq: [status_code, 200]
-      
-      # 验证至少收到一个事件
-      - gt: [$event_count, 0]
-      
-      # 验证首包响应时间（毫秒）
-      - lt: [$first_chunk_ms, 2000]
-      
-      # 验证总耗时（毫秒）
-      - lt: [$elapsed_ms, 30000]
-      
-      # 验证正常结束（如果 API 支持）
-      # - eq: [$finish_reason, "stop"]
-
-  - name: 流式响应性能测试
-    request:
-      method: POST
-      path: /v1/chat/completions
-      headers:
-        Authorization: Bearer $api_key
-      body:
-        model: "gpt-3.5-turbo"
-        messages:
-          - role: user
-            content: "计数到 10"
-        stream: true
-      stream: true
-      stream_timeout: 20
-    
-    extract:
-      total_events: $.stream_summary.event_count
-      time_to_first: $.stream_summary.first_chunk_ms
-      time_to_last: $.stream_summary.last_chunk_ms
-    
-    validate:
-      - eq: [status_code, 200]
-      - gt: [$total_events, 5]              # 至少 5 个事件
-      - lt: [$time_to_first, 1000]          # 首包 < 1s
-      - gt: [$time_to_last, $time_to_first] # 末包晚于首包
-"""
-
-# 断言完整示例用例模板
-ASSERTIONS_TESTCASE = """config:
-  name: 断言操作符完整示例
-  base_url: ${ENV(BASE_URL)}
-  tags: [demo, assertions]
-  variables:
-    expected_username: test_user
-    max_response_time: 2000
-    min_items: 5
-    search_keyword: embedding
-
-steps:
-  # ==================== 基础比较断言 ====================
-  - name: 基础比较断言示例
-    request:
-      method: GET
-      path: /get?page=1&limit=10
-      headers:
-        User-Agent: Drun-Test-Client
-    extract:
-      page_num: $.args.page
-      limit_num: $.args.limit
-    validate:
-      # eq: 等于
-      - eq: [status_code, 200]
-      - eq: [$page_num, "1"]
-      - eq: [$.args.limit, "10"]
-      
-      # ne: 不等于
-      - ne: [status_code, 404]
-      - ne: [$limit_num, "20"]
-      
-      # lt: 小于
-      - lt: [$elapsed_ms, $max_response_time]
-      - lt: [$page_num, "10"]
-      
-      # le: 小于等于
-      - le: [status_code, 299]
-      - le: [$limit_num, "10"]
-      
-      # gt: 大于
-      - gt: [status_code, 100]
-      - gt: [$elapsed_ms, 0]
-      
-      # ge: 大于等于
-      - ge: [status_code, 200]
-      - ge: [$limit_num, "1"]
-
-  # ==================== 字符串断言 ====================
-  - name: 字符串断言示例
-    request:
-      method: POST
-      path: /anything
-      headers:
-        Content-Type: application/json
-        User-Agent: Drun-Test-Client/v1.0
-      body:
-        username: $expected_username
-        email: test@example.com
-        description: This is a test user account
-    extract:
-      response_json: $.json
-      user_agent: $.headers.User-Agent
-    validate:
-      # contains: 包含子字符串
-      - contains: [headers.Content-Type, application/json]
-      - contains: [$user_agent, Drun-Test-Client]
-      - contains: [$.json.description, test user]
-      
-      # not_contains: 不包含子字符串
-      - not_contains: [$.json.username, admin]
-      - not_contains: [$.json.email, .cn]
-      
-      # regex: 正则表达式匹配
-      - regex: [$.json.email, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$']
-      - regex: [$.json.username, '^[a-z_]+$']
-      - regex: [$user_agent, 'Drun.*v\d+\.\d+']
-
-  # ==================== 集合与长度断言 ====================
-  - name: 集合与长度断言示例
-    request:
-      method: POST
-      path: /anything
-      body:
-        tags: [python, testing, automation, api]
-        permissions: [read, write, delete]
-        metadata:
-          count: 42
-          active: true
-    extract:
-      tags_list: $.json.tags
-      permissions: $.json.permissions
-      tag_count: $.json.tags
-      first_permission: $.json.permissions[0]
-    validate:
-      # in: 值在列表中
-      - in: [python, $tags_list]
-      - in: [testing, $tags_list]
-      - in:
-          - $first_permission
-          - [read, write, admin]
-      
-      # not_in: 值不在列表中
-      - not_in: [java, $tags_list]
-      - not_in: [admin, $permissions]
-      
-      # len_eq: 长度等于
-      - len_eq: [$tags_list, 4]
-      - len_eq: [$permissions, 3]
-      - len_eq: [$.json.metadata, 2]
-
-  # ==================== 批量断言（列表）====================
-  - name: 批量断言示例 - 模型列表
-    # 注意：实际使用时应该用 JSONPath 从响应中提取列表
-    # 例如：extract: { all_model_names: "$.data.items[*].model_name" }
-    # 这里为了演示，使用预定义的变量
-    variables:
-      all_model_names:
-        - Deepexi-Embedding-V1
-        - Deepexi-Embedding-V2
-        - Deepexi-Embedding-V3
-      all_model_ids:
-        - emb-001
-        - emb-002
-        - emb-003
-    request:
-      method: GET
-      path: /anything/models
-      params:
-        category: embedding
-        vendor: deepexi
-    validate:
-      - eq: [status_code, 200]
-      
-      # contains_all: 列表中所有元素都包含指定字符串
-      - contains_all: [$all_model_names, Deepexi]
-      - contains_all: [$all_model_names, Embedding]
-      - contains_all: [$all_model_ids, emb-]
-      
-      # match_regex_all: 列表中所有元素都匹配正则表达式
-      - match_regex_all: [$all_model_names, '^Deepexi-Embedding-V\d+$']
-      - match_regex_all: [$all_model_ids, '^emb-\d{3}$']
-
-  # ==================== 复杂场景组合 ====================
-  - name: 复杂场景组合示例
-    request:
-      method: GET
-      path: /get
-      params:
-        search: $search_keyword
-        page: 1
-        page_size: 20
-      headers:
-        Accept: application/json
-        X-Request-ID: ${short_uid(16)}
-    extract:
-      items_list: $.args
-      request_id: $.headers.X-Request-ID
-    validate:
-      # 状态码检查
-      - eq: [status_code, 200]
-      - ge: [status_code, 200]
-      - lt: [status_code, 300]
-      
-      # 响应时间检查
-      - lt: [$elapsed_ms, 3000]
-      - gt: [$elapsed_ms, 0]
-      
-      # Content-Type 检查
-      - contains: [headers.Content-Type, application/json]
-      - not_contains: [headers.Content-Type, text/html]
-      
-      # 参数回显检查
-      - eq: [$.args.search, $search_keyword]
-      - regex: [$.args.page, '^\d+$']
-      - regex: [$.args.page_size, '^\d+$']
-      
-      # Request ID 格式检查
-      - regex: [$request_id, '^[a-f0-9]{16}$']
-      - len_eq: [$request_id, 16]
-
-  # ==================== JSONPath 提取 + 批量断言 ====================
-  - name: JSONPath 提取 + 批量断言
-    # 注意：实际使用时应该用 JSONPath 从响应中提取列表
-    # 例如：extract: { all_usernames: "$.json.users[*].username" }
-    # 这里为了演示，使用预定义的变量模拟提取的数据
-    variables:
-      # 模拟从响应中提取的用户名列表
-      all_usernames:
-        - alice
-        - bob
-        - carol
-      # 模拟从响应中提取的邮箱列表
-      all_emails:
-        - alice@example.com
-        - bob@example.com
-        - carol@example.com
-    request:
-      method: POST
-      path: /anything/api/users
-      body:
-        users:
-          - username: alice
-            email: alice@example.com
-            role: admin
-          - username: bob
-            email: bob@example.com
-            role: member
-          - username: carol
-            email: carol@example.com
-            role: member
-    validate:
-      - eq: [status_code, 200]
-      
-      # 验证所有用户名都是小写字母
-      - match_regex_all: [$all_usernames, '^[a-z]+$']
-      
-      # 验证所有邮箱格式正确
-      - match_regex_all: [$all_emails, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$']
-      
-      # 验证所有邮箱都来自 example.com 域
-      - contains_all: [$all_emails, example.com]
-      
-      # 验证列表长度
-      - len_eq: [$all_usernames, 3]
-      - len_eq: [$all_emails, 3]
-
-  # ==================== 性能和负值断言 ====================
-  - name: 性能和边界值断言
-    request:
-      method: GET
-      path: /delay/0
-    extract:
-      response_time: $elapsed_ms
-    validate:
-      - eq: [status_code, 200]
-      
-      # 性能断言
-      - lt: [$response_time, 1000]    # 响应时间 < 1秒
-      - gt: [$response_time, 0]       # 响应时间 > 0
-      - le: [$response_time, 1000]    # 响应时间 <= 1秒
-      - ge: [$response_time, 0]       # 响应时间 >= 0
-      
-      # 状态码范围
-      - ge: [status_code, 200]
-      - lt: [status_code, 300]
-      - ne: [status_code, 204]
-"""
-
-# .gitkeep 文件内容（用于保留空目录）
-GITKEEP_CONTENT = "# This file keeps the directory in version control\n"
-
-# GitHub Actions 工作流模板
-GITHUB_WORKFLOW_TEMPLATE = """name: Drun CI
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-
-env:
-  PYTHON_DEFAULT_VERSION: "3.11"
-
-jobs:
-  tests:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-
-      - name: Validate YAML testcases
-        run: drun check testcases || true
-
-      - name: Run smoke tests
-        env:
-          BASE_URL: ${{ secrets.BASE_URL }}
-          USER_USERNAME: ${{ secrets.USER_USERNAME }}
-          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
-          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
-          SYSTEM_NAME: ${{ secrets.SYSTEM_NAME || 'Drun CI' }}
-          REPORT_URL: ${{ secrets.REPORT_URL }}
-        run: |
-          drun run testcases \
-            -k "smoke or critical" \
-            --html reports/report-${{ matrix.python-version }}.html \
-            --report reports/report-${{ matrix.python-version }}.json \
-            --log-file logs/run-${{ matrix.python-version }}.log \
-            --mask-secrets \
-            --notify feishu \
-            --notify-only failed
-
-      - name: Upload reports
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: drun-reports-${{ matrix.python-version }}
-          path: |
-            reports/
-            logs/
-"""
-
-GITLAB_CI_TEMPLATE = """# Drun GitLab CI pipeline
-# Configure CI/CD variables (Project > Settings > CI/CD > Variables):
-#   BASE_URL, USER_USERNAME, USER_PASSWORD, FEISHU_WEBHOOK, REPORT_URL, SYSTEM_NAME (optional)
-
-stages:
-  - test
-
-workflow:
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: always
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_COMMIT_BRANCH
-      when: always
-    - when: never
-
-variables:
-  PYTHON_DEFAULT_VERSION: "3.11"
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-
-cache:
-  paths:
-    - .cache/pip
-
-tests:
-  stage: test
-  image: python:${PYTHON_VERSION}
-  parallel:
-    matrix:
-      - PYTHON_VERSION: "3.10"
-      - PYTHON_VERSION: "3.11"
-      - PYTHON_VERSION: "3.12"
-  before_script:
-    - python --version
-    - python -m pip install --upgrade pip
-    - pip install -e .
-  script:
-    - export ACTIVE_PY="${PYTHON_VERSION:-$PYTHON_DEFAULT_VERSION}"
-    - mkdir -p reports logs
-    - drun check testcases || true
-    - |
-      export SYSTEM_NAME="${SYSTEM_NAME:-Drun CI}"
-      drun run testcases \
-        -k "smoke or critical" \
-        --html "reports/report-${ACTIVE_PY}.html" \
-        --report "reports/report-${ACTIVE_PY}.json" \
-        --log-file "logs/run-${ACTIVE_PY}.log" \
-        --mask-secrets \
-        --notify feishu \
-        --notify-only failed
-  artifacts:
-    when: always
-    paths:
-      - reports/
-      - logs/
-    expire_in: 1 week
 """
