@@ -1,6 +1,6 @@
 # Drun — Modern HTTP API Testing Framework
 
-[![Version](https://img.shields.io/badge/version-7.0.14-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.0.16-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -90,36 +90,22 @@ cd myproject
 This creates:
 ```
 my-api-test/
-├── testcases/                      # Test cases directory
-│   ├── test_demo.yaml              # HTTP feature demo
-│   ├── test_api_health.yaml        # Health check example
-│   ├── test_performance.yaml       # Performance analysis example
-│   ├── test_import_users.yaml      # CSV parameterization example
-│   ├── test_db_assert.yaml         # Database assertion example
-│   ├── test_assertions.yaml        # Assertion operators example
-│   └── test_stream.yaml            # Streaming response example
-├── testsuites/                     # Test suites directory
-│   ├── testsuite_smoke.yaml        # Smoke test suite
-│   └── testsuite_csv.yaml          # CSV example suite
-├── data/                           # Test data directory
-│   └── users.csv                   # CSV parameter data
-├── converts/                       # Format conversion source files
-│   ├── curl/
-│   │   └── sample.curl             # cURL command example
-│   ├── postman/
-│   │   ├── sample_collection.json  # Postman Collection
-│   │   └── sample_environment.json # Postman environment
-│   ├── har/
-│   │   └── sample_recording.har    # HAR recording file
-│   └── openapi/
-│       └── sample_openapi.json     # OpenAPI spec
-├── reports/                        # HTML/JSON report output
-├── logs/                           # Log file output
-├── snippets/                       # Auto-generated code snippets
-├── .env                            # Environment variables
-├── drun_hooks.py                   # Custom Hooks functions
-├── .gitignore                      # Git ignore rules
-└── README.md                       # Project documentation
+├── testcases/                  # Test cases directory
+│   ├── test_demo.yaml          # HTTP feature demo
+│   ├── test_api_health.yaml    # Health check example
+│   └── test_import_users.yaml  # CSV parameterization example
+├── testsuites/                 # Test suites directory
+│   └── testsuite_smoke.yaml    # Smoke test suite
+├── data/                       # Test data directory
+│   └── users.csv               # CSV parameter data
+├── converts/                   # Format conversion source files
+│   └── sample.curl             # cURL command example
+├── reports/                    # HTML/JSON report output
+├── logs/                       # Log file output
+├── snippets/                   # Auto-generated code snippets
+├── .env                        # Environment variables
+├── drun_hooks.py               # Custom Hooks functions
+└── .gitignore                  # Git ignore rules
 ```
 
 ### Create Your First Test
@@ -171,17 +157,17 @@ steps:
 
 ```bash
 # Run single test (with or without .yaml extension)
-drun r testcases/test_user_api.yaml
-drun r test_user_api
+drun r testcases/test_user_api.yaml --env dev
+drun r test_user_api --env dev
 
 # Run with HTML report
-drun r test_user_api --html reports/report.html
+drun r test_user_api --env dev --html reports/report.html
 
 # Run with tag filtering
-drun r testcases -k "smoke and not slow"
+drun r testcases --env dev -k "smoke and not slow"
 
 # Run test suite
-drun r testsuite_e2e
+drun r testsuite_e2e --env dev
 ```
 
 ## Core Concepts
@@ -451,7 +437,7 @@ Automatically generate executable Shell and Python scripts from test steps:
 
 ```bash
 # Run test - code snippets are generated automatically
-$ drun r test_login
+$ drun r test_login --env dev
 
 2025-11-24 14:23:18.551 | INFO | [CASE] Total: 1 Passed: 1 Failed: 0 Skipped: 0
 2025-11-24 14:23:18.553 | INFO | [CASE] HTML report written to reports/report.html
@@ -463,16 +449,16 @@ $ drun r test_login
 **CLI Options:**
 ```bash
 # Disable snippet generation
-$ drun r test_api --no-snippet
+$ drun r test_api --env dev --no-snippet
 
 # Generate only Python scripts
-$ drun r test_api --snippet-lang python
+$ drun r test_api --env dev --snippet-lang python
 
 # Generate only curl scripts
-$ drun r test_api --snippet-lang curl
+$ drun r test_api --env dev --snippet-lang curl
 
 # Custom output directory
-$ drun r test_api --snippet-output exports/
+$ drun r test_api --env dev --snippet-output exports/
 ```
 
 ### Custom Hooks
@@ -583,15 +569,15 @@ drun score testcases/test_api.yaml
 ### Run Tests
 
 ```bash
-# Basic execution
-drun r PATH
+# Basic execution (--env is required)
+drun r PATH --env <env_name>
 
 # Smart file discovery - extension optional
-drun r test_api_health              # Finds test_api_health.yaml or .yml
-drun r testcases/test_user          # Supports paths without extension
-drun r test_api_health.yaml         # Traditional format still works
+drun r test_api_health --env dev              # Finds test_api_health.yaml or .yml
+drun r testcases/test_user --env dev          # Supports paths without extension
+drun r test_api_health.yaml --env dev         # Traditional format still works
 
-# With options (--env is required)
+# With more options
 drun r testcases/ \
   --env staging \
   -k "smoke and not slow" \
@@ -700,7 +686,7 @@ drun --version
 ### HTML Reports
 
 ```bash
-drun r testcases --html reports/report.html --mask-secrets
+drun r testcases --env dev --html reports/report.html --mask-secrets
 ```
 
 **Features:**
@@ -715,7 +701,7 @@ drun r testcases --html reports/report.html --mask-secrets
 ### JSON Reports
 
 ```bash
-drun r testcases --report reports/results.json
+drun r testcases --env dev --report reports/results.json
 ```
 
 **Structure:**
@@ -743,7 +729,7 @@ drun r testcases --report reports/results.json
 
 ```bash
 # Generate Allure results
-drun r testcases --allure-results allure-results
+drun r testcases --env dev --allure-results allure-results
 
 # View Allure report
 allure serve allure-results
@@ -777,7 +763,7 @@ NOTIFY_ATTACH_HTML=true
 
 **Usage:**
 ```bash
-drun r testcases \
+drun r testcases --env dev \
   --notify feishu,email \
   --notify-only failed \
   --notify-attach-html
@@ -913,13 +899,13 @@ DB_HOST=db.example.com
 **Multi-environment:**
 ```bash
 # Development
-DRUN_ENV=dev drun r testsuites/testsuite_smoke.yaml
+drun r testsuites/testsuite_smoke.yaml --env dev
 
 # Staging
-DRUN_ENV=staging drun r testsuites/testsuite_regression.yaml
+drun r testsuites/testsuite_regression.yaml --env staging
 
 # Production (smoke tests only)
-DRUN_ENV=prod drun r testsuites/testsuite_smoke.yaml
+drun r testsuites/testsuite_smoke.yaml --env prod
 ```
 
 ### Naming Conventions
@@ -949,9 +935,9 @@ tags: [db, data-verify]           # Database validation
 
 **Filtering:**
 ```bash
-drun r testcases -k "smoke"                    # Smoke tests only
-drun r testcases -k "regression and not slow"  # Fast regression
-drun r testcases -k "critical or e2e"          # Critical + E2E
+drun r testcases --env dev -k "smoke"                    # Smoke tests only
+drun r testcases --env dev -k "regression and not slow"  # Fast regression
+drun r testcases --env dev -k "critical or e2e"          # Critical + E2E
 ```
 
 ### CI/CD Integration
@@ -975,27 +961,26 @@ jobs:
       - name: Install Drun
         run: pip install drun
       
+      - name: Setup Environment
+        run: |
+          echo "BASE_URL=${{ secrets.BASE_URL }}" >> .env.ci
+          echo "API_KEY=${{ secrets.API_KEY }}" >> .env.ci
+      
       - name: Run Smoke Tests
         run: |
-          drun r testsuites/testsuite_smoke.yaml \
+          drun r testsuites/testsuite_smoke.yaml --env ci \
             --html reports/smoke.html \
             --report reports/smoke.json \
             --mask-secrets \
             --failfast
-        env:
-          BASE_URL: ${{ secrets.BASE_URL }}
-          API_KEY: ${{ secrets.API_KEY }}
       
       - name: Run Regression Tests
         if: github.event_name == 'pull_request'
         run: |
-          drun r testsuites/testsuite_regression.yaml \
+          drun r testsuites/testsuite_regression.yaml --env ci \
             --html reports/regression.html \
             --report reports/regression.json \
             --mask-secrets
-        env:
-          BASE_URL: ${{ secrets.BASE_URL }}
-          API_KEY: ${{ secrets.API_KEY }}
       
       - name: Upload Reports
         uses: actions/upload-artifact@v3
@@ -1007,11 +992,10 @@ jobs:
       - name: Notify on Failure
         if: failure()
         run: |
-          drun r testsuites/testsuite_smoke.yaml \
+          echo "FEISHU_WEBHOOK=${{ secrets.FEISHU_WEBHOOK }}" >> .env.ci
+          drun r testsuites/testsuite_smoke.yaml --env ci \
             --notify feishu \
             --notify-only failed
-        env:
-          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
 ```
 
 ## Advanced Topics
