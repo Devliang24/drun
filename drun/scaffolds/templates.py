@@ -276,8 +276,14 @@ API automation testing with [Drun](https://github.com/Devliang24/drun).
 │   └── testsuite_smoke.yaml
 ├── data/                # Test data
 │   └── users.csv
+├── converts/            # Format conversion source files
+│   └── sample.curl
+├── reports/             # HTML/JSON report output
+├── logs/                # Log file output
+├── snippets/            # Auto-generated code snippets
 ├── .env                 # Environment variables
-└── drun_hooks.py        # Custom hooks
+├── drun_hooks.py        # Custom hooks
+└── .gitignore           # Git ignore rules
 ```
 
 ## Quick Start
