@@ -15,8 +15,10 @@ class HTTPClient:
         event_hooks: Dict[str, list] = {}
         # httpstat 功能已移除，保留空 hooks
 
+        # NOTE: httpx.Client(base_url=None) raises TypeError in newer httpx versions.
+        # Keep base_url as a string ("" when unset) for compatibility.
         self.client = httpx.Client(
-            base_url=self.base_url or None,
+            base_url=self.base_url,
             timeout=self.timeout or 10.0,
             verify=self.verify if self.verify is not None else True,
             headers=self.headers,
