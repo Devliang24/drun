@@ -7,15 +7,16 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from drun.engine.http import HTTPClient
-from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline, load_yaml_file, expand_parameters
-from drun.loader.collector import resolve_invoke_path
+from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline
 from drun.models.case import Case
-from drun.models.report import AssertionResult, CaseInstanceResult, RunReport, StepResult
+from drun.models.report import CaseInstanceResult, RunReport, StepResult
 from drun.models.step import Step
 from drun.templating.context import VarContext
 from drun.templating.engine import TemplateEngine
 from drun.runner.extractors import extract_from_body
-from drun.runner.assertions import compare
+from drun.runner.asserting import evaluate_validators
+from drun.runner.hooks import run_setup_hooks, run_teardown_hooks
+from drun.runner.invoke import execute_invoke_step
 from drun.utils.curl import to_curl
 from drun.utils.mask import mask_body, mask_headers
 
@@ -343,45 +344,17 @@ class Runner:
         envmap: Dict[str, Any] | None,
         meta: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
-        updated: Dict[str, Any] = {}
-        fdict = funcs or {}
-        env_ctx = envmap or {}
-        meta_data = {k: v for k, v in (meta or {}).items() if v is not None}
-        hook_ctx: Dict[str, Any] = {
-            "request": req,
-            "variables": variables,
-            "env": env_ctx,
-            "step_name": meta_data.get("step_name"),
-            "case_name": meta_data.get("case_name"),
-            "step_request": meta_data.get("step_request") or req,
-            "step_variables": meta_data.get("step_variables") or variables,
-            "session_variables": meta_data.get("session_variables") or variables,
-            "session_env": meta_data.get("session_env") or env_ctx,
-        }
-        hook_ctx.update(meta_data)
-        for entry in names or []:
-            if not isinstance(entry, str):
-                raise ValueError(f"Invalid setup hook entry type {type(entry).__name__}; expected string like '${{func(...)}}'")
-            text = entry.strip()
-            if not text:
-                raise ValueError("Invalid empty setup hook entry")
-            if not (text.startswith("${") and text.endswith("}")):
-                raise ValueError(f"Setup hook must use expression syntax '${{func(...)}}': {entry}")
-            import re as _re
-            m = _re.match(r"^\$\{\s*([A-Za-z_][A-Za-z0-9_]*)", text)
-            fn_label = f"{m.group(1)}()" if m else text
-            if self.log:
-                self.log.info(f"[HOOK] setup expr -> {fn_label}")
-            ret = self.templater.eval_expr(text, variables, fdict, envmap, extra_ctx=hook_ctx)
-            if self.log:
-                if isinstance(ret, (dict, list)):
-                    formatted = json.dumps(ret, ensure_ascii=False, indent=2)
-                    self.log.info(self._fmt_aligned("HOOK", f"{fn_label} returned", formatted))
-                else:
-                    self.log.info(f"[HOOK] {fn_label} returned: {ret!r}")
-            if isinstance(ret, dict):
-                updated.update(ret)
-        return updated
+        return run_setup_hooks(
+            names=names,
+            funcs=funcs,
+            req=req,
+            variables=variables,
+            envmap=envmap,
+            meta=meta,
+            templater=self.templater,
+            log=self.log,
+            fmt_aligned=self._fmt_aligned,
+        )
 
     def _run_teardown_hooks(
         self,
@@ -393,45 +366,17 @@ class Runner:
         envmap: Dict[str, Any] | None,
         meta: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
-        updated: Dict[str, Any] = {}
-        fdict = funcs or {}
-        env_ctx = envmap or {}
-        meta_data = {k: v for k, v in (meta or {}).items() if v is not None}
-        hook_ctx: Dict[str, Any] = {
-            "response": resp,
-            "variables": variables,
-            "env": env_ctx,
-            "step_name": meta_data.get("step_name"),
-            "case_name": meta_data.get("case_name"),
-            "step_response": meta_data.get("step_response") or resp,
-            "step_variables": meta_data.get("step_variables") or variables,
-            "session_variables": meta_data.get("session_variables") or variables,
-            "session_env": meta_data.get("session_env") or env_ctx,
-        }
-        hook_ctx.update(meta_data)
-        for entry in names or []:
-            if not isinstance(entry, str):
-                raise ValueError(f"Invalid teardown hook entry type {type(entry).__name__}; expected string like '${{func(...)}}'")
-            text = entry.strip()
-            if not text:
-                raise ValueError("Invalid empty teardown hook entry")
-            if not (text.startswith("${") and text.endswith("}")):
-                raise ValueError(f"Teardown hook must use expression syntax '${{func(...)}}': {entry}")
-            import re as _re
-            m = _re.match(r"^\$\{\s*([A-Za-z_][A-Za-z0-9_]*)", text)
-            fn_label = f"{m.group(1)}()" if m else text
-            if self.log:
-                self.log.info(f"[HOOK] teardown expr -> {fn_label}")
-            ret = self.templater.eval_expr(text, variables, fdict, envmap, extra_ctx=hook_ctx)
-            if self.log:
-                if isinstance(ret, (dict, list)):
-                    formatted = json.dumps(ret, ensure_ascii=False, indent=2)
-                    self.log.info(self._fmt_aligned("HOOK", f"{fn_label} returned", formatted))
-                else:
-                    self.log.info(f"[HOOK] {fn_label} returned: {ret!r}")
-            if isinstance(ret, dict):
-                updated.update(ret)
-        return updated
+        return run_teardown_hooks(
+            names=names,
+            funcs=funcs,
+            resp=resp,
+            variables=variables,
+            envmap=envmap,
+            meta=meta,
+            templater=self.templater,
+            log=self.log,
+            fmt_aligned=self._fmt_aligned,
+        )
 
     def _run_invoke_step(
         self,
@@ -445,186 +390,18 @@ class Runner:
         ctx: VarContext,
         params: Dict[str, Any] | None,
     ) -> List[StepResult]:
-        """Execute an invoke step that calls another test case.
-        
-        Args:
-            step: The step containing invoke path
-            step_idx: Step index for logging
-            rendered_step_name: Rendered step name
-            variables: Current variables context
-            global_vars: Global variables
-            funcs: Hook functions
-            envmap: Environment variables
-            ctx: Variable context for updating extracted vars
-            
-        Returns:
-            List of StepResults for all sub-steps executed
-        """
-        t0 = time.perf_counter()
-        invoke_path = step.invoke
-        
-        if self.log:
-            self.log.info(f"[STEP] Step {step_idx} Start: {rendered_step_name}")
-            self.log.info(f"[INVOKE] Loading testcase: {invoke_path}")
-        
-        # Resolve the invoke path to an actual file
-        resolved_path = resolve_invoke_path(invoke_path, Path.cwd())
-        if resolved_path is None:
-            error_msg = f"Cannot find testcase for invoke: {invoke_path}"
-            if self.log:
-                self.log.error(f"[INVOKE] {error_msg}")
-            return [StepResult(
-                name=rendered_step_name,
-                status="failed",
-                error=error_msg,
-                duration_ms=(time.perf_counter() - t0) * 1000,
-            )]
-        
-        if self.log:
-            self.log.info(f"[INVOKE] Resolved to: {resolved_path}")
-        
-        # Load the invoked testcase
-        try:
-            cases, _ = load_yaml_file(resolved_path)
-            if not cases:
-                error_msg = f"No testcases found in: {resolved_path}"
-                if self.log:
-                    self.log.error(f"[INVOKE] {error_msg}")
-                return [StepResult(
-                    name=rendered_step_name,
-                    status="failed",
-                    error=error_msg,
-                    duration_ms=(time.perf_counter() - t0) * 1000,
-                )]
-            invoked_case = cases[0]  # Use first case from file
-        except Exception as e:
-            error_msg = f"Failed to load testcase {resolved_path}: {e}"
-            if self.log:
-                self.log.error(f"[INVOKE] {error_msg}")
-            return [StepResult(
-                name=rendered_step_name,
-                status="failed",
-                error=error_msg,
-                duration_ms=(time.perf_counter() - t0) * 1000,
-            )]
-        
-        # Merge variables: current context + step.variables passed to invoked case
-        invoke_vars = {**variables}
-        if step.variables:
-            rendered_step_vars = self._render(step.variables, variables, funcs, envmap)
-            if isinstance(rendered_step_vars, dict):
-                invoke_vars.update(rendered_step_vars)
-                if self.log:
-                    for k, v in rendered_step_vars.items():
-                        self.log.info(f"[INVOKE] Passing variable: {k} = {v!r}")
-
-        # Ensure invoked case has a usable base_url (similar to CLI behavior)
-        invoked_base_url = invoked_case.config.base_url
-        if not invoked_base_url:
-            fallback_base = (
-                invoke_vars.get("base_url")
-                or invoke_vars.get("BASE_URL")
-                or (envmap or {}).get("base_url")
-                or (envmap or {}).get("BASE_URL")
-            )
-            if fallback_base:
-                invoked_case.config.base_url = fallback_base
-                invoked_base_url = fallback_base
-
-        if isinstance(invoked_base_url, str) and ("${" in invoked_base_url or "{{" in invoked_base_url):
-            try:
-                invoked_case.config.base_url = self._render(invoked_base_url, invoke_vars, funcs, envmap)
-            except Exception as exc:
-                if self.log:
-                    self.log.error(f"[INVOKE] Failed to render base_url '{invoked_base_url}': {exc}")
-                raise
-        
-        # Run the invoked case
-        if self.log:
-            self.log.info(f"[INVOKE] Executing: {invoked_case.config.name or resolved_path.name}")
-        
-        # Handle parameters (e.g., CSV data-driven tests)
-        param_sets = expand_parameters(invoked_case.parameters, source_path=str(resolved_path))
-        if self.log and len(param_sets) > 1:
-            self.log.info(f"[INVOKE] Expanding {len(param_sets)} parameter sets")
-        
-        # Execute for each parameter set and collect results
-        all_step_results: List[StepResult] = []
-        final_status = "passed"
-        accumulated_vars = {**invoke_vars}  # Track accumulated variables across iterations
-        
-        for ps in param_sets:
-            # Merge accumulated vars with parameter set
-            merged_vars = {**accumulated_vars, **ps}
-            
-            invoke_result = self.run_case(
-                case=invoked_case,
-                global_vars=merged_vars,
-                params=ps,
-                funcs=funcs,
-                envmap=envmap,
-                source=str(resolved_path),
-            )
-            
-            # Update accumulated_vars with extracted variables for next iteration
-            # Only update if the new value is non-empty (to preserve accumulated values)
-            for sr in invoke_result.steps:
-                if sr.extracts:
-                    for k, v in sr.extracts.items():
-                        should_update = bool(v) or k not in accumulated_vars
-                        # Only update if new value is non-empty, or if key doesn't exist yet
-                        if should_update:
-                            accumulated_vars[k] = v
-            
-            all_step_results.extend(invoke_result.steps)
-            if invoke_result.status == "failed":
-                final_status = "failed"
-                if self.failfast:
-                    break
-        
-        # Handle variable export from invoked case
-        # Use accumulated_vars which correctly tracks extracted variables across iterations
-        # (using all_step_results would cause later empty values to overwrite earlier ones)
-        invoked_extracts = {k: v for k, v in accumulated_vars.items() if k not in invoke_vars or accumulated_vars[k] != invoke_vars.get(k)}
-        
-        exported_vars: Dict[str, Any] = {}
-        
-        if step.export:
-            # If export is specified, only export those variables (filter mode)
-            if isinstance(step.export, list):
-                for var_name in step.export:
-                    if var_name in invoked_extracts:
-                        exported_vars[var_name] = invoked_extracts[var_name]
-                        ctx.set_base(var_name, invoked_extracts[var_name])
-                        if self.log:
-                            self.log.info(f"[INVOKE] Exported: {var_name} = {invoked_extracts[var_name]!r}")
-                    elif self.log:
-                        self.log.warning(f"[INVOKE] Export variable not found: {var_name}")
-            elif isinstance(step.export, dict):
-                for local_name, source_name in step.export.items():
-                    if source_name in invoked_extracts:
-                        exported_vars[local_name] = invoked_extracts[source_name]
-                        ctx.set_base(local_name, invoked_extracts[source_name])
-                        if self.log:
-                            self.log.info(f"[INVOKE] Exported: {local_name} = {invoked_extracts[source_name]!r}")
-                    elif self.log:
-                        self.log.warning(f"[INVOKE] Export variable not found: {source_name}")
-        else:
-            # No export specified: auto-export all extracted variables
-            for var_name, var_value in invoked_extracts.items():
-                exported_vars[var_name] = var_value
-                ctx.set_base(var_name, var_value)
-                if self.log:
-                    self.log.info(f"[INVOKE] Auto-exported: {var_name} = {var_value!r}")
-        
-        duration_ms = (time.perf_counter() - t0) * 1000
-        
-        if self.log:
-            status_label = "PASSED" if final_status == "passed" else "FAILED"
-            self.log.info(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | {status_label}")
-        
-        # 直接返回子步骤列表，每个子步骤独立显示在报告中
-        return all_step_results
+        return execute_invoke_step(
+            runner=self,
+            step=step,
+            step_idx=step_idx,
+            rendered_step_name=rendered_step_name,
+            variables=variables,
+            global_vars=global_vars,
+            funcs=funcs,
+            envmap=envmap,
+            ctx=ctx,
+            params=params,
+        )
 
     def run_case(self, case: Case, global_vars: Dict[str, Any], params: Dict[str, Any], *, funcs: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None, source: str | None = None) -> CaseInstanceResult:
         name = case.config.name or "Unnamed Case"
@@ -1079,51 +856,14 @@ class Runner:
                 variables = ctx.get_merged(global_vars)
 
                 # assertions
-                assertions: List[AssertionResult] = []
-                step_failed = False
-                for v in step.validators:
-                    rendered_check = self._render(v.check, variables, funcs, envmap)
-                    # If rendered_check is not a string, it's already a value (e.g., extracted variable)
-                    # Use it directly as actual instead of trying to resolve from response
-                    if not isinstance(rendered_check, str):
-                        actual = rendered_check
-                        check_str = str(v.check)
-                    else:
-                        check_str = rendered_check
-                        actual = self._resolve_check(check_str, resp_obj)
-                    expect_rendered = self._render(v.expect, variables, funcs, envmap)
-                    passed, err = compare(v.comparator, actual, expect_rendered)
-                    msg = err
-                    if not passed and msg is None:
-                        addon = ""
-                        if isinstance(check_str, str) and check_str.startswith("body."):
-                            addon = " | unsupported 'body.' syntax; use '$' (e.g., $.path.to.field)"
-                        msg = f"Assertion failed: {check_str} {v.comparator} {expect_rendered!r} (actual={actual!r}){addon}"
-                    assertions.append(
-                        AssertionResult(
-                            check=str(check_str),
-                            comparator=v.comparator,
-                            expect=expect_rendered,
-                            actual=actual,
-                            passed=bool(passed),
-                            message=msg,
-                        )
-                    )
-                    if not passed:
-                        step_failed = True
-                        if self.log:
-                            expect_fmt = self._format_log_value(expect_rendered)
-                            prefix = f"[VALIDATION] {check_str} {v.comparator} {expect_fmt} => actual="
-                            indent_len = len(prefix.split("\n")[-1])
-                            actual_fmt = self._format_log_value(actual, prefix_len=indent_len)
-                            self.log.error(prefix + actual_fmt + " | FAIL")
-                    else:
-                        if self.log:
-                            expect_fmt = self._format_log_value(expect_rendered)
-                            prefix = f"[VALIDATION] {check_str} {v.comparator} {expect_fmt} => actual="
-                            indent_len = len(prefix.split("\n")[-1])
-                            actual_fmt = self._format_log_value(actual, prefix_len=indent_len)
-                            self.log.info(prefix + actual_fmt + " | PASS")
+                assertions, step_failed = evaluate_validators(
+                    runner=self,
+                    validators=step.validators,
+                    variables=variables,
+                    funcs=funcs,
+                    envmap=envmap,
+                    resp_obj=resp_obj,
+                )
 
                 # Built-in SQL validation has been removed; any SQL checks should run via hooks.
 
