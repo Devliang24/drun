@@ -191,7 +191,9 @@ def step_placeholders(case: Case, idx: int) -> Tuple[Set[str], Set[str]]:
     req = case.steps[idx].request
     vars_set: Set[str] = set()
     exprs_set: Set[str] = set()
-    _collect_from_value(req.url or "", vars_set, exprs_set)
+    if req is None:
+        return vars_set, exprs_set
+    _collect_from_value(req.path or "", vars_set, exprs_set)
     _collect_from_value(req.params or {}, vars_set, exprs_set)
     _collect_from_value(req.headers or {}, vars_set, exprs_set)
     _collect_from_value(req.body, vars_set, exprs_set)
