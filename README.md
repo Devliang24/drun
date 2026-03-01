@@ -532,40 +532,6 @@ drun s --reload
 # - RESTful API at /api/reports
 ```
 
-### Test Case Scoring (NEW in v6.3)
-
-Evaluate test case quality to improve test standards:
-
-```bash
-# Score a directory
-drun score testcases/
-
-# Score a single file
-drun score testcases/test_api.yaml
-```
-
-**Scoring Dimensions:**
-
-| Level | Dimension | Weight | Description |
-|-------|-----------|--------|-------------|
-| Step | Assertions | 50% | Number of validate rules |
-| Step | Extraction | 30% | Variable extraction usage |
-| Step | Retry | 20% | Retry mechanism usage |
-| Case | Parameters | 50% | Data-driven parameterization |
-| Case | Hooks | 30% | Setup/teardown hooks usage |
-| Case | Reuse | 20% | Test case invoke usage |
-
-**Score Grades:**
-- **A** (90+): Excellent - Green badge
-- **B** (70-89): Good - Blue badge
-- **C** (50-69): Fair - Yellow badge
-- **D** (<50): Needs improvement - Red badge
-
-**HTML Report Integration:**
-- Average score displayed in report header
-- Per-case and per-step scores shown
-- Improvement suggestions provided
-
 ### Run Tests
 
 ```bash
@@ -696,7 +662,6 @@ drun r testcases --env dev --html reports/report.html --mask-secrets
 - Execution timeline
 - Secret masking
 - Responsive design
-- Quality scores (NEW in v6.3)
 
 ### JSON Reports
 
@@ -774,9 +739,13 @@ drun r testcases --env dev \
 ### Module Structure
 
 ```
-drun/                           # ~8,500 lines across 52 modules
+drun/                           # ~11,300 lines across ~66 modules
 ├── cli.py                      # CLI interface (typer)
-├── scorer.py                   # Test case quality scoring (NEW)
+├── commands/
+│   ├── run.py                  # Run command implementation
+│   ├── fix.py                  # Fix command implementation
+│   ├── check.py                # Check command implementation
+│   └── tags.py                 # Tags command implementation
 ├── engine/
 │   └── http.py                 # HTTP client (httpx wrapper)
 ├── loader/
@@ -793,6 +762,9 @@ drun/                           # ~8,500 lines across 52 modules
 │   └── report.py               # Report models
 ├── runner/
 │   ├── runner.py               # Test execution engine
+│   ├── hooks.py                # Hook execution helpers
+│   ├── invoke.py               # Invoke-step execution helpers
+│   ├── asserting.py            # Assertion evaluation helpers
 │   ├── assertions.py           # Assertion logic
 │   └── extractors.py           # Extraction logic
 ├── templating/
@@ -1161,9 +1133,9 @@ python -m drun.cli --version
 ### Project Statistics
 
 - **Language**: Python 3.10+
-- **Lines of Code**: ~8,500
-- **Modules**: 52 Python files
-- **Test Coverage**: Comprehensive (unit + integration)
+- **Lines of Code**: ~11,300
+- **Modules**: ~66 Python files
+- **Test Coverage**: Includes layered regression tests under `tests/`
 - **Code Style**: PEP 8, type hints, Pydantic models
 
 ## Version History
@@ -1250,11 +1222,9 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - Review HTML reports for debugging
 - Use hooks for custom logic
 - Keep `.env` out of version control
-- Use `drun score` to evaluate test quality
 
 ---
 
 **Built with care by the Drun Team**
 
 *Simplifying API testing, one YAML at a time.*
-
