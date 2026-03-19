@@ -8,6 +8,7 @@ import os
 import json
 
 from .builtins import BUILTINS
+from .compat import normalize_simple_tokens, strip_escaped_template_quotes
 
 
 def _try_parse_json(value: Any) -> Any:
@@ -70,33 +71,7 @@ def _try_parse_json(value: Any) -> Any:
     return value
 
 
-# System variables that should be skipped during token normalization
-# These are handled by the runner (e.g. for validation checks), not by the template engine
-_RESERVED_SYSTEM_VARS = {
-    "body",
-    "headers",
-    "status_code",
-    "elapsed_ms",
-    "url",
-    "method",
-    "stream_events",
-    "stream_summary",
-    "stream_raw_chunks",
-}
-
-def _normalize_simple_tokens(text: str) -> str:
-    """Expand bare $var tokens into ${var} for downstream evaluation."""
-
-    def repl(match: re.Match[str]) -> str:
-        name = match.group(1)
-        # Skip reserved system variables (e.g. $status_code)
-        # Also allow $length(...) if it's a function call, but here we only match identifier
-        if name in _RESERVED_SYSTEM_VARS:
-            return match.group(0)
-        return f"${{{name}}}"
-
-    # Skip ${...} tokens by ensuring the dollar isn't followed by {
-    return re.sub(r"\$(?!\{)([A-Za-z_][A-Za-z0-9_]*)", repl, text)
+_EXPRESSION_VAR_PATTERN = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
 
 
 _ALLOWED_BINOPS = {
@@ -185,6 +160,18 @@ def _safe_eval(node: ast.AST, ctx: Dict[str, Any]) -> Any:
     raise ValueError("Unsupported expression in template")
 
 
+def _prepare_expression(text: str) -> str:
+    expr = text.strip()
+    if expr.startswith("${") and expr.endswith("}"):
+        expr = expr[2:-1]
+    return _EXPRESSION_VAR_PATTERN.sub(r"\1", expr)
+
+
+def _evaluate_expression(text: str, ctx: Dict[str, Any]) -> Any:
+    node = ast.parse(_prepare_expression(text), mode="eval")
+    return _safe_eval(node, ctx)
+
+
 def _render_text_without_jinja(text: str, ctx: Dict[str, Any]) -> str:
     # Only process ${...} tokens; leave any other braces untouched
     out: list[str] = []
@@ -193,8 +180,7 @@ def _render_text_without_jinja(text: str, ctx: Dict[str, Any]) -> str:
         out.append(text[last:m.start()])
         expr = m.group(1).strip()
         try:
-            node = ast.parse(expr, mode="eval")
-            val = _safe_eval(node, ctx)
+            val = _evaluate_expression(expr, ctx)
         except Exception:
             val = ""
         out.append("" if val is None else str(val))
@@ -208,58 +194,53 @@ class TemplateEngine:
         # Only support ${...} / $var dollar-style expressions
         self.env = None
 
-    def _strip_escape_quotes(self, value: str) -> str:
-        """移除 _escape_template_expressions_in_yaml 添加的双引号
-        
-        例如: _test_"${short_uid(6)}" -> _test_${short_uid(6)}
-        """
-        # 匹配 "${...}" 格式，移除外层双引号
-        pattern = r'"(\$\{[^}]*\})"'
-        return re.sub(pattern, r'\1', value)
+    def _build_context(
+        self,
+        variables: Dict[str, Any] | None,
+        functions: Dict[str, Any] | None = None,
+        envmap: Dict[str, Any] | None = None,
+        extra_ctx: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        def ENV(name: str, default: Any = None) -> Any:  # noqa: N802 - uppercase by design
+            if envmap is not None and name in envmap:
+                value = envmap.get(name)
+            else:
+                value = os.environ.get(name, default)
+            return _try_parse_json(value)
+
+        dyn_funcs: Dict[str, Callable[..., Any]] = {"ENV": ENV}
+        return {
+            **BUILTINS,
+            **dyn_funcs,
+            **(functions or {}),
+            **(variables or {}),
+            **(extra_ctx or {}),
+        }
 
     def render_value(self, value: Any, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None) -> Any:
         if isinstance(value, str):
             try:
-                # 先移除 _escape_template_expressions_in_yaml 添加的双引号
-                # 例如: _test_"${short_uid(6)}" -> _test_${short_uid(6)}
-                text = self._strip_escape_quotes(value)
-
-                # Build context first
-                def ENV(name: str, default: Any = None) -> Any:  # noqa: N802 - uppercase by design
-                    if envmap is not None and name in envmap:
-                        value = envmap.get(name)
-                    else:
-                        value = os.environ.get(name, default)
-                    return _try_parse_json(value)
-
-                dyn_funcs: Dict[str, Callable[..., Any]] = {"ENV": ENV}
-                ctx: Dict[str, Any] = {**BUILTINS, **dyn_funcs, **(functions or {}), **variables}
+                text = strip_escaped_template_quotes(value)
+                ctx = self._build_context(variables, functions, envmap)
 
                 # Optimization: Try to evaluate as a single expression directly first
                 # This handles ${func($var)} correctly by avoiding string interpolation
                 # which can break AST parsing when variables contain special chars (e.g. commas)
                 if text.startswith("${") and text.endswith("}"):
-                    inner = text[2:-1]
-                    # Replace $name tokens to name for AST parsing (e.g. $var -> var)
-                    # This is safe because we are treating it as code, not string interpolation
-                    inner_processed = re.sub(r"\$([A-Za-z_][A-Za-z0-9_]*)", r"\1", inner)
                     try:
-                        node = ast.parse(inner_processed, mode="eval")
-                        return _safe_eval(node, ctx)
+                        return _evaluate_expression(text, ctx)
                     except Exception:
                         # Fall through to standard string interpolation if direct eval fails
                         pass
 
-                text = _normalize_simple_tokens(text)
+                text = normalize_simple_tokens(text)
                 
                 cur = text
                 for _ in range(5):
                     single_token_match = re.fullmatch(r"\$\{([^{}]+)\}", cur)
                     if single_token_match:
-                        expr = single_token_match.group(1).strip()
                         try:
-                            node = ast.parse(expr, mode="eval")
-                            return _safe_eval(node, ctx)
+                            return _evaluate_expression(cur, ctx)
                         except Exception:
                             # Fall through and continue resolving nested tokens if evaluation fails
                             pass
@@ -280,23 +261,19 @@ class TemplateEngine:
         else:
             return value
 
+    def render_expression(self, expr: str, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None, extra_ctx: Dict[str, Any] | None = None) -> Any:
+        value = self.eval_expr(expr, variables, functions, envmap, extra_ctx=extra_ctx)
+        if value is not None:
+            return value
+
+        merged_variables = dict(variables or {})
+        if extra_ctx:
+            merged_variables.update(extra_ctx)
+        return self.render_value(expr, merged_variables, functions, envmap)
+
     def eval_expr(self, expr: str, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None, extra_ctx: Dict[str, Any] | None = None) -> Any:
-        text = expr.strip()
-        if text.startswith("${") and text.endswith("}"):
-            text = text[2:-1]
-        # Replace $name tokens to name, e.g., $request -> request
-        text = re.sub(r"\$([A-Za-z_][A-Za-z0-9_]*)", r"\1", text)
-
-        def ENV(name: str, default: Any = None) -> Any:  # noqa: N802
-            if envmap is not None and name in envmap:
-                value = envmap.get(name)
-            else:
-                value = os.environ.get(name, default)
-            return _try_parse_json(value)
-
-        ctx: Dict[str, Any] = {**BUILTINS, **(functions or {}), **(variables or {}), **(extra_ctx or {}), "ENV": ENV}
+        ctx = self._build_context(variables, functions, envmap, extra_ctx)
         try:
-            node = ast.parse(text, mode="eval")
-            return _safe_eval(node, ctx)
+            return _evaluate_expression(expr, ctx)
         except Exception:
             return None

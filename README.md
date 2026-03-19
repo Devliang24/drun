@@ -847,7 +847,6 @@ my-api-test/
 │   ├── staging.yaml
 │   └── prod.yaml
 ├── .env                        # Local environment
-├── .env.example                # Template (commit this)
 ├── drun_hooks.py               # Custom functions
 ├── .gitignore                  # Exclude .env, logs, reports
 └── README.md
@@ -856,15 +855,15 @@ my-api-test/
 ### Environment Management
 
 ```bash
-# .env (local, not committed)
+# .env.dev (used with --env dev)
 BASE_URL=https://api.dev.example.com
 API_KEY=dev-key-here
 DB_HOST=localhost
 
-# .env.example (committed)
-BASE_URL=https://api.example.com
-API_KEY=your-api-key-here
-DB_HOST=db.example.com
+# .env.staging (used with --env staging)
+BASE_URL=https://api.staging.example.com
+API_KEY=staging-key-here
+DB_HOST=staging-db.example.com
 ```
 
 **Multi-environment:**

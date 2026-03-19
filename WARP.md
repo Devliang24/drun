@@ -123,7 +123,7 @@ drun s --port 8080 --host 127.0.0.1
 ### Database support (used by hooks)
 - MySQL connectivity is provided in `drun/db/database_proxy.py` and is intentionally optional at install-time:
   - it dynamically loads one of `pymysql`, `mysql-connector-python`, or `mysqlclient` when used
-  - configuration is parsed from `MYSQL_*` environment variables (see `.env.example`)
+  - configuration is parsed from `MYSQL_*` environment variables in the selected runtime env files
 
 ## Where to implement changes (common tasks)
 - Add/adjust CLI behavior and flags: `drun/cli.py`

@@ -12,6 +12,11 @@ from pydantic import ValidationError
 from drun.models.case import Case, Suite
 from drun.models.config import Config
 from drun.models.step import Step
+from drun.templating.compat import (
+    clean_escaped_template_string,
+    escape_template_expressions_in_yaml,
+    strip_escaped_template_quotes,
+)
 from drun.models.validators import normalize_validators
 from drun.utils.errors import LoadError
 
@@ -25,61 +30,9 @@ def _is_caseflow(doc: Dict[str, Any]) -> bool:
     return isinstance(doc, dict) and isinstance(doc.get("caseflow"), list)
 
 
-def _escape_template_expressions_in_yaml(raw_text: str) -> str:
-    """
-    Temporarily escape template expressions to ensure safe YAML parsing.
-
-    When template expressions like ${func(...)} appear in arrays/lists,
-    YAML parser may get confused by special characters like parentheses.
-    We wrap such expressions in double quotes to ensure safe parsing.
-    """
-    import re
-
-    # Pattern to match template expressions that need escaping
-    # Look for ${...} patterns that contain parentheses (function calls)
-    pattern = r'\$\{[^}]*\([^)]*\)[^}]*\}'
-
-    def replace_template(match):
-        full_match = match.group(0)
-        # Check if the template expression is already quoted
-        # Look for quotes right before the ${...} pattern
-        start_pos = match.start()
-        if start_pos > 0 and raw_text[start_pos - 1] in ('"', "'"):
-            return full_match
-        # Wrap in double quotes to escape special chars
-        return f'"{full_match}"'
-
-    return re.sub(pattern, replace_template, raw_text)
-
-
 def strip_escape_quotes(value: str) -> str:
-    """
-    Strip escape quotes from template expressions for display purposes.
-
-    When displaying variables, we want to show clean values without the
-    escape quotes that were added during YAML parsing.
-
-    Args:
-        value: The value that may contain escape quotes
-
-    Returns:
-        Value with escape quotes removed if present
-    """
-    import re
-
-    # Pattern to match escaped template expressions: "${...}"
-    # This handles both:
-    # 1. Full value is just a template: "${func()}"
-    # 2. Template is part of a larger string: text_"${func()}" or text_"${func()}"_more
-    pattern = r'"(\$\{[^}]*\})"'
-
-    def replace_escaped_template(match):
-        # Return just the template part without the wrapping quotes
-        return match.group(1)
-
-    # Replace all occurrences of "template" with just template
-    result = re.sub(pattern, replace_escaped_template, value)
-    return result
+    """Backward-compatible wrapper for template quote stripping."""
+    return strip_escaped_template_quotes(value)
 
 
 def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_length: int = 120) -> str:
@@ -102,7 +55,7 @@ def format_variables_multiline(variables: Dict[str, Any], prefix: str, max_line_
         return prefix.rstrip() if prefix.endswith(": ") else prefix
 
     # Format all variable assignments with escape quotes removed
-    var_assignments = [f"{k}: {strip_escape_quotes(str(v))}" for k, v in variables.items()]
+    var_assignments = [f"{k}: {clean_escaped_template_string(str(v))}" for k, v in variables.items()]
 
     # Return vertical list format with proper indentation
     # Remove trailing colon/space from prefix if present, then add single colon
@@ -229,7 +182,7 @@ def load_yaml_file(path: Path) -> Tuple[List[Case], Dict[str, Any]]:
         # Pre-process YAML to escape template expressions that may cause parsing issues
         # When template expressions like ${func(...)} appear in arrays/lists, they may confuse YAML parser
         # We temporarily wrap them in quotes to ensure safe parsing
-        processed_raw = _escape_template_expressions_in_yaml(raw)
+        processed_raw = escape_template_expressions_in_yaml(raw)
         obj = yaml.safe_load(processed_raw) or {}
     except Exception as e:
         raise LoadError(f"Failed to parse YAML: {path}: {e}")

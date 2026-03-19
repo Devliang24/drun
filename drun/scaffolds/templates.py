@@ -244,7 +244,6 @@ snippets/
 # Environment (sensitive)
 .env
 .env.*
-!.env.example
 
 # Python
 __pycache__/

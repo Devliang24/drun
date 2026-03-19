@@ -7,10 +7,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from drun.engine.http import HTTPClient
-from drun.loader.yaml_loader import strip_escape_quotes, format_variables_multiline
+from drun.loader.yaml_loader import format_variables_multiline
 from drun.models.case import Case
 from drun.models.report import CaseInstanceResult, RunReport, StepResult
 from drun.models.step import Step
+from drun.templating.compat import clean_escaped_template_string
 from drun.templating.context import VarContext
 from drun.templating.engine import TemplateEngine
 from drun.runner.extractors import extract_from_body
@@ -102,25 +103,7 @@ class Runner:
         cleaner and more readable.
         """
         if isinstance(obj, str):
-            # First try strip_escape_quotes for template expressions
-            cleaned = strip_escape_quotes(obj)
-
-            # If the original string had escape quotes and strip_escape_quotes didn't change it,
-            # we need to handle the escaped quotes manually
-            if obj == cleaned and ('\\"' in obj or '\\\'' in obj):
-                # This string has escaped quotes that weren't processed by strip_escape_quotes
-                # Handle common cases:
-                # 1. "value_with_\"escaped_quotes\"" -> value_with_"escaped_quotes"
-                # 2. value_with_\"escaped_quotes (without outer quotes) -> value_with_"escaped_quotes"
-                result = obj
-                # Remove outer quotes if present
-                if result.startswith('"') and result.endswith('"'):
-                    result = result[1:-1]
-                # Unescape inner quotes
-                result = result.replace('\\"', '"').replace("\\'", "'")
-                return result
-
-            return cleaned
+            return clean_escaped_template_string(obj)
         elif isinstance(obj, dict):
             return {k: self._strip_escape_quotes_from_obj(v) for k, v in obj.items()}
         elif isinstance(obj, list):
@@ -757,11 +740,8 @@ class Runner:
                             # 不加 $ 前缀，直接用变量名，避免 normalize 时产生嵌套 ${}
                             temp_expr = temp_expr.replace(jp, temp_var_name)
 
-                        # 直接使用模板引擎的 eval_expr 来计算表达式，避免字符串拼接造成的语法问题
-                        val = self.templater.eval_expr(temp_expr, temp_vars, funcs, envmap)
-                        if val is None:
-                            # eval_expr 解析失败时回退到 render，保持向后兼容
-                            val = self._render(temp_expr, temp_vars, funcs, envmap)
+                        # 统一由模板引擎处理表达式求值和兼容 fallback
+                        val = self.templater.render_expression(temp_expr, temp_vars, funcs, envmap)
                     else:
                         # 原有 JMESPath 提取模式
                         val = self._eval_extract(expr, resp_obj)
