@@ -1400,7 +1400,8 @@ def quick(
         raise typer.Exit(code=1)
 
 
-@app.command("r")
+@app.command("run")
+@app.command("r", hidden=True)
 def r(
     path: str = typer.Argument(..., help="要运行的文件或目录"),
     k: Optional[str] = typer.Option(None, "-k", help="标签过滤表达式（支持 and/or/not）"),
@@ -1639,8 +1640,8 @@ def init_project(
     typer.echo("Quick start:")
     if name:
         typer.echo(f"  cd {name}")
-    typer.echo("  drun r testcases --env dev")
-    typer.echo("  drun r testsuite_smoke --env dev")
+    typer.echo("  drun run testcases --env dev")
+    typer.echo("  drun run testsuite_smoke --env dev")
     typer.echo("")
     typer.echo("Docs: https://github.com/Devliang24/drun")
 
@@ -1676,7 +1677,8 @@ def convert_openapi(
     )
 
 
-@app.command("s")
+@app.command("server")
+@app.command("s", hidden=True)
 def serve_reports(
     port: int = typer.Option(8080, "--port", help="监听端口"),
     host: str = typer.Option("0.0.0.0", "--host", help="监听地址 (0.0.0.0 允许外部访问)"),

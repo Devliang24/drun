@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+> Historical note: entries mentioning the scoring system are retained for release history only. The current CLI does not expose a `drun score` command.
+
 ## [7.0.0] - 2025-11-27
 
 ### Added

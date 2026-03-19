@@ -168,9 +168,9 @@ def run_cases(
         typer.echo("  .env.prod   → --env prod")
         typer.echo()
         typer.echo("示例:")
-        typer.echo("  drun r demo --env dev")
-        typer.echo("  drun r testcases --env uat")
-        typer.echo("  drun r testsuites --env prod")
+        typer.echo("  drun run demo --env dev")
+        typer.echo("  drun run testcases --env uat")
+        typer.echo("  drun run testsuites --env prod")
         raise typer.Exit(code=2)
 
     env_file = f".env.{env}"

@@ -20,14 +20,13 @@
 ### Core Testing Capabilities
 - **YAML DSL**: Intuitive test case syntax with `config`, `steps`, `extract`, `validate`, `export`
 - **Dollar Templating**: `$var` and `${func(...)}` for dynamic values
-- **Rich Assertions**: 12 validators (eq, ne, lt, contains, regex, len_eq, etc.)
+- **Rich Assertions**: 19 assertion operators (eq, ne, lt, contains, regex, len_eq, etc.)
 - **Data-Driven**: CSV parameters for batch testing
 - **CSV Export**: Export API response arrays to CSV files
 - **Streaming Support**: SSE (Server-Sent Events) with per-event assertions
 - **File Uploads**: Multipart/form-data support
 - **Smart File Discovery**: Run tests without `.yaml` extension
 - **Test Case Invoke**: Nested test case calls with variable passing (NEW in v6.2)
-- **Quality Scoring**: Test case quality assessment system (NEW in v6.3)
 
 ### Variable Management
 - **Auto-Persist**: Extracted variables automatically saved to `.env`
@@ -157,17 +156,17 @@ steps:
 
 ```bash
 # Run single test (with or without .yaml extension)
-drun r testcases/test_user_api.yaml --env dev
-drun r test_user_api --env dev
+drun run testcases/test_user_api.yaml --env dev
+drun run test_user_api --env dev
 
 # Run with HTML report
-drun r test_user_api --env dev --html reports/report.html
+drun run test_user_api --env dev --html reports/report.html
 
 # Run with tag filtering
-drun r testcases --env dev -k "smoke and not slow"
+drun run testcases --env dev -k "smoke and not slow"
 
 # Run test suite
-drun r testsuite_e2e --env dev
+drun run testsuite_e2e --env dev
 ```
 
 ## Core Concepts
@@ -437,7 +436,7 @@ Automatically generate executable Shell and Python scripts from test steps:
 
 ```bash
 # Run test - code snippets are generated automatically
-$ drun r test_login --env dev
+$ drun run test_login --env dev
 
 2025-11-24 14:23:18.551 | INFO | [CASE] Total: 1 Passed: 1 Failed: 0 Skipped: 0
 2025-11-24 14:23:18.553 | INFO | [CASE] HTML report written to reports/report.html
@@ -449,16 +448,16 @@ $ drun r test_login --env dev
 **CLI Options:**
 ```bash
 # Disable snippet generation
-$ drun r test_api --env dev --no-snippet
+$ drun run test_api --env dev --no-snippet
 
 # Generate only Python scripts
-$ drun r test_api --env dev --snippet-lang python
+$ drun run test_api --env dev --snippet-lang python
 
 # Generate only curl scripts
-$ drun r test_api --env dev --snippet-lang curl
+$ drun run test_api --env dev --snippet-lang curl
 
 # Custom output directory
-$ drun r test_api --env dev --snippet-output exports/
+$ drun run test_api --env dev --snippet-output exports/
 ```
 
 ### Custom Hooks
@@ -514,13 +513,13 @@ steps:
 
 ```bash
 # Start report server
-drun s
+drun server
 
 # Custom port and options
-drun s --port 8080 --no-open
+drun server --port 8080 --no-open
 
 # Development mode with auto-reload
-drun s --reload
+drun server --reload
 
 # Server will be accessible at http://0.0.0.0:8080
 # Features:
@@ -536,15 +535,15 @@ drun s --reload
 
 ```bash
 # Basic execution (--env is required)
-drun r PATH --env <env_name>
+drun run PATH --env <env_name>
 
 # Smart file discovery - extension optional
-drun r test_api_health --env dev              # Finds test_api_health.yaml or .yml
-drun r testcases/test_user --env dev          # Supports paths without extension
-drun r test_api_health.yaml --env dev         # Traditional format still works
+drun run test_api_health --env dev              # Finds test_api_health.yaml or .yml
+drun run testcases/test_user --env dev          # Supports paths without extension
+drun run test_api_health.yaml --env dev         # Traditional format still works
 
 # With more options
-drun r testcases/ \
+drun run testcases/ \
   --env staging \
   -k "smoke and not slow" \
   --vars api_key=secret \
@@ -652,7 +651,7 @@ drun --version
 ### HTML Reports
 
 ```bash
-drun r testcases --env dev --html reports/report.html --mask-secrets
+drun run testcases --env dev --html reports/report.html --mask-secrets
 ```
 
 **Features:**
@@ -666,7 +665,7 @@ drun r testcases --env dev --html reports/report.html --mask-secrets
 ### JSON Reports
 
 ```bash
-drun r testcases --env dev --report reports/results.json
+drun run testcases --env dev --report reports/results.json
 ```
 
 **Structure:**
@@ -694,7 +693,7 @@ drun r testcases --env dev --report reports/results.json
 
 ```bash
 # Generate Allure results
-drun r testcases --env dev --allure-results allure-results
+drun run testcases --env dev --allure-results allure-results
 
 # View Allure report
 allure serve allure-results
@@ -728,7 +727,7 @@ NOTIFY_ATTACH_HTML=true
 
 **Usage:**
 ```bash
-drun r testcases --env dev \
+drun run testcases --env dev \
   --notify feishu,email \
   --notify-only failed \
   --notify-attach-html
@@ -871,13 +870,13 @@ DB_HOST=db.example.com
 **Multi-environment:**
 ```bash
 # Development
-drun r testsuites/testsuite_smoke.yaml --env dev
+drun run testsuites/testsuite_smoke.yaml --env dev
 
 # Staging
-drun r testsuites/testsuite_regression.yaml --env staging
+drun run testsuites/testsuite_regression.yaml --env staging
 
 # Production (smoke tests only)
-drun r testsuites/testsuite_smoke.yaml --env prod
+drun run testsuites/testsuite_smoke.yaml --env prod
 ```
 
 ### Naming Conventions
@@ -907,9 +906,9 @@ tags: [db, data-verify]           # Database validation
 
 **Filtering:**
 ```bash
-drun r testcases --env dev -k "smoke"                    # Smoke tests only
-drun r testcases --env dev -k "regression and not slow"  # Fast regression
-drun r testcases --env dev -k "critical or e2e"          # Critical + E2E
+drun run testcases --env dev -k "smoke"                    # Smoke tests only
+drun run testcases --env dev -k "regression and not slow"  # Fast regression
+drun run testcases --env dev -k "critical or e2e"          # Critical + E2E
 ```
 
 ### CI/CD Integration
@@ -940,7 +939,7 @@ jobs:
       
       - name: Run Smoke Tests
         run: |
-          drun r testsuites/testsuite_smoke.yaml --env ci \
+          drun run testsuites/testsuite_smoke.yaml --env ci \
             --html reports/smoke.html \
             --report reports/smoke.json \
             --mask-secrets \
@@ -949,7 +948,7 @@ jobs:
       - name: Run Regression Tests
         if: github.event_name == 'pull_request'
         run: |
-          drun r testsuites/testsuite_regression.yaml --env ci \
+          drun run testsuites/testsuite_regression.yaml --env ci \
             --html reports/regression.html \
             --report reports/regression.json \
             --mask-secrets
@@ -965,7 +964,7 @@ jobs:
         if: failure()
         run: |
           echo "FEISHU_WEBHOOK=${{ secrets.FEISHU_WEBHOOK }}" >> .env.ci
-          drun r testsuites/testsuite_smoke.yaml --env ci \
+          drun run testsuites/testsuite_smoke.yaml --env ci \
             --notify feishu \
             --notify-only failed
 ```
@@ -1122,11 +1121,14 @@ steps:
 git clone https://github.com/Devliang24/drun.git
 cd drun
 
-# Install in editable mode
-pip install -e .
+# Install development dependencies
+pip install -e ".[dev]"
 
-# Run
+# Validation commands for the current P0 baseline
 drun --version
+drun run --help
+drun server --help
+python -m build
 python -m drun.cli --version
 ```
 
@@ -1135,10 +1137,12 @@ python -m drun.cli --version
 - **Language**: Python 3.10+
 - **Lines of Code**: ~11,300
 - **Modules**: ~66 Python files
-- **Test Coverage**: Includes layered regression tests under `tests/`
+- **Automated Tests**: No maintained in-repo test suite during P0; unified tests are planned for P1
 - **Code Style**: PEP 8, type hints, Pydantic models
 
 ## Version History
+
+> Historical note: the v6.3.x entries below are kept for release history only. The current CLI does not expose a `drun score` command.
 
 ### v7.0.0 (2025-11-27) - Built-in Mock Data Generation
 - **NEW**: Faker integration for mock data generation
@@ -1147,13 +1151,8 @@ python -m drun.cli --version
   - No quotes required in YAML: `body: { name: ${fake_name()} }`
 - **ADDED**: `Faker>=24.0` as dependency
 
-### v6.3.0 (2025-11-26) - Test Case Quality Scoring
-- **NEW**: Test case scoring system for quality assessment
-  - Step-level scoring: assertions (50%), extraction (30%), retry (20%)
-  - Case-level scoring: parameterization (50%), hooks (30%), reuse (20%)
-  - Score grades: A (90+ green), B (70-89 blue), C (50-69 yellow), D (<50 red)
-  - CLI command: `drun score testcases/`
-  - HTML report integration with average scores and improvement suggestions
+### v6.3.0 (2025-11-26) - Historical Scoring Release
+- Historical release notes for the test case scoring system are retained in `CHANGELOG.md` and `docs/18_版本历史.md`.
 
 ### v6.3.2/v6.3.3 (2025-11-26) - Report List Enhancements
 - **IMPROVED**: Report list page with notification and result columns
@@ -1174,7 +1173,7 @@ python -m drun.cli --version
   - Automatic report scanning and indexing
   - SQLite-based report database
   - RESTful API for report management
-  - Command: `drun s --port 8080 --no-open`
+  - Command: `drun server --port 8080 --no-open`
 - **NEW**: Report list and detail pages with pagination
 
 ### v5.0.0 (2024-11-24) - Enhanced User Experience
