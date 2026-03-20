@@ -145,13 +145,15 @@ class ReportsDB:
         cursor = conn.execute('SELECT * FROM reports WHERE id = ?', (report_id,))
         row = cursor.fetchone()
         conn.close()
-        
-        if row:
-            result = dict(row)
-            result['tags'] = json.loads(result['tags']) if result['tags'] else []
-            result['raw_summary'] = json.loads(result['raw_summary']) if result['raw_summary'] else {}
-            return result
-        return None
+        return self._deserialize_row(row)
+
+    def get_report_by_file_name(self, file_name: str) -> Optional[Dict]:
+        """Get a single report by file name."""
+        conn = self.get_conn()
+        cursor = conn.execute('SELECT * FROM reports WHERE file_name = ?', (file_name,))
+        row = cursor.fetchone()
+        conn.close()
+        return self._deserialize_row(row)
     
     def update_notes(self, report_id: int, notes: str):
         """Update report notes"""
@@ -181,4 +183,13 @@ class ReportsDB:
         ''')
         result = dict(cursor.fetchone())
         conn.close()
+        return result
+
+    def _deserialize_row(self, row: sqlite3.Row | None) -> Optional[Dict[str, Any]]:
+        if row is None:
+            return None
+
+        result = dict(row)
+        result['tags'] = json.loads(result['tags']) if result['tags'] else []
+        result['raw_summary'] = json.loads(result['raw_summary']) if result['raw_summary'] else {}
         return result

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import re
 import json
+import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
 
 
-def extract_report_metadata(html_file: Path) -> Optional[Dict[str, Any]]:
+def extract_report_metadata(html_file: Path, logger: logging.Logger | None = None) -> Optional[Dict[str, Any]]:
     """Extract metadata from HTML report file"""
     try:
         text = html_file.read_text(encoding="utf-8")
@@ -78,16 +79,18 @@ def extract_report_metadata(html_file: Path) -> Optional[Dict[str, Any]]:
             'file_size': html_file.stat().st_size,
         }
     except Exception as e:
-        print(f"Failed to parse {html_file}: {e}")
+        if logger:
+            logger.warning("Failed to parse report metadata for %s: %s", html_file, e)
     
     return None
 
 
-def scan_and_index(reports_dir: str, db) -> int:
+def scan_and_index(reports_dir: str, db, logger: logging.Logger | None = None) -> int:
     """Scan reports directory and index all reports"""
     reports_path = Path(reports_dir)
     if not reports_path.exists():
-        print(f"[SCANNER] Reports directory not found: {reports_dir}")
+        if logger:
+            logger.info("[SCANNER] Reports directory not found, creating: %s", reports_dir)
         reports_path.mkdir(parents=True, exist_ok=True)
         return 0
     
@@ -97,12 +100,14 @@ def scan_and_index(reports_dir: str, db) -> int:
             continue
         
         try:
-            metadata = extract_report_metadata(html_file)
+            metadata = extract_report_metadata(html_file, logger=logger)
             if metadata:
                 db.insert_report(metadata)
                 count += 1
-                print(f"[SCANNER] Indexed: {html_file.name}")
+                if logger:
+                    logger.info("[SCANNER] Indexed: %s", html_file.name)
         except Exception as e:
-            print(f"[SCANNER] Failed to index {html_file.name}: {e}")
+            if logger:
+                logger.warning("[SCANNER] Failed to index %s: %s", html_file.name, e)
     
     return count

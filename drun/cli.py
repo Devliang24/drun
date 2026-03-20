@@ -15,6 +15,7 @@ from drun.commands.check import run_check
 from drun.commands.fix import run_fix
 from drun.commands.run import run_cases
 from drun.commands.tags import run_tags
+from drun.extensions import get_importer, resolve_exporter
 from drun.loader.collector import discover
 from drun.loader.yaml_loader import load_yaml_file
 from drun.loader.env import load_environment
@@ -496,6 +497,22 @@ def _write_imported_cases(
         typer.echo(text)
 
 
+def _require_importer(format_name: str):
+    importer = get_importer(format_name)
+    if importer is None:
+        typer.echo(f"[CONVERT] No importer registered for format: {format_name}")
+        raise typer.Exit(code=2)
+    return importer
+
+
+def _require_exporter(format_name: str):
+    exporter = resolve_exporter(format_name)
+    if exporter is None:
+        typer.echo(f"[EXPORT] No exporter registered for format: {format_name}")
+        raise typer.Exit(code=2)
+    return exporter
+
+
 # Unified convert entrypoint (auto-detect by suffix)
 @app.command("convert")
 def convert_auto(
@@ -648,7 +665,7 @@ def convert_curl(
         help="Generate one YAML file per curl command when the source has multiple commands",
     ),
 ) -> None:
-    from drun.importers.curl import parse_curl_text
+    parse_curl_text = _require_importer("curl")
 
     # Read input
     if infile == "-":
@@ -700,7 +717,7 @@ def convert_postman(
         help="Generate one YAML file per request when the collection has multiple items",
     ),
 ) -> None:
-    from drun.importers.postman import parse_postman
+    parse_postman = _require_importer("postman")
 
     text = Path(collection).read_text(encoding="utf-8")
     env_text = None
@@ -760,7 +777,7 @@ def convert_har(
         help="Generate one YAML file per HAR entry when the source has multiple requests",
     ),
 ) -> None:
-    from drun.importers.har import parse_har
+    parse_har = _require_importer("har")
 
     text = Path(infile).read_text(encoding="utf-8")
     icase = parse_har(
@@ -800,7 +817,9 @@ def export_curl(
     outfile: Optional[str] = typer.Option(None, "--outfile", help="输出到文件（必须以 .curl 结尾）"),
 ) -> None:
     """导出测试用例为 curl 命令"""
-    from drun.exporters.curl import step_to_curl, step_placeholders
+    exporter = _require_exporter("curl")
+    step_to_curl = exporter.render_step
+    step_placeholders = exporter.describe_placeholders
     out_lines: List[str] = []
 
     env_name = os.environ.get("DRUN_ENV")
@@ -867,11 +886,12 @@ def export_curl(
                     sname = c.steps[idx].name or f"Step {idx+1}"
                     out_lines.append(f"# Case: {cname} | Step {idx+1}: {sname}")
                     # Add placeholder annotations such as $token or ${...}
-                    vars_set, exprs_set = step_placeholders(c, idx)
-                    if vars_set:
-                        out_lines.append("# Vars: " + " ".join(sorted(vars_set)))
-                    if exprs_set:
-                        out_lines.append("# Exprs: " + " ".join(sorted(exprs_set)))
+                    if step_placeholders:
+                        vars_set, exprs_set = step_placeholders(c, idx)
+                        if vars_set:
+                            out_lines.append("# Vars: " + " ".join(sorted(vars_set)))
+                        if exprs_set:
+                            out_lines.append("# Exprs: " + " ".join(sorted(exprs_set)))
                 out_lines.append(step_to_curl(c, idx, multiline=multiline, shell=shell, redact=redact_list, envmap=env_store))
 
     output = "\n\n".join(out_lines)
@@ -1658,7 +1678,7 @@ def convert_openapi(
     placeholders: bool = typer.Option(False, "--placeholders/--no-placeholders", help="将敏感请求头替换为 $变量 并保存到 config.variables"),
 ) -> None:
     """转换 OpenAPI 规范到 YAML 测试用例"""
-    from drun.importers.openapi import parse_openapi
+    parse_openapi = _require_importer("openapi")
     text = Path(spec).read_text(encoding="utf-8")
     tag_list = [t.strip() for t in (tags or '').split(',') if t.strip()]
     icase = parse_openapi(text, case_name=case_name, base_url=base_url, tags=tag_list or None)

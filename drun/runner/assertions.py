@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any, Callable, Dict, Tuple
 
+from drun.extensions import assertion_registry, register_assertion
+
 
 def _len(x: Any) -> int:
     try:
@@ -46,7 +48,7 @@ def op_exists(a: Any, b: Any) -> bool:
     return (a is not None) == should_exist
 
 
-OPS: Dict[str, Callable[[Any, Any], bool]] = {
+_DEFAULT_ASSERTIONS: Dict[str, Callable[[Any, Any], bool]] = {
     "eq": op_eq,
     "ne": op_ne,
     "contains": op_contains,
@@ -68,6 +70,11 @@ OPS: Dict[str, Callable[[Any, Any], bool]] = {
     "exists": op_exists,
 }
 
+for _name, _fn in _DEFAULT_ASSERTIONS.items():
+    register_assertion(_name, _fn)
+
+OPS = assertion_registry()
+
 
 def compare(comparator: str, actual: Any, expect: Any) -> Tuple[bool, str | None]:
     fn = OPS.get(comparator)
@@ -78,4 +85,3 @@ def compare(comparator: str, actual: Any, expect: Any) -> Tuple[bool, str | None
         return bool(res), None
     except Exception as e:
         return False, f"Comparator error: {e}"
-

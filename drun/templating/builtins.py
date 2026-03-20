@@ -9,6 +9,8 @@ import time
 import uuid as _uuid
 from typing import Any
 
+from drun.extensions import builtin_registry, register_builtin
+
 try:
     from faker import Faker
     _faker = Faker()
@@ -111,7 +113,7 @@ def to_int(value: Any, default: int = 0) -> int:
         return default
 
 
-BUILTINS = {
+_DEFAULT_BUILTINS = {
     "now": now,
     "uuid": uuid,
     "random_int": random_int,
@@ -131,3 +133,8 @@ BUILTINS = {
     "fake_ipv4": fake_ipv4,
     "fake_user_agent": fake_user_agent,
 }
+
+for _name, _fn in _DEFAULT_BUILTINS.items():
+    register_builtin(_name, _fn)
+
+BUILTINS = builtin_registry()
