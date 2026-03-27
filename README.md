@@ -1,6 +1,6 @@
 # Drun — Modern HTTP API Testing Framework
 
-[![Version](https://img.shields.io/badge/version-7.1.2-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.1.3-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -534,13 +534,17 @@ drun server --reload
 ### Run Tests
 
 ```bash
-# Basic execution (--env is required)
+# Basic execution
 drun run PATH --env <env_name>
 
 # Smart file discovery - extension optional
 drun run test_api_health --env dev              # Finds test_api_health.yaml or .yml
 drun run testcases/test_user --env dev          # Supports paths without extension
 drun run test_api_health.yaml --env dev         # Traditional format still works
+
+# Temporary single-file run outside scaffold
+# Default output: only one log file in current directory
+drun run ./test_api_health.yaml --env-file ./demo.env
 
 # With more options
 drun run testcases/ \
@@ -559,7 +563,7 @@ drun run testcases/ \
 - `--env-file FILE`: Explicit environment file path; higher priority than `--env` and default `.env`
 - `-k TAG_EXPR`: Filter by tags (e.g., `smoke and not slow`)
 - `--vars k=v`: Override variables from CLI
-- `--html FILE`: Generate HTML report
+- `--html FILE`: Generate HTML report (temporary single-file runs do not generate one by default)
 - `--report FILE`: Generate JSON report
 - `--allure-results DIR`: Generate Allure results
 - `--mask-secrets`: Mask sensitive data in logs/reports
@@ -567,10 +571,10 @@ drun run testcases/ \
 - `--response-headers`: Log response headers
 - `--failfast`: Stop on first failure
 - `--log-level LEVEL`: Set log level (DEBUG, INFO, WARNING, ERROR)
-- `--log-file FILE`: Write logs to file
+- `--log-file FILE`: Write logs to file (temporary single-file runs otherwise default to `./<yaml>-<ts>.log`)
 - `--notify CHANNELS`: Enable notifications (feishu, dingtalk, email)
 - `--notify-only POLICY`: Notification policy (always, failed, passed)
-- `--no-snippet`: Disable code snippet generation
+- `--no-snippet`: Disable code snippet generation (temporary single-file runs are already disabled by default)
 - `--snippet-output DIR`: Custom output directory for snippets
 - `--snippet-lang LANG`: Generate snippets in specific language: all|curl|python
 

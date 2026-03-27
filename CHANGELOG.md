@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 > Historical note: entries mentioning the scoring system are retained for release history only. The current CLI does not expose a `drun score` command.
 
+## [7.1.3] - 2026-03-27
+
+### Added
+- 非脚手架的单文件 YAML 运行默认进入轻量模式，只生成当前目录下一个日志文件。
+- 新增单文件轻量运行与脚手架项目默认产物策略的回归测试。
+
+### Changed
+- 脚手架项目内的默认 `logs/`、`reports/`、`snippets/` 输出会相对识别出的项目根目录计算。
+- CLI 帮助与运行文档补充单文件轻量运行和脚手架项目模式的差异说明。
+- 版本号提升至 7.1.3。
+
 ## [7.1.2] - 2026-03-27
 
 ### Added

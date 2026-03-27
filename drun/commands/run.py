@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import os
 import re
 import time
@@ -74,22 +75,125 @@ def _sanitize_name(name: str) -> str:
     return name
 
 
+@dataclass(frozen=True)
+class RunOutputPlan:
+    single_file_target: Path | None
+    scaffold_root: Path | None
+    temporary_single_file: bool
+    log_path: str
+    html_path: str | None
+    snippet_output: str | None
+    generate_snippets: bool
+
+
+def _has_scaffold_markers(root: Path) -> bool:
+    has_case_dirs = (root / "testcases").is_dir() or (root / "testsuites").is_dir()
+    has_project_files = (root / ".env").exists() or (root / "drun_hooks.py").exists()
+    return has_case_dirs and has_project_files
+
+
+def _find_scaffold_root(start: Path | None) -> Path | None:
+    if start is None:
+        return None
+
+    current = start.resolve()
+    if current.is_file():
+        current = current.parent
+
+    for candidate in (current, *current.parents):
+        if _has_scaffold_markers(candidate):
+            return candidate
+    return None
+
+
+def _resolve_default_output_path(root: Path | None, relative_path: str, cwd: Path) -> str:
+    if root is None or root.resolve() == cwd.resolve():
+        return relative_path
+    return str((root / relative_path).resolve())
+
+
+def _build_run_output_plan(
+    path: str,
+    discovered_files: List[Path],
+    *,
+    ts: str,
+    system_name: str,
+    log_file: Optional[str],
+    html: Optional[str],
+    snippet_output: Optional[str],
+    no_snippet: bool,
+    cwd: Path | None = None,
+) -> RunOutputPlan:
+    current_dir = (cwd or Path.cwd()).resolve()
+    raw_path = Path(path)
+    is_directory_target = raw_path.exists() and raw_path.is_dir()
+    single_file_target = discovered_files[0].resolve() if (not is_directory_target and len(discovered_files) == 1) else None
+
+    search_start: Path | None = None
+    if single_file_target is not None:
+        search_start = single_file_target.parent
+    elif raw_path.exists():
+        search_start = raw_path.resolve()
+
+    scaffold_root = _find_scaffold_root(search_start)
+    temporary_single_file = single_file_target is not None and scaffold_root is None
+
+    log_component = _sanitize_filename_component(system_name, "run")
+    html_component = _sanitize_filename_component(system_name, "report")
+    single_file_component = _sanitize_filename_component(
+        single_file_target.stem if single_file_target is not None else "",
+        "run",
+    )
+
+    default_log_path = (
+        log_file
+        or (
+            f"{single_file_component}-{ts}.log"
+            if temporary_single_file
+            else _resolve_default_output_path(scaffold_root, f"logs/{log_component}-{ts}.log", current_dir)
+        )
+    )
+    default_html_path = (
+        html
+        if html is not None
+        else (
+            None
+            if temporary_single_file
+            else _resolve_default_output_path(scaffold_root, f"reports/{html_component}-{ts}.html", current_dir)
+        )
+    )
+
+    resolved_snippet_output = snippet_output
+    generate_snippets = False
+    if not no_snippet:
+        if snippet_output is not None:
+            generate_snippets = True
+        elif not temporary_single_file:
+            generate_snippets = True
+            resolved_snippet_output = _resolve_default_output_path(scaffold_root, f"snippets/{ts}", current_dir)
+
+    return RunOutputPlan(
+        single_file_target=single_file_target,
+        scaffold_root=scaffold_root,
+        temporary_single_file=temporary_single_file,
+        log_path=default_log_path,
+        html_path=default_html_path,
+        snippet_output=resolved_snippet_output,
+        generate_snippets=generate_snippets,
+    )
+
+
 def _save_code_snippets(
     items: List[tuple[Case, Dict[str, str]]],
-    output_dir: Optional[str],
+    output_dir: str,
     languages: str,
     env_store: Dict[str, Any],
-    timestamp: str,
     log,
 ) -> None:
     from drun.exporters.snippet import SnippetGenerator
 
     generator = SnippetGenerator()
-
-    if output_dir:
-        target_dir = Path(output_dir)
-    else:
-        target_dir = Path("snippets") / timestamp
+    target_dir = Path(output_dir)
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -213,7 +317,6 @@ def run_cases(
         raise typer.Exit(code=2)
 
     ts = time.strftime("%Y%m%d-%H%M%S")
-    default_log = None
     setup_logging(log_level, log_file=None)
     log = get_logger("drun.commands.run")
     import logging as _logging
@@ -223,34 +326,16 @@ def run_cases(
 
     env_label = env or "default"
     env_file_label = str(runtime_env_file) if runtime_env_file is not None else "(OS env only)"
-    log.info("[ENV] Using environment: %s -> %s", env_label, env_file_label)
-
     env_store = load_environment(env, str(runtime_env_file) if runtime_env_file is not None else None)
     for env_key, env_val in env_store.items():
         if env_key and isinstance(env_val, str) and env_key.upper() == env_key:
             os.environ.setdefault(env_key, env_val)
-
-    system_name = get_system_name()
-    log_component = _sanitize_filename_component(system_name, "run")
-    default_log = log_file or f"logs/{log_component}-{ts}.log"
-    setup_logging(log_level, log_file=default_log)
-    log = get_logger("drun.commands.run")
-    _base_any = os.environ.get("BASE_URL") or os.environ.get("base_url") or None
-    if not _base_any:
-        _base_any = env_store.get("BASE_URL") or env_store.get("base_url")
-    if not _base_any:
-        log.warning(
-            "[ENV] BASE_URL not found in %s. Relative URLs may fail. Add BASE_URL to %s.",
-            env_file_label,
-            env_file_label,
-        )
     cli_vars = _parse_kv(vars)
     global_vars: Dict[str, str] = {}
     for k2, v2 in cli_vars.items():
         global_vars[k2] = v2
         global_vars[k2.lower()] = v2
 
-    log.info("[FILTER] expression: %r", k)
     files = discover([path])
     if not files:
         typer.echo(f"No YAML test files found at: {path}")
@@ -284,6 +369,52 @@ def run_cases(
         for h in hints:
             typer.echo(h)
         raise typer.Exit(code=2)
+
+    system_name = get_system_name()
+    output_plan = _build_run_output_plan(
+        path,
+        files,
+        ts=ts,
+        system_name=system_name,
+        log_file=log_file,
+        html=html,
+        snippet_output=snippet_output,
+        no_snippet=no_snippet,
+    )
+    default_log = output_plan.log_path
+
+    setup_logging(log_level, log_file=default_log)
+    log = get_logger("drun.commands.run")
+    _httpx_logger = _logging.getLogger("httpx")
+    _httpx_logger.setLevel(_logging.INFO if httpx_logs else _logging.WARNING)
+    log.info("[ENV] Using environment: %s -> %s", env_label, env_file_label)
+
+    if output_plan.temporary_single_file:
+        log.info("[OUTPUT] Temporary single-file mode enabled")
+    elif output_plan.scaffold_root is not None:
+        log.info("[OUTPUT] Project mode enabled (root=%s)", output_plan.scaffold_root)
+    else:
+        log.info("[OUTPUT] Standard mode enabled")
+    log.info("[OUTPUT] Log file: %s", default_log)
+    if output_plan.html_path:
+        log.info("[OUTPUT] HTML report: %s", output_plan.html_path)
+    else:
+        log.info("[OUTPUT] HTML report: disabled by default")
+    if output_plan.generate_snippets and output_plan.snippet_output:
+        log.info("[OUTPUT] Snippets: %s", output_plan.snippet_output)
+    else:
+        log.info("[OUTPUT] Snippets: disabled by default")
+
+    _base_any = os.environ.get("BASE_URL") or os.environ.get("base_url") or None
+    if not _base_any:
+        _base_any = env_store.get("BASE_URL") or env_store.get("base_url")
+    if not _base_any:
+        log.warning(
+            "[ENV] BASE_URL not found in %s. Relative URLs may fail. Add BASE_URL to %s.",
+            env_file_label,
+            env_file_label,
+        )
+    log.info("[FILTER] expression: %r", k)
 
     items: List[tuple[Case, Dict[str, str]]] = []
     debug_info: List[str] = []
@@ -398,16 +529,16 @@ def run_cases(
             s.get("steps_skipped", 0),
         )
 
-    html_component = _sanitize_filename_component(system_name, "report")
-    html_target = html or f"reports/{html_component}-{ts}.html"
+    html_target = output_plan.html_path
 
     if report:
         write_json(report_obj, report)
         log.info("[CASE] JSON report written to %s", report)
-    from drun.reporter.html_reporter import write_html
+    if html_target:
+        from drun.reporter.html_reporter import write_html
 
-    write_html(report_obj, html_target, environment=env)
-    log.info("[CASE] HTML report written to %s", html_target)
+        write_html(report_obj, html_target, environment=env)
+        log.info("[CASE] HTML report written to %s", html_target)
 
     if allure_results:
         try:
@@ -456,6 +587,8 @@ def run_cases(
 
         if channels and should_send:
             log.info("[NOTIFY] Preparing to send notifications to: %s", ", ".join(channels))
+            if notify_attach_html and not html_target:
+                log.info("[NOTIFY] HTML attachment requested but no HTML report path is configured; pass --html to attach a report")
             ctx = NotifyContext(html_path=html_target, log_path=default_log, notify_only=policy, topn=topn)
             notifiers = []
 
@@ -528,14 +661,17 @@ def run_cases(
             for case in report_obj.cases:
                 case.notify_results = notify_results.copy()
 
-            write_html(report_obj, html_target)
-            log.info("[NOTIFY] HTML report updated with notification status")
+            if html_target:
+                from drun.reporter.html_reporter import write_html
+
+                write_html(report_obj, html_target)
+                log.info("[NOTIFY] HTML report updated with notification status")
     except Exception as e:
         log.error("[NOTIFY] Notification module error: %s", str(e))
 
-    if not no_snippet:
+    if output_plan.generate_snippets and output_plan.snippet_output:
         try:
-            _save_code_snippets(items, snippet_output, snippet_lang, env_store, ts, log)
+            _save_code_snippets(items, output_plan.snippet_output, snippet_lang, env_store, log)
         except Exception as e:
             log.error("[SNIPPET] Failed to generate code snippets: %s", str(e))
 

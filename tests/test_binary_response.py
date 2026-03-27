@@ -94,7 +94,7 @@ steps:
                     raise AssertionError("raw_bytes missing from hook context")
                 return {}
 
-            runner._build_client = lambda case: FakeHTTPClient()
+            runner._build_client = lambda case, resolved_base_url=None: FakeHTTPClient()
 
             old_cwd = os.getcwd()
             os.chdir(tmpdir)
@@ -109,6 +109,7 @@ steps:
                 )
             finally:
                 os.chdir(old_cwd)
+                logging.shutdown()
 
             self.assertEqual(result.status, "passed")
             step = result.steps[0]
