@@ -1431,7 +1431,8 @@ def r(
     html: Optional[str] = typer.Option(None, "--html", help="输出 HTML 报告到文件（默认 reports/report-<timestamp>.html）"),
     allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
     log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
-    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, uat, prod），自动加载 .env.<name> 文件"),
+    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, uat, prod），优先加载 .env.<name> 并合并命名环境配置"),
+    env_file: Optional[str] = typer.Option(None, "--env-file", help="显式指定环境文件路径（支持任意文件名；优先级高于 --env 与默认 .env）"),
     persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env.<env> 文件）"),
     log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（默认 logs/run-<ts>.log）"),
     httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
@@ -1457,7 +1458,7 @@ def r(
     """Run test cases or suites."""
     return _run_impl(
         path, k, vars, failfast, report, html, allure_results,
-        log_level, env, persist_env, log_file, httpx_logs,
+        log_level, env, env_file, persist_env, log_file, httpx_logs,
         reveal_secrets, response_headers, notify, notify_only,
         notify_attach_html, no_snippet, snippet_output, snippet_lang,
     )
@@ -1472,6 +1473,7 @@ def check(
     检查规则：
     - Extract 仅使用 `$` 语法
     - Check 对 body 使用 `$`，对元数据使用 `status_code`/`headers.*`
+    - request.files 结构需符合上传规范
     - Hooks 函数名格式需符合前缀要求
     """
     run_check(path)

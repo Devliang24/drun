@@ -18,6 +18,7 @@ from drun.templating.compat import (
     strip_escaped_template_quotes,
 )
 from drun.models.validators import normalize_validators
+from drun.engine.request_files import RequestFilesError, validate_request_files_shape
 from drun.utils.errors import LoadError
 
 
@@ -142,6 +143,19 @@ def _normalize_case_dict(d: Dict[str, Any], path: Path | None = None, raw_text: 
                 if line_hint:
                     hint += f"\nHint → {line_hint}"
                 raise LoadError(hint)
+            if isinstance(ss.get("request"), dict):
+                request_obj = ss["request"]
+                step_label = str(ss.get("name") or f"steps[{idx + 1}]")
+                if request_obj.get("body") is not None and request_obj.get("files") is not None:
+                    raise LoadError(
+                        f"Invalid request in step '{step_label}': request.body cannot be used with request.files. "
+                        "Use request.data for multipart form fields."
+                    )
+                if request_obj.get("files") is not None:
+                    try:
+                        validate_request_files_shape(request_obj.get("files"), source="request.files")
+                    except RequestFilesError as exc:
+                        raise LoadError(f"Invalid request.files in step '{step_label}': {exc}") from exc
             if "validate" in ss:
                 ss["validate"] = [v.model_dump() for v in normalize_validators(ss["validate"])]
                 # enforce $-only for body checks

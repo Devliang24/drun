@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import base64
+from pathlib import Path
 from typing import Any, Dict, Optional, List
 import httpx
 import json
 import time
+
+from drun.engine.request_files import RequestFilesError, _close_opened_files, normalize_request_files
 
 
 class HTTPClient:
@@ -168,71 +172,163 @@ class HTTPClient:
         else:
             auth_tuple = None
 
+        if files is not None and json_data is not None:
+            raise RequestFilesError(
+                "request.body cannot be used with request.files. Use request.data for multipart form fields."
+            )
+
+        normalized_files = None
+        opened_files = []
+        if files is not None:
+            normalized_files, opened_files = normalize_request_files(
+                files,
+                cwd=Path.cwd(),
+                source="request.files",
+            )
+
         # Handle streaming requests
-        if is_stream:
-            start_time = time.perf_counter()
-            
-            # Use streaming timeout if specified
-            actual_timeout = stream_timeout if stream_timeout else timeout
-            
-            with self.client.stream(
+        try:
+            if is_stream:
+                start_time = time.perf_counter()
+
+                # Use streaming timeout if specified
+                actual_timeout = stream_timeout if stream_timeout else timeout
+
+                with self.client.stream(
+                    method=method,
+                    url=path,
+                    params=params,
+                    headers=headers,
+                    json=json_data,
+                    data=data,
+                    files=normalized_files,
+                    timeout=actual_timeout,
+                    follow_redirects=bool(allow_redirects),
+                    auth=auth_tuple,
+                ) as resp:
+                    elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+
+                    # Parse SSE stream
+                    stream_data = self._parse_sse_stream(resp, start_time)
+
+                    result = {
+                        "status_code": resp.status_code,
+                        "headers": dict(resp.headers),
+                        "content_type": resp.headers.get("content-type"),
+                        "body_size": 0,
+                        "raw_bytes": b"",
+                        "is_stream": True,
+                        "elapsed_ms": elapsed_ms,
+                        "url": str(resp.url),
+                        "method": method,
+                    }
+                    result.update(stream_data)
+                    return result
+
+            # Non-streaming request (original behavior)
+            resp = self.client.request(
                 method=method,
                 url=path,
                 params=params,
                 headers=headers,
                 json=json_data,
                 data=data,
-                files=files,
-                timeout=actual_timeout,
+                files=normalized_files,
+                timeout=timeout,
                 follow_redirects=bool(allow_redirects),
                 auth=auth_tuple,
-            ) as resp:
-                elapsed_ms = (time.perf_counter() - start_time) * 1000.0
-                
-                # Parse SSE stream
-                stream_data = self._parse_sse_stream(resp, start_time)
-                
-                result = {
-                    "status_code": resp.status_code,
-                    "headers": dict(resp.headers),
-                    "is_stream": True,
-                    "elapsed_ms": elapsed_ms,
-                    "url": str(resp.url),
-                    "method": method,
-                }
-                result.update(stream_data)
-                return result
-        
-        # Non-streaming request (original behavior)
-        resp = self.client.request(
-            method=method,
-            url=path,
-            params=params,
-            headers=headers,
-            json=json_data,
-            data=data,
-            files=files,
-            timeout=timeout,
-            follow_redirects=bool(allow_redirects),
-            auth=auth_tuple,
-        )
+            )
 
-        body_text: Optional[str] = None
-        body_json: Any = None
-        try:
-            body_json = resp.json()
-        except Exception:
-            try:
-                body_text = resp.text
-            except Exception:
-                body_text = None
+            content_type = resp.headers.get("content-type")
+            raw_bytes = resp.content
+            body_text: Optional[str] = None
+            body_json: Any = None
 
-        result = {
-            "status_code": resp.status_code,
-            "headers": dict(resp.headers),
-            "body": body_json if body_json is not None else body_text,
-            "elapsed_ms": resp.elapsed.total_seconds() * 1000.0 if resp.elapsed else None,
-            "url": str(resp.request.url),
-            "method": str(resp.request.method),
-        }
-        return result
+            if _should_try_json(content_type):
+                try:
+                    body_json = resp.json()
+                except Exception:
+                    body_json = None
+
+            if body_json is None and _should_decode_text(content_type, raw_bytes):
+                try:
+                    body_text = resp.text
+                except Exception:
+                    body_text = None
+
+            if body_json is None and body_text is None and content_type is None:
+                try:
+                    body_json = resp.json()
+                except Exception:
+                    if _should_decode_text(content_type, raw_bytes):
+                        try:
+                            body_text = resp.text
+                        except Exception:
+                            body_text = None
+
+            result = {
+                "status_code": resp.status_code,
+                "headers": dict(resp.headers),
+                "body": body_json if body_json is not None else body_text,
+                "content_type": content_type,
+                "body_size": len(raw_bytes),
+                "raw_bytes": raw_bytes,
+                "elapsed_ms": _get_elapsed_ms(resp),
+                "url": str(resp.request.url),
+                "method": str(resp.request.method),
+            }
+            if _should_capture_binary_payload(content_type, body_json, body_text, raw_bytes):
+                result["body_bytes_b64"] = base64.b64encode(raw_bytes).decode("ascii")
+            return result
+        finally:
+            _close_opened_files(opened_files)
+
+
+def _should_try_json(content_type: str | None) -> bool:
+    if not content_type:
+        return True
+    normalized = content_type.split(";", 1)[0].strip().lower()
+    return normalized == "application/json" or normalized.endswith("+json")
+
+
+def _should_decode_text(content_type: str | None, raw_bytes: bytes) -> bool:
+    if not content_type:
+        return not _looks_binary_payload(raw_bytes)
+    normalized = content_type.split(";", 1)[0].strip().lower()
+    if normalized.startswith("text/"):
+        return True
+    return normalized in {
+        "application/json",
+        "application/problem+json",
+        "application/xml",
+        "application/javascript",
+        "application/x-www-form-urlencoded",
+    } or normalized.endswith("+json") or normalized.endswith("+xml")
+
+
+def _should_capture_binary_payload(content_type: str | None, body_json: Any, body_text: str | None, raw_bytes: bytes) -> bool:
+    if body_json is not None or body_text is not None:
+        return False
+    if content_type:
+        return True
+    return _looks_binary_payload(raw_bytes)
+
+
+def _looks_binary_payload(raw_bytes: bytes) -> bool:
+    if not raw_bytes:
+        return False
+    sample = raw_bytes[:1024]
+    if b"\x00" in sample:
+        return True
+    text_bytes = set(range(32, 127)) | {9, 10, 13}
+    non_text = sum(1 for byte in sample if byte not in text_bytes)
+    return (non_text / len(sample)) > 0.3
+
+
+def _get_elapsed_ms(resp: httpx.Response) -> float | None:
+    try:
+        if resp.elapsed:
+            return resp.elapsed.total_seconds() * 1000.0
+    except RuntimeError:
+        return None
+    return None

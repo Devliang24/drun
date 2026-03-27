@@ -1,7 +1,43 @@
 from __future__ import annotations
 
+import base64
+from os import PathLike
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
+
+
+def to_report_safe(value: Any) -> Any:
+    if isinstance(value, memoryview):
+        value = value.tobytes()
+    elif isinstance(value, bytearray):
+        value = bytes(value)
+
+    if isinstance(value, bytes):
+        return {
+            "type": "bytes",
+            "length": len(value),
+            "base64": base64.b64encode(value).decode("ascii"),
+        }
+
+    if isinstance(value, PathLike):
+        return str(value)
+
+    if hasattr(value, "read"):
+        return {
+            "type": "file-like",
+            "name": getattr(value, "name", None),
+        }
+
+    if isinstance(value, list):
+        return [to_report_safe(item) for item in value]
+
+    if isinstance(value, tuple):
+        return [to_report_safe(item) for item in value]
+
+    if isinstance(value, dict):
+        return {str(key): to_report_safe(item) for key, item in value.items()}
+
+    return value
 
 
 class NotifyResult(BaseModel):

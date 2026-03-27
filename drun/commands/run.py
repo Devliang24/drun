@@ -134,6 +134,38 @@ def _save_code_snippets(
             log.info("[SNIPPET] - %s", file)
 
 
+def _resolve_runtime_env_file(env: Optional[str], env_file: Optional[str]) -> Optional[Path]:
+    cwd = Path.cwd()
+
+    explicit_env_file: Optional[Path] = None
+    if env_file:
+        explicit_env_file = Path(env_file).expanduser()
+        if not explicit_env_file.is_absolute():
+            explicit_env_file = cwd / explicit_env_file
+        explicit_env_file = explicit_env_file.resolve()
+        if not explicit_env_file.exists():
+            typer.echo(f"[ERROR] 环境文件不存在: {explicit_env_file}")
+            typer.echo()
+            typer.echo("请检查 --env-file 路径是否正确")
+            raise typer.Exit(code=2)
+
+    named_env_file: Optional[Path] = None
+    if env:
+        candidate = cwd / f".env.{env}"
+        if candidate.exists():
+            named_env_file = candidate.resolve()
+
+    default_env_file = (cwd / ".env").resolve() if (cwd / ".env").exists() else None
+
+    if explicit_env_file is not None:
+        return explicit_env_file
+    if named_env_file is not None:
+        return named_env_file
+    if default_env_file is not None:
+        return default_env_file
+    return None
+
+
 def run_cases(
     path: str,
     k: Optional[str],
@@ -144,6 +176,7 @@ def run_cases(
     allure_results: Optional[str],
     log_level: str,
     env: Optional[str],
+    env_file: Optional[str],
     persist_env: Optional[str],
     log_file: Optional[str],
     httpx_logs: bool,
@@ -156,31 +189,27 @@ def run_cases(
     snippet_output: Optional[str],
     snippet_lang: str,
 ) -> None:
-    if env is None:
-        typer.echo("[ERROR] 未指定环境，请使用 --env 参数")
+    runtime_env_file = _resolve_runtime_env_file(env, env_file)
+    if env is None and runtime_env_file is None:
+        typer.echo("[ERROR] 未找到环境配置，请使用 --env、--env-file，或在当前目录提供 .env")
         typer.echo()
         typer.echo("使用方式:")
         typer.echo("  drun run <path> --env <环境名>")
+        typer.echo("  drun run <path> --env-file /path/to/.env")
+        typer.echo("  drun run <path>   # 当前目录存在 .env 时自动加载")
         typer.echo()
         typer.echo("环境文件命名规范:")
         typer.echo("  .env.dev    → --env dev")
         typer.echo("  .env.uat    → --env uat")
         typer.echo("  .env.prod   → --env prod")
+        typer.echo("  .env        → 默认自动加载（单文件场景）")
         typer.echo()
         typer.echo("示例:")
         typer.echo("  drun run demo --env dev")
+        typer.echo("  drun run demo --env-file ./demo.env")
+        typer.echo("  drun run test_smoke.yaml")
         typer.echo("  drun run testcases --env uat")
         typer.echo("  drun run testsuites --env prod")
-        raise typer.Exit(code=2)
-
-    env_file = f".env.{env}"
-    if not Path(env_file).exists():
-        typer.echo(f"[ERROR] 环境文件不存在: {env_file}")
-        typer.echo()
-        typer.echo("请创建环境文件，例如:")
-        typer.echo(f"  touch {env_file}")
-        typer.echo()
-        typer.echo("或检查环境名称是否正确")
         raise typer.Exit(code=2)
 
     ts = time.strftime("%Y%m%d-%H%M%S")
@@ -192,9 +221,11 @@ def run_cases(
     _httpx_logger = _logging.getLogger("httpx")
     _httpx_logger.setLevel(_logging.INFO if httpx_logs else _logging.WARNING)
 
-    log.info("[ENV] Using environment: %s -> %s", env, env_file)
+    env_label = env or "default"
+    env_file_label = str(runtime_env_file) if runtime_env_file is not None else "(OS env only)"
+    log.info("[ENV] Using environment: %s -> %s", env_label, env_file_label)
 
-    env_store = load_environment(env, env_file)
+    env_store = load_environment(env, str(runtime_env_file) if runtime_env_file is not None else None)
     for env_key, env_val in env_store.items():
         if env_key and isinstance(env_val, str) and env_key.upper() == env_key:
             os.environ.setdefault(env_key, env_val)
@@ -210,8 +241,8 @@ def run_cases(
     if not _base_any:
         log.warning(
             "[ENV] BASE_URL not found in %s. Relative URLs may fail. Add BASE_URL to %s.",
-            env_file,
-            env_file,
+            env_file_label,
+            env_file_label,
         )
     cli_vars = _parse_kv(vars)
     global_vars: Dict[str, str] = {}
@@ -276,7 +307,7 @@ def run_cases(
             typer.echo(line)
         raise typer.Exit(code=2)
 
-    persist_file = persist_env or env_file or ".env"
+    persist_file = persist_env or env_file or (str(runtime_env_file) if runtime_env_file is not None else ".env")
 
     runner = Runner(
         log=log,
@@ -319,12 +350,17 @@ def run_cases(
             if c.config.base_url and ("{{" in c.config.base_url or "${" in c.config.base_url):
                 c.config.base_url = templater.render_value(c.config.base_url, global_vars, funcs, envmap=env_store)
             if _need_base_url(c) and not (c.config.base_url and str(c.config.base_url).strip()):
+                env_hint_lines = []
+                if runtime_env_file is not None:
+                    env_hint_lines = [
+                        f"          - Add to env file: {env_file_label}",
+                        "              BASE_URL=http://localhost:8000",
+                    ]
                 msg_lines = [
                     "[ERROR] base_url is required for cases using relative URLs.",
                     f"        Case: {c.config.name or 'Unnamed'} | Source: {meta.get('file', path)}",
                     "        Provide base_url in one of the following ways:",
-                    f"          - Add to env file: {env_file}",
-                    "              BASE_URL=http://localhost:8000",
+                    *env_hint_lines,
                     "          - Or pass CLI vars: --vars base_url=http://localhost:8000",
                     "          - Or export env:   export BASE_URL=http://localhost:8000",
                 ]

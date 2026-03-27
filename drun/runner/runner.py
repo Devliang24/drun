@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from drun.engine.http import HTTPClient
 from drun.loader.yaml_loader import format_variables_multiline
 from drun.models.case import Case
-from drun.models.report import CaseInstanceResult, RunReport, StepResult
+from drun.models.report import CaseInstanceResult, RunReport, StepResult, to_report_safe
 from drun.models.step import Step
 from drun.templating.compat import clean_escaped_template_string
 from drun.templating.context import VarContext
@@ -157,12 +157,46 @@ class Runner:
             adjusted = [pad + ln if ln else "" for ln in tail_lines]
             return header + first + "\n" + "\n".join(adjusted)
 
+    def _save_response_body(
+        self,
+        *,
+        target: str,
+        resp: Dict[str, Any],
+        variables: Dict[str, Any],
+        funcs: Dict[str, Any] | None,
+        envmap: Dict[str, Any] | None,
+    ) -> str:
+        rendered_target = self._render(target, variables, funcs, envmap)
+        if not isinstance(rendered_target, str) or not rendered_target.strip():
+            raise ValueError("response.save_body_to must resolve to a non-empty path string")
+
+        raw_bytes = resp.get("raw_bytes")
+        if raw_bytes is None:
+            raise ValueError("response.save_body_to requires a response body")
+        if isinstance(raw_bytes, memoryview):
+            raw_bytes = raw_bytes.tobytes()
+        elif isinstance(raw_bytes, bytearray):
+            raw_bytes = bytes(raw_bytes)
+        if not isinstance(raw_bytes, bytes):
+            raise ValueError("response.save_body_to requires raw response bytes")
+
+        out_path = Path(rendered_target).expanduser()
+        if not out_path.is_absolute():
+            out_path = Path.cwd() / out_path
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(raw_bytes)
+        return str(out_path.resolve())
+
     def _resolve_check(self, check: str, resp: Dict[str, Any]) -> Any:
         # $-style check support
         if isinstance(check, str) and check.strip().startswith("$"):
             return self._eval_extract(check, resp)
         if check == "status_code":
             return resp.get("status_code")
+        if check == "content_type":
+            return resp.get("content_type")
+        if check == "body_size":
+            return resp.get("body_size")
         if check.startswith("headers."):
             key = check.split(".", 1)[1]
             headers = resp.get("headers") or {}
@@ -275,6 +309,14 @@ class Runner:
             return resp.get("url")
         if e == "$method":
             return resp.get("method")
+        if e == "$content_type":
+            return resp.get("content_type")
+        if e == "$body_size":
+            return resp.get("body_size")
+        if e == "$raw_bytes":
+            return resp.get("raw_bytes")
+        if e == "$body_bytes_b64":
+            return resp.get("body_bytes_b64")
         if e.startswith("$headers."):
             key = e.split(".", 1)[1]
             headers = resp.get("headers") or {}
@@ -586,6 +628,8 @@ class Runner:
                         if isinstance(data, (dict, list)) and not self.reveal:
                             data = mask_body(data)
                         self.log.info(self._fmt_aligned("REQ", "data", self._fmt_json(data)))
+                    if req_rendered.get("files") is not None:
+                        self.log.info(self._fmt_aligned("REQ", "files", self._fmt_json(req_rendered.get("files"))))
 
                 # send with retry
                 last_error: Optional[str] = None
@@ -611,9 +655,9 @@ class Runner:
 
                     # Build request summary (method/url/params/headers/body/data)
                     req_summary = {
-                        k: v
+                        k: to_report_safe(v)
                         for k, v in (req_rendered or {}).items()
-                        if k in ("method", "path", "params", "headers", "body", "data")
+                        if k in ("method", "path", "params", "headers", "body", "data", "files")
                     }
                     # Build cURL even on error for better diagnostics
                     url_rendered = (req_rendered or {}).get("path")
@@ -719,6 +763,13 @@ class Runner:
                             if len(text) > 2000:
                                 text = text[:2000] + "..."
                             self.log.info(self._fmt_aligned("RESP", "text", text))
+                        elif resp_obj.get("body_size") is not None:
+                            content_type = resp_obj.get("content_type") or "application/octet-stream"
+                            self.log.info(
+                                "[RESPONSE] binary body=%s bytes content-type=%s",
+                                resp_obj.get("body_size"),
+                                content_type,
+                            )
 
                 # extracts ($-only syntax) - moved before validation to allow using extracted vars in validate
                 # 支持两种模式：
@@ -835,6 +886,26 @@ class Runner:
                 # Update variables after extraction so validate can use them
                 variables = ctx.get_merged(global_vars)
 
+                saved_body_to: Optional[str] = None
+                save_error: Optional[str] = None
+                if step.response and step.response.save_body_to:
+                    try:
+                        saved_body_to = self._save_response_body(
+                            target=step.response.save_body_to,
+                            resp=resp_obj,
+                            variables=variables,
+                            funcs=funcs,
+                            envmap=envmap,
+                        )
+                        resp_obj["saved_body_to"] = saved_body_to
+                        if self.log:
+                            self.log.info(f"[RESPONSE] body saved to {saved_body_to}")
+                    except Exception as e:
+                        save_error = f"Save response body failed: {e}"
+                        resp_obj["save_error"] = save_error
+                        if self.log:
+                            self.log.error(f"[RESPONSE] {save_error}")
+
                 # assertions
                 assertions, step_failed = evaluate_validators(
                     runner=self,
@@ -844,6 +915,8 @@ class Runner:
                     envmap=envmap,
                     resp_obj=resp_obj,
                 )
+                if save_error:
+                    step_failed = True
 
                 # Built-in SQL validation has been removed; any SQL checks should run via hooks.
 
@@ -919,6 +992,16 @@ class Runner:
                     else:
                         text = str(body_masked)
                         response_dict["body"] = text if len(text) <= 2048 else text[:2048] + "..."
+                    if resp_obj.get("content_type") is not None:
+                        response_dict["content_type"] = resp_obj.get("content_type")
+                    if resp_obj.get("body_size") is not None:
+                        response_dict["body_size"] = resp_obj.get("body_size")
+                    if resp_obj.get("body_bytes_b64") is not None:
+                        response_dict["body_bytes_b64"] = resp_obj.get("body_bytes_b64")
+                    if resp_obj.get("saved_body_to") is not None:
+                        response_dict["saved_body_to"] = resp_obj.get("saved_body_to")
+                    if resp_obj.get("save_error") is not None:
+                        response_dict["save_error"] = resp_obj.get("save_error")
 
                 # Build curl command for the step (always available in report)
                 url_rendered = resp_obj.get("url") or req_rendered.get("path")
@@ -941,15 +1024,16 @@ class Runner:
                     name=rendered_step_name,
                     status="failed" if step_failed else "passed",
                     request={
-                        k: v
+                        k: to_report_safe(v)
                         for k, v in req_rendered.items()
-                        if k in ("method", "path", "url", "params", "headers", "body", "data")
+                        if k in ("method", "path", "url", "params", "headers", "body", "data", "files")
                     },
                     response=response_dict,
                     curl=curl,
                     asserts=assertions,
                     extracts=extracts,
                     duration_ms=resp_obj.get("elapsed_ms") or 0.0,
+                    error=save_error,
                 )
                 steps_results.append(sr)
                 if step_failed:

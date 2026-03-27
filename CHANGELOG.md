@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 > Historical note: entries mentioning the scoring system are retained for release history only. The current CLI does not expose a `drun score` command.
 
+## [7.1.2] - 2026-03-27
+
+### Added
+- `request.files` 上传规范化，支持路径字符串与 `[path, content_type]` 写法，并在请求结束后自动关闭框架打开的文件句柄。
+- 二进制响应元数据与 `response.save_body_to`，支持音频/文件响应保存到磁盘。
+- `--env-file` 与当前目录 `.env` 自动加载，降低单文件用例运行门槛。
+- 新增针对文件上传、二进制响应和环境解析的回归测试。
+
+### Changed
+- `drun check` / YAML 加载阶段会更早校验明显错误的 `request.files` 结构。
+- 文档补齐 multipart 上传、二进制响应保存和环境加载优先级说明。
+- 版本号提升至 7.1.2，统一包元数据与运行时版本号。
+
 ## [7.1.1] - 2026-03-25
 
 ### Changed

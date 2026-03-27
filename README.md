@@ -1,6 +1,6 @@
 # Drun — Modern HTTP API Testing Framework
 
-[![Version](https://img.shields.io/badge/version-7.0.17-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.1.2-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -555,7 +555,8 @@ drun run testcases/ \
 ```
 
 **Options:**
-- `--env NAME`: **Required** - Environment name, loads `.env.<name>` (e.g., `--env dev` loads `.env.dev`)
+- `--env NAME`: Optional named environment; prefers `.env.<name>` and merges named env config if present
+- `--env-file FILE`: Explicit environment file path; higher priority than `--env` and default `.env`
 - `-k TAG_EXPR`: Filter by tags (e.g., `smoke and not slow`)
 - `--vars k=v`: Override variables from CLI
 - `--html FILE`: Generate HTML report
@@ -1027,6 +1028,39 @@ steps:
     validate:
       - eq: [status_code, 200]
       - regex: [$.data.avatar_url, '^https?://']
+```
+
+`files` also supports a single local path string. Use `data` for multipart form fields, and avoid mixing `body + files` in the same step.
+
+```yaml
+steps:
+  - name: Upload Audio
+    request:
+      method: POST
+      path: /asr/upload
+      data:
+        model: sensevoice
+      files:
+        file: data/audio.wav
+    validate:
+      - eq: [status_code, 200]
+```
+
+### Binary Response Save
+
+```yaml
+steps:
+  - name: Save TTS Output
+    request:
+      method: POST
+      path: /tts
+      body:
+        text: hello world
+    response:
+      save_body_to: artifacts/tts_out.mp3
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$content_type, audio/mpeg]
 ```
 
 ### Streaming (SSE) Testing

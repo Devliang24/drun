@@ -188,6 +188,14 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
         body_payload = None
 
     resp_body_payload = response_map.get("body") if isinstance(response_map, dict) else None
+    if resp_body_payload is None and isinstance(response_map, dict):
+        binary_meta = {
+            key: response_map.get(key)
+            for key in ("content_type", "body_size", "body_bytes_b64", "saved_body_to", "save_error")
+            if response_map.get(key) is not None
+        }
+        if binary_meta:
+            resp_body_payload = binary_meta
     resp_status = response_map.get("status_code") if isinstance(response_map, dict) else None
 
     req_headers_json = _json(headers_payload)

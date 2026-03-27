@@ -8,11 +8,16 @@ from .request import StepRequest
 from .validators import Validator, normalize_validators
 
 
+class StepResponseConfig(BaseModel):
+    save_body_to: Optional[str] = None
+
+
 class Step(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     name: str
     variables: Dict[str, Any] = Field(default_factory=dict)
     request: Optional[StepRequest] = None
+    response: Optional[StepResponseConfig] = None
     invoke: Optional[str] = None
     extract: Dict[str, str] = Field(default_factory=dict)
     export: Optional[Union[Dict[str, Any], List[str]]] = None

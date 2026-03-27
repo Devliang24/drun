@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
-from drun.models.report import AssertionResult
+from drun.models.report import AssertionResult, to_report_safe
 from drun.models.validators import Validator
 from drun.runner.assertions import compare
 
@@ -20,9 +20,14 @@ def evaluate_validators(
     step_failed = False
     for v in validators:
         rendered_check = runner._render(v.check, variables, funcs, envmap)
+        original_check = v.check.strip() if isinstance(v.check, str) else None
         if not isinstance(rendered_check, str):
-            actual = rendered_check
-            check_str = str(v.check)
+            if original_check and original_check.startswith("$") and rendered_check is None:
+                check_str = original_check
+                actual = runner._resolve_check(check_str, resp_obj)
+            else:
+                actual = rendered_check
+                check_str = str(v.check)
         else:
             check_str = rendered_check
             actual = runner._resolve_check(check_str, resp_obj)
@@ -38,8 +43,8 @@ def evaluate_validators(
             AssertionResult(
                 check=str(check_str),
                 comparator=v.comparator,
-                expect=expect_rendered,
-                actual=actual,
+                expect=to_report_safe(expect_rendered),
+                actual=to_report_safe(actual),
                 passed=bool(passed),
                 message=msg,
             )
