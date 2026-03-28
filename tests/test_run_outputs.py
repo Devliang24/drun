@@ -103,7 +103,7 @@ class _StubRunner:
 
 
 class SummaryFormattingTests(unittest.TestCase):
-    def test_build_run_summary_text_single_file_uses_step_rows_only(self) -> None:
+    def test_build_run_summary_text_single_file_includes_case_rows(self) -> None:
         report = RunReport(
             summary={
                 "total": 1,
@@ -119,11 +119,12 @@ class SummaryFormattingTests(unittest.TestCase):
             cases=[],
         )
 
-        text = _build_run_summary_text(report, include_case_stats=False)
+        text = _build_run_summary_text(report)
         self.assertIn("[SUMMARY]", text)
         self.assertIn("Duration", text)
+        self.assertIn("Cases Total", text)
+        self.assertIn("Cases Pass Rate", text)
         self.assertIn("Steps Total", text)
-        self.assertNotIn("Cases Total", text)
 
     def test_build_run_summary_text_multi_file_includes_case_rows(self) -> None:
         report = RunReport(
@@ -141,7 +142,7 @@ class SummaryFormattingTests(unittest.TestCase):
             cases=[],
         )
 
-        text = _build_run_summary_text(report, include_case_stats=True)
+        text = _build_run_summary_text(report)
         self.assertIn("Cases Total", text)
         self.assertIn("Cases Pass Rate", text)
         self.assertIn("Steps Total", text)
@@ -276,7 +277,7 @@ class RunOutputPlanTests(unittest.TestCase):
 
 
 class RunOutputsIntegrationTests(unittest.TestCase):
-    def test_run_cases_temporary_single_file_logs_step_summary_and_failed_cases(self) -> None:
+    def test_run_cases_temporary_single_file_logs_case_and_step_summary_and_failed_cases(self) -> None:
         with TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             (tmpdir / "demo.env").write_text("BASE_URL=http://localhost:8000\n", encoding="utf-8")
@@ -337,8 +338,9 @@ steps:
             self.assertFalse((tmpdir / "snippets").exists())
             log_text = log_files[0].read_text(encoding="utf-8")
             self.assertIn("[SUMMARY]", log_text)
+            self.assertIn("Cases Total", log_text)
+            self.assertIn("Cases Pass Rate", log_text)
             self.assertIn("Steps Total", log_text)
-            self.assertNotIn("Cases Total", log_text)
             self.assertIn("[FAILED CASES]", log_text)
             self.assertIn("- Temporary File", log_text)
             self.assertIn("failed_step: Ping", log_text)
@@ -404,13 +406,14 @@ steps:
             self.assertTrue(log_files)
             log_text = log_files[0].read_text(encoding="utf-8")
             self.assertIn("[SUMMARY]", log_text)
+            self.assertIn("Cases Total", log_text)
+            self.assertIn("Cases Pass Rate", log_text)
             self.assertIn("Steps Total", log_text)
-            self.assertNotIn("Cases Total", log_text)
             self.assertFalse((subdir / "logs").exists())
             self.assertFalse((subdir / "reports").exists())
             self.assertFalse((subdir / "snippets").exists())
 
-    def test_run_cases_directory_input_includes_case_summary_and_failed_case_steps(self) -> None:
+    def test_run_cases_directory_input_includes_case_summary_and_multiple_failed_case_steps(self) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp) / "demo-project"
             testcase_dir = project / "testcases"
@@ -449,6 +452,20 @@ steps:
     request:
       method: GET
       path: /status
+""",
+                encoding="utf-8",
+            )
+            broken_two = testcase_dir / "case_broken_two.yaml"
+            broken_two.write_text(
+                """config:
+  name: Another Broken Case
+  base_url: http://example.com
+
+steps:
+  - name: "Step 1: Upload"
+    request:
+      method: POST
+      path: /upload
 """,
                 encoding="utf-8",
             )
@@ -495,8 +512,10 @@ steps:
             self.assertIn("Steps Total", log_text)
             self.assertIn("[FAILED CASES]", log_text)
             self.assertIn("- Broken Case", log_text)
+            self.assertIn("- Another Broken Case", log_text)
             self.assertIn("failed_step: Step 1: Upload", log_text)
             self.assertIn("failed_step: Step 2: Validate", log_text)
+            self.assertIn("reason: request.files.file path not found: ./data/demo.wav", log_text)
 
 
 if __name__ == "__main__":

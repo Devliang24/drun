@@ -96,24 +96,23 @@ def _format_rate(passed: int, total: int) -> str:
     return f"{(passed / total) * 100.0:.2f}%"
 
 
-def _normalize_summary_rows(report: RunReport, *, include_case_stats: bool) -> List[Tuple[str, str]]:
+def _normalize_summary_rows(report: RunReport) -> List[Tuple[str, str]]:
     s = report.summary or {}
     rows: List[Tuple[str, str]] = [("Duration", _format_duration_seconds(float(s.get("duration_ms", 0.0) or 0.0)))]
 
-    if include_case_stats:
-        total = int(s.get("total", 0) or 0)
-        passed = int(s.get("passed", 0) or 0)
-        failed = int(s.get("failed", 0) or 0)
-        skipped = int(s.get("skipped", 0) or 0)
-        rows.extend(
-            [
-                ("Cases Total", str(total)),
-                ("Cases Passed", str(passed)),
-                ("Cases Failed", str(failed)),
-                ("Cases Skipped", str(skipped)),
-                ("Cases Pass Rate", _format_rate(passed, total)),
-            ]
-        )
+    total = int(s.get("total", 0) or 0)
+    passed = int(s.get("passed", 0) or 0)
+    failed = int(s.get("failed", 0) or 0)
+    skipped = int(s.get("skipped", 0) or 0)
+    rows.extend(
+        [
+            ("Cases Total", str(total)),
+            ("Cases Passed", str(passed)),
+            ("Cases Failed", str(failed)),
+            ("Cases Skipped", str(skipped)),
+            ("Cases Pass Rate", _format_rate(passed, total)),
+        ]
+    )
 
     steps_total = int(s.get("steps_total", 0) or 0)
     steps_passed = int(s.get("steps_passed", 0) or 0)
@@ -155,14 +154,14 @@ def _render_ascii_table(rows: List[Tuple[str, str]]) -> str:
 
 
 def _summarize_failure_reason(step) -> str:
+    error = getattr(step, "error", None)
+    if error:
+        return str(error).replace("\n", " ").strip()
+
     for assertion in getattr(step, "asserts", []) or []:
         if not getattr(assertion, "passed", True):
             msg = getattr(assertion, "message", None) or "assertion failed"
             return str(msg).replace("\n", " ").strip()
-
-    error = getattr(step, "error", None)
-    if error:
-        return str(error).replace("\n", " ").strip()
 
     return "(no error message)"
 
@@ -200,8 +199,8 @@ def _format_failed_cases_block(report: RunReport) -> str:
     return "\n".join(lines)
 
 
-def _build_run_summary_text(report: RunReport, *, include_case_stats: bool) -> str:
-    rows = _normalize_summary_rows(report, include_case_stats=include_case_stats)
+def _build_run_summary_text(report: RunReport) -> str:
+    rows = _normalize_summary_rows(report)
     table = _render_ascii_table(rows)
     return "\n".join(["[SUMMARY]", table]) if table else "[SUMMARY]"
 
@@ -796,7 +795,7 @@ def run_cases(
             log.error("[SNIPPET] Failed to generate code snippets: %s", str(e))
 
     log.info("[CASE] Logs written to %s", default_log)
-    summary_text = _build_run_summary_text(report_obj, include_case_stats=(output_plan.single_file_target is None))
+    summary_text = _build_run_summary_text(report_obj)
     log.warning(summary_text)
 
     failed_cases_text = _format_failed_cases_block(report_obj)
