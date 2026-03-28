@@ -41,8 +41,15 @@ class Runner:
         self.persist_env_file = persist_env_file
         self.templater = TemplateEngine()
 
-    def _render(self, data: Any, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None) -> Any:
-        return self.templater.render_value(data, variables, functions, envmap)
+    def _render(
+        self,
+        data: Any,
+        variables: Dict[str, Any],
+        functions: Dict[str, Any] | None = None,
+        envmap: Dict[str, Any] | None = None,
+        strict: bool = False,
+    ) -> Any:
+        return self.templater.render_value(data, variables, functions, envmap, strict=strict)
 
     def _collect_render_diffs(self, original: Any, rendered: Any, path: str = "") -> List[tuple]:
         """Collect before/after differences for variable substitution."""
@@ -68,6 +75,17 @@ class Runner:
         for orig, rendered in diffs:
             rendered_str = str(rendered) if not isinstance(rendered, str) else rendered
             self.log.info(f"[RENDER] {orig} → {rendered_str}")
+
+        # Check for unresolved variables
+        if isinstance(req_dict, dict):
+            for key, val in req_dict.items():
+                if isinstance(val, str) and "${" in val:
+                    rendered_val = req_rendered.get(key, val) if isinstance(req_rendered, dict) else val
+                    val_str = str(val)
+                    rendered_str = str(rendered_val)
+                    if val_str == rendered_str and "${" in rendered_str:
+                        # Variable was not resolved
+                        self.log.warning(f"[WARN] Unresolved variable in '{key}': {val_str}")
 
     def _build_client(self, case: Case) -> HTTPClient:
         cfg = case.config
@@ -544,7 +562,7 @@ class Runner:
 
                 # render request (only for non-invoke steps)
                 req_dict = self._request_dict(step)
-                req_rendered = self._render(req_dict, variables, funcs, envmap)
+                req_rendered = self._render(req_dict, variables, funcs, envmap, strict=True)
                 step_locals_for_hook = rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {})
                 session_vars_for_hook = variables
                 setup_meta = {

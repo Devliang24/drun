@@ -19,6 +19,11 @@ _RESERVED_SYSTEM_VARS = {
     "stream_events",
     "stream_summary",
     "stream_raw_chunks",
+    # Response variables used in validators
+    "content_type",
+    "body_size",
+    "raw_bytes",
+    "body_bytes_b64",
 }
 
 

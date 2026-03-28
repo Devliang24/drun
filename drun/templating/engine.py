@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Callable
+from typing import Any, Dict, Callable, List, Optional
 import re
 import ast
 import operator as op
@@ -9,6 +9,22 @@ import json
 
 from .builtins import BUILTINS
 from .compat import normalize_simple_tokens, strip_escaped_template_quotes
+
+
+class UnresolvedVarError(Exception):
+    """Raised when template variables cannot be resolved."""
+
+    def __init__(self, var_names: List[str], suggestions: Optional[Dict[str, List[str]]] = None):
+        self.var_names = var_names
+        self.suggestions = suggestions or {}
+        super().__init__(self._format_message())
+
+    def _format_message(self) -> str:
+        msg = f"Unresolved template variables: {', '.join(self.var_names)}"
+        if self.suggestions:
+            for var, suggestions in self.suggestions.items():
+                msg += f"\n  Did you mean '{suggestions[0]}' for '{var}'?"
+        return msg
 
 
 def _try_parse_json(value: Any) -> Any:
@@ -98,6 +114,8 @@ def _safe_eval(node: ast.AST, ctx: Dict[str, Any]) -> Any:
     if isinstance(node, ast.Constant):
         return node.value
     if isinstance(node, ast.Name):
+        if node.id not in ctx:
+            raise NameError(f"Variable '{node.id}' is not defined")
         return ctx.get(node.id)
     if isinstance(node, ast.BinOp) and type(node.op) in _ALLOWED_BINOPS:
         return _ALLOWED_BINOPS[type(node.op)](_safe_eval(node.left, ctx), _safe_eval(node.right, ctx))
@@ -182,7 +200,10 @@ def _render_text_without_jinja(text: str, ctx: Dict[str, Any]) -> str:
         try:
             val = _evaluate_expression(expr, ctx)
         except Exception:
-            val = ""
+            # Preserve unresolved variables instead of replacing with empty string
+            out.append(f"${{{expr}}}")
+            last = m.end()
+            continue
         out.append("" if val is None else str(val))
         last = m.end()
     out.append(text[last:])
@@ -217,7 +238,49 @@ class TemplateEngine:
             **(extra_ctx or {}),
         }
 
-    def render_value(self, value: Any, variables: Dict[str, Any], functions: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None) -> Any:
+    def _extract_template_vars(self, text: str) -> List[str]:
+        """Extract all ${var} references from text."""
+        pattern = r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}"
+        return re.findall(pattern, text)
+
+    def _levenshtein_distance(self, s1: str, s2: str) -> int:
+        """Calculate edit distance between two strings."""
+        if len(s1) < len(s2):
+            return self._levenshtein_distance(s2, s1)
+        if len(s2) == 0:
+            return len(s1)
+        previous_row = list(range(len(s2) + 1))
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+        return previous_row[-1]
+
+    def _find_similar_vars(self, unknown: str, context: Dict[str, Any], max_distance: int = 2) -> List[str]:
+        """Find variable names similar to unknown using edit distance."""
+        available = list(context.keys())
+        similar = []
+        for var in available:
+            if self._levenshtein_distance(unknown, var) <= max_distance:
+                similar.append(var)
+        return similar
+
+    def render_value(
+        self,
+        value: Any,
+        variables: Dict[str, Any],
+        functions: Dict[str, Any] | None = None,
+        envmap: Dict[str, Any] | None = None,
+        strict: bool = False,
+    ) -> Any:
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         if isinstance(value, str):
             try:
                 text = strip_escaped_template_quotes(value)
@@ -229,12 +292,18 @@ class TemplateEngine:
                 if text.startswith("${") and text.endswith("}"):
                     try:
                         return _evaluate_expression(text, ctx)
-                    except Exception:
+                    except Exception as e:
+                        if strict:
+                            # Extract variable name from expression like "${var_name}"
+                            var_name = text[2:-1]
+                            similar = self._find_similar_vars(var_name, ctx)
+                            suggestions = {var_name: similar} if similar else {}
+                            raise UnresolvedVarError([var_name], suggestions) from e
                         # Fall through to standard string interpolation if direct eval fails
                         pass
 
                 text = normalize_simple_tokens(text)
-                
+
                 cur = text
                 for _ in range(5):
                     single_token_match = re.fullmatch(r"\$\{([^{}]+)\}", cur)
@@ -250,14 +319,38 @@ class TemplateEngine:
                     cur = nxt
                     if "${" not in cur:
                         break
+
+                # Check for unresolved variables after rendering
+                unresolved: List[str] = []
+                suggestions: Dict[str, List[str]] = {}
+                if isinstance(cur, str) and "${" in cur:
+                    all_vars = self._extract_template_vars(cur)
+                    for var in all_vars:
+                        if var not in ctx:
+                            unresolved.append(var)
+                            similar = self._find_similar_vars(var, ctx)
+                            if similar:
+                                suggestions[var] = similar
+
+                if unresolved:
+                    if strict:
+                        raise UnresolvedVarError(unresolved, suggestions)
+                    else:
+                        for var in unresolved:
+                            similar = suggestions.get(var, [])
+                            hint = f" Did you mean '{similar[0]}'?" if similar else ""
+                            logger.warning(f"Unresolved variable: ${{{var}}}{hint}")
+
                 # If we weren't able to evaluate to a native type, return the rendered string
                 return cur
+            except UnresolvedVarError:
+                raise
             except Exception:
                 return value
         elif isinstance(value, dict):
-            return {k: self.render_value(v, variables, functions, envmap) for k, v in value.items()}
+            return {k: self.render_value(v, variables, functions, envmap, strict=strict) for k, v in value.items()}
         elif isinstance(value, list):
-            return [self.render_value(v, variables, functions, envmap) for v in value]
+            return [self.render_value(v, variables, functions, envmap, strict=strict) for v in value]
         else:
             return value
 
