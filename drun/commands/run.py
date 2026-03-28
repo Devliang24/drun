@@ -368,9 +368,9 @@ def _resolve_runtime_env_file(env: Optional[str], env_file: Optional[str]) -> Op
             explicit_env_file = cwd / explicit_env_file
         explicit_env_file = explicit_env_file.resolve()
         if not explicit_env_file.exists():
-            typer.echo(f"[ERROR] 环境文件不存在: {explicit_env_file}")
+            typer.echo(f"[ERROR] Environment file not found: {explicit_env_file}")
             typer.echo()
-            typer.echo("请检查 --env-file 路径是否正确")
+            typer.echo("Hint: Check if --env-file path is correct")
             raise typer.Exit(code=2)
 
     named_env_file: Optional[Path] = None
@@ -415,20 +415,20 @@ def run_cases(
 ) -> None:
     runtime_env_file = _resolve_runtime_env_file(env, env_file)
     if env is None and runtime_env_file is None:
-        typer.echo("[ERROR] 未找到环境配置，请使用 --env、--env-file，或在当前目录提供 .env")
+        typer.echo("[ERROR] Environment not found. Use --env, --env-file, or provide .env in current directory.")
         typer.echo()
-        typer.echo("使用方式:")
-        typer.echo("  drun run <path> --env <环境名>")
+        typer.echo("Usage:")
+        typer.echo("  drun run <path> --env <env_name>")
         typer.echo("  drun run <path> --env-file /path/to/.env")
-        typer.echo("  drun run <path>   # 当前目录存在 .env 时自动加载")
+        typer.echo("  drun run <path>   # auto-loads .env when present")
         typer.echo()
-        typer.echo("环境文件命名规范:")
-        typer.echo("  .env.dev    → --env dev")
-        typer.echo("  .env.uat    → --env uat")
-        typer.echo("  .env.prod   → --env prod")
-        typer.echo("  .env        → 默认自动加载（单文件场景）")
+        typer.echo("Environment file naming:")
+        typer.echo("  .env.dev    -> --env dev")
+        typer.echo("  .env.uat    -> --env uat")
+        typer.echo("  .env.prod   -> --env prod")
+        typer.echo("  .env        -> default (single-file mode)")
         typer.echo()
-        typer.echo("示例:")
+        typer.echo("Examples:")
         typer.echo("  drun run demo --env dev")
         typer.echo("  drun run demo --env-file ./demo.env")
         typer.echo("  drun run test_smoke.yaml")
