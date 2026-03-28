@@ -86,6 +86,126 @@ class RunOutputPlan:
     generate_snippets: bool
 
 
+def _format_duration_seconds(duration_ms: float) -> str:
+    return f"{(duration_ms or 0.0) / 1000.0:.2f}s"
+
+
+def _format_rate(passed: int, total: int) -> str:
+    if total <= 0:
+        return "0.00%"
+    return f"{(passed / total) * 100.0:.2f}%"
+
+
+def _normalize_summary_rows(report: RunReport, *, include_case_stats: bool) -> List[Tuple[str, str]]:
+    s = report.summary or {}
+    rows: List[Tuple[str, str]] = [("Duration", _format_duration_seconds(float(s.get("duration_ms", 0.0) or 0.0)))]
+
+    if include_case_stats:
+        total = int(s.get("total", 0) or 0)
+        passed = int(s.get("passed", 0) or 0)
+        failed = int(s.get("failed", 0) or 0)
+        skipped = int(s.get("skipped", 0) or 0)
+        rows.extend(
+            [
+                ("Cases Total", str(total)),
+                ("Cases Passed", str(passed)),
+                ("Cases Failed", str(failed)),
+                ("Cases Skipped", str(skipped)),
+                ("Cases Pass Rate", _format_rate(passed, total)),
+            ]
+        )
+
+    steps_total = int(s.get("steps_total", 0) or 0)
+    steps_passed = int(s.get("steps_passed", 0) or 0)
+    steps_failed = int(s.get("steps_failed", 0) or 0)
+    steps_skipped = int(s.get("steps_skipped", 0) or 0)
+    rows.extend(
+        [
+            ("Steps Total", str(steps_total)),
+            ("Steps Passed", str(steps_passed)),
+            ("Steps Failed", str(steps_failed)),
+            ("Steps Skipped", str(steps_skipped)),
+            ("Steps Pass Rate", _format_rate(steps_passed, steps_total)),
+        ]
+    )
+    return rows
+
+
+def _render_ascii_table(rows: List[Tuple[str, str]]) -> str:
+    if not rows:
+        return ""
+
+    header_key = "Key"
+    header_value = "Value"
+    key_width = max(len(header_key), max(len(key) for key, _ in rows)) + 2
+    value_width = max(len(header_value), max(len(value) for _, value in rows)) + 2
+
+    def border(fill: str) -> str:
+        return f"+{fill * key_width}+{fill * value_width}+"
+
+    lines = [
+        border("-"),
+        f"| {header_key:<{key_width - 2}} | {header_value:>{value_width - 2}} |",
+        border("="),
+    ]
+    for idx, (key, value) in enumerate(rows):
+        lines.append(f"| {key:<{key_width - 2}} | {value:>{value_width - 2}} |")
+        lines.append(border("-"))
+    return "\n".join(lines)
+
+
+def _summarize_failure_reason(step) -> str:
+    for assertion in getattr(step, "asserts", []) or []:
+        if not getattr(assertion, "passed", True):
+            msg = getattr(assertion, "message", None) or "assertion failed"
+            return str(msg).replace("\n", " ").strip()
+
+    error = getattr(step, "error", None)
+    if error:
+        return str(error).replace("\n", " ").strip()
+
+    return "(no error message)"
+
+
+def _format_failed_cases_block(report: RunReport) -> str:
+    failed_cases: List[Tuple[str, List[Tuple[str, str]]]] = []
+    for case in report.cases:
+        if case.status != "failed":
+            continue
+
+        failed_steps: List[Tuple[str, str]] = []
+        for step in case.steps or []:
+            if step.status != "failed":
+                continue
+            failed_step_name = step.name or "(unknown step)"
+            failed_steps.append((failed_step_name, _summarize_failure_reason(step)))
+
+        if not failed_steps:
+            failed_steps.append(("(unknown step)", "(no error message)"))
+
+        failed_cases.append((case.name or "Unnamed", failed_steps))
+
+    if not failed_cases:
+        return ""
+
+    indent = " " * 35
+    lines = ["[FAILED CASES]"]
+    for idx, (case_name, failed_steps) in enumerate(failed_cases):
+        lines.append(f"{indent}- {case_name}")
+        for step_name, reason in failed_steps:
+            lines.append(f"{indent}  failed_step: {step_name}")
+            lines.append(f"{indent}  reason: {reason}")
+        if idx < len(failed_cases) - 1:
+            lines.append("")
+    return "\n".join(lines)
+
+
+def _build_run_summary_text(report: RunReport, *, include_case_stats: bool) -> str:
+    rows = _normalize_summary_rows(report, include_case_stats=include_case_stats)
+    table = _render_ascii_table(rows)
+    return "\n".join(["[SUMMARY]", table]) if table else "[SUMMARY]"
+
+
 def _has_scaffold_markers(root: Path) -> bool:
     has_case_dirs = (root / "testcases").is_dir() or (root / "testsuites").is_dir()
     has_project_files = (root / ".env").exists() or (root / "drun_hooks.py").exists()
@@ -676,5 +796,12 @@ def run_cases(
             log.error("[SNIPPET] Failed to generate code snippets: %s", str(e))
 
     log.info("[CASE] Logs written to %s", default_log)
+    summary_text = _build_run_summary_text(report_obj, include_case_stats=(output_plan.single_file_target is None))
+    log.warning(summary_text)
+
+    failed_cases_text = _format_failed_cases_block(report_obj)
+    if failed_cases_text:
+        log.error(failed_cases_text)
+
     if s.get("failed", 0) > 0:
         raise typer.Exit(code=1)
