@@ -187,10 +187,10 @@ class SummaryFormattingTests(unittest.TestCase):
         text = _format_failed_cases_block(report)
         self.assertIn("[FAILED CASES]", text)
         self.assertIn("- Broken Case", text)
-        self.assertIn("failed_step: Step 1: Upload", text)
-        self.assertIn("failed_step: Step 2: Validate", text)
-        self.assertIn("reason: request.files.file path not found: ./data/demo.wav", text)
-        self.assertIn("reason: expected=200 actual=500", text)
+        self.assertIn("  failed_step: Step 1: Upload", text)
+        self.assertIn("  failed_step: Step 2: Validate", text)
+        self.assertIn("  reason: request.files.file path not found: ./data/demo.wav", text)
+        self.assertIn("  reason: expected=200 actual=500", text)
 
 
 class RunOutputPlanTests(unittest.TestCase):
@@ -343,7 +343,7 @@ steps:
             self.assertIn("Steps Total", log_text)
             self.assertIn("[FAILED CASES]", log_text)
             self.assertIn("- Temporary File", log_text)
-            self.assertIn("failed_step: Ping", log_text)
+            self.assertIn("  failed_step: Ping", log_text)
 
     def test_run_cases_scaffold_single_file_from_subdir_keeps_project_outputs(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -513,9 +513,9 @@ steps:
             self.assertIn("[FAILED CASES]", log_text)
             self.assertIn("- Broken Case", log_text)
             self.assertIn("- Another Broken Case", log_text)
-            self.assertIn("failed_step: Step 1: Upload", log_text)
-            self.assertIn("failed_step: Step 2: Validate", log_text)
-            self.assertIn("reason: request.files.file path not found: ./data/demo.wav", log_text)
+            self.assertIn("  failed_step: Step 1: Upload", log_text)
+            self.assertIn("  failed_step: Step 2: Validate", log_text)
+            self.assertIn("  reason: request.files.file path not found: ./data/demo.wav", log_text)
 
 
 if __name__ == "__main__":

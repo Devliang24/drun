@@ -187,13 +187,14 @@ def _format_failed_cases_block(report: RunReport) -> str:
     if not failed_cases:
         return ""
 
-    indent = " " * 35
+    case_indent = ""
+    detail_indent = " " * 2
     lines = ["[FAILED CASES]"]
     for idx, (case_name, failed_steps) in enumerate(failed_cases):
-        lines.append(f"{indent}- {case_name}")
+        lines.append(f"{case_indent}- {case_name}")
         for step_name, reason in failed_steps:
-            lines.append(f"{indent}  failed_step: {step_name}")
-            lines.append(f"{indent}  reason: {reason}")
+            lines.append(f"{detail_indent}failed_step: {step_name}")
+            lines.append(f"{detail_indent}reason: {reason}")
         if idx < len(failed_cases) - 1:
             lines.append("")
     return "\n".join(lines)
