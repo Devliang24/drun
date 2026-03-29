@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Callable, List, Optional
+from typing import Any, Dict, Callable, Iterable, List, Optional, Set
 import re
 import ast
 import operator as op
@@ -190,6 +190,52 @@ def _evaluate_expression(text: str, ctx: Dict[str, Any]) -> Any:
     return _safe_eval(node, ctx)
 
 
+def _iter_missing_names(node: ast.AST, ctx: Dict[str, Any]) -> Iterable[str]:
+    seen: Set[str] = set()
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Name):
+            continue
+        if isinstance(child.ctx, ast.Store):
+            continue
+        if child.id in ctx:
+            continue
+        parent_env_arg = False
+        for parent in ast.walk(node):
+            if not isinstance(parent, ast.Call):
+                continue
+            if not (isinstance(parent.func, ast.Name) and parent.func.id == "ENV"):
+                continue
+            for idx, arg in enumerate(parent.args):
+                if idx == 0 and arg is child:
+                    parent_env_arg = True
+                    break
+            if parent_env_arg:
+                break
+        if parent_env_arg:
+            continue
+        if child.id not in seen:
+            seen.add(child.id)
+            yield child.id
+
+
+def _analyze_expression(text: str, ctx: Dict[str, Any]) -> tuple[list[str], Exception | None]:
+    expr_text = text if text.startswith("${") else f"${{{text}}}"
+    try:
+        node = ast.parse(_prepare_expression(expr_text), mode="eval")
+    except SyntaxError as exc:
+        return [], exc
+
+    missing = list(_iter_missing_names(node, ctx))
+    if missing:
+        return missing, None
+
+    try:
+        _safe_eval(node, ctx)
+    except Exception as exc:
+        return [], exc
+    return [], None
+
+
 def _render_text_without_jinja(text: str, ctx: Dict[str, Any]) -> str:
     # Only process ${...} tokens; leave any other braces untouched
     out: list[str] = []
@@ -238,10 +284,9 @@ class TemplateEngine:
             **(extra_ctx or {}),
         }
 
-    def _extract_template_vars(self, text: str) -> List[str]:
-        """Extract all ${var} references from text."""
-        pattern = r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}"
-        return re.findall(pattern, text)
+    def _extract_template_tokens(self, text: str) -> List[str]:
+        """Extract all ${...} template expressions from text."""
+        return [m.group(1).strip() for m in re.finditer(r"\$\{([^{}]+)\}", text)]
 
     def _levenshtein_distance(self, s1: str, s2: str) -> int:
         """Calculate edit distance between two strings."""
@@ -290,15 +335,20 @@ class TemplateEngine:
                 # This handles ${func($var)} correctly by avoiding string interpolation
                 # which can break AST parsing when variables contain special chars (e.g. commas)
                 if text.startswith("${") and text.endswith("}"):
+                    missing, runtime_error = _analyze_expression(text, ctx)
+                    if strict:
+                        if missing:
+                            suggestions = {
+                                var_name: self._find_similar_vars(var_name, ctx)
+                                for var_name in missing
+                                if self._find_similar_vars(var_name, ctx)
+                            }
+                            raise UnresolvedVarError(missing, suggestions)
+                        if runtime_error is not None:
+                            raise runtime_error
                     try:
                         return _evaluate_expression(text, ctx)
-                    except Exception as e:
-                        if strict:
-                            # Extract variable name from expression like "${var_name}"
-                            var_name = text[2:-1]
-                            similar = self._find_similar_vars(var_name, ctx)
-                            suggestions = {var_name: similar} if similar else {}
-                            raise UnresolvedVarError([var_name], suggestions) from e
+                    except Exception:
                         # Fall through to standard string interpolation if direct eval fails
                         pass
 
@@ -323,14 +373,18 @@ class TemplateEngine:
                 # Check for unresolved variables after rendering
                 unresolved: List[str] = []
                 suggestions: Dict[str, List[str]] = {}
+                runtime_error: Exception | None = None
                 if isinstance(cur, str) and "${" in cur:
-                    all_vars = self._extract_template_vars(cur)
-                    for var in all_vars:
-                        if var not in ctx:
-                            unresolved.append(var)
-                            similar = self._find_similar_vars(var, ctx)
-                            if similar:
-                                suggestions[var] = similar
+                    for expr in self._extract_template_tokens(cur):
+                        missing, expr_runtime_error = _analyze_expression(expr, ctx)
+                        for var in missing:
+                            if var not in unresolved:
+                                unresolved.append(var)
+                                similar = self._find_similar_vars(var, ctx)
+                                if similar:
+                                    suggestions[var] = similar
+                        if expr_runtime_error is not None and runtime_error is None:
+                            runtime_error = expr_runtime_error
 
                 if unresolved:
                     if strict:
@@ -340,12 +394,16 @@ class TemplateEngine:
                             similar = suggestions.get(var, [])
                             hint = f" Did you mean '{similar[0]}'?" if similar else ""
                             logger.warning(f"Unresolved variable: ${{{var}}}{hint}")
+                elif runtime_error is not None and strict:
+                    raise runtime_error
 
                 # If we weren't able to evaluate to a native type, return the rendered string
                 return cur
             except UnresolvedVarError:
                 raise
             except Exception:
+                if strict:
+                    raise
                 return value
         elif isinstance(value, dict):
             return {k: self.render_value(v, variables, functions, envmap, strict=strict) for k, v in value.items()}
