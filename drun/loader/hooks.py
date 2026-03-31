@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Sequence
 
 def _module_name_for(path: Path) -> str:
     h = hashlib.sha1(str(path).encode()).hexdigest()[:10]
-    return f"drun_hooks_{h}"
+    return f"Dhook_{h}"
 
 
 def _candidate_filenames() -> Sequence[str]:
@@ -19,12 +19,12 @@ def _candidate_filenames() -> Sequence[str]:
     env_val = os.environ.get("DRUN_HOOKS_FILE")
     if env_val:
         return [x.strip() for x in env_val.split(",") if x.strip()]
-    return ["drun_hooks.py", "hooks.py"]
+    return ["Dhook.py"]
 
 
 def find_hooks(start: Path) -> Optional[Path]:
     """Search upwards from start directory for a hooks file.
-    Default names: drun_hooks.py, hooks.py (configurable via DRUN_HOOKS_FILE)
+    Default names: Dhook.py (configurable via DRUN_HOOKS_FILE)
     """
     d = start if start.is_dir() else start.parent
     root = Path(d.anchor)

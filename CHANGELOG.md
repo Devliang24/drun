@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 > Historical note: entries mentioning the scoring system are retained for release history only. The current CLI does not expose a `drun score` command.
 
+## [7.2.3] - 2026-03-31
+
+### Changed
+- 统一使用 `Dhook.py` 作为 hooks 脚手架命名。
+- 开发依赖 `.[dev]` 现在包含 `pytest`，可直接执行 `python -m pytest -q`。
+- 开发安装文档同步补充了 `pytest` 校验命令。
+
 ## [7.1.3] - 2026-03-27
 
 ### Added
@@ -826,7 +833,7 @@ steps:
   - Correct: `drun convert file.curl --outfile out.yaml`
   - Incorrect: `drun convert --outfile out.yaml file.curl`
 - **Breaking**: OpenAPI conversion moved to top-level command: `drun convert-openapi ...` (was `drun convert openapi ...`)
-- **Breaking**: Hooks module renamed to `drun_hooks.py` (`DRUN_HOOKS_FILE`); legacy `arun_hooks.py`/`ARUN_HOOKS_FILE` names are no longer loaded
+- **Breaking**: Hooks module renamed to `Dhook.py` (`DRUN_HOOKS_FILE`); legacy `arun_hooks.py`/`ARUN_HOOKS_FILE` names are no longer loaded
 - Moved parameter definitions to `config.parameters` for cleaner syntax
 
 ### Improved

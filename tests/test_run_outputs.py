@@ -9,8 +9,18 @@ import logging
 
 import typer
 
-from drun.commands.run import _build_run_output_plan, _build_run_summary_text, _format_failed_cases_block, run_cases
-from drun.models.report import AssertionResult, CaseInstanceResult, RunReport, StepResult
+from drun.commands.run import (
+    _build_run_output_plan,
+    _build_run_summary_text,
+    _format_failed_cases_block,
+    run_cases,
+)
+from drun.models.report import (
+    AssertionResult,
+    CaseInstanceResult,
+    RunReport,
+    StepResult,
+)
 
 
 class _StubRunner:
@@ -51,7 +61,9 @@ class _StubRunner:
                         )
                     )
             else:
-                steps.append(StepResult(name=step.name, status="passed", duration_ms=8.0))
+                steps.append(
+                    StepResult(name=step.name, status="passed", duration_ms=8.0)
+                )
 
         if not steps:
             steps = [StepResult(name="Default Step", status="passed", duration_ms=8.0)]
@@ -189,12 +201,16 @@ class SummaryFormattingTests(unittest.TestCase):
         self.assertIn("- Broken Case", text)
         self.assertIn("  failed_step: Step 1: Upload", text)
         self.assertIn("  failed_step: Step 2: Validate", text)
-        self.assertIn("  reason: request.files.file path not found: ./data/demo.wav", text)
+        self.assertIn(
+            "  reason: request.files.file path not found: ./data/demo.wav", text
+        )
         self.assertIn("  reason: expected=200 actual=500", text)
 
 
 class RunOutputPlanTests(unittest.TestCase):
-    def test_build_output_plan_for_temporary_single_file_uses_cwd_log_only(self) -> None:
+    def test_build_output_plan_for_temporary_single_file_uses_cwd_log_only(
+        self,
+    ) -> None:
         with TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             target = tmpdir / "test_tts.yaml"
@@ -219,7 +235,9 @@ class RunOutputPlanTests(unittest.TestCase):
             self.assertFalse(plan.generate_snippets)
             self.assertIsNone(plan.snippet_output)
 
-    def test_build_output_plan_for_scaffold_single_file_uses_project_root_outputs(self) -> None:
+    def test_build_output_plan_for_scaffold_single_file_uses_project_root_outputs(
+        self,
+    ) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp) / "demo-project"
             testcase_dir = project / "testcases"
@@ -228,8 +246,10 @@ class RunOutputPlanTests(unittest.TestCase):
             testcase_dir.mkdir(parents=True)
             testsuite_dir.mkdir()
             subdir.mkdir()
-            (project / ".env").write_text("BASE_URL=http://localhost:8000\n", encoding="utf-8")
-            (project / "drun_hooks.py").write_text("", encoding="utf-8")
+            (project / ".env").write_text(
+                "BASE_URL=http://localhost:8000\n", encoding="utf-8"
+            )
+            (project / "Dhook.py").write_text("", encoding="utf-8")
             target = testcase_dir / "test_login.yaml"
             target.write_text("config:\n  name: Demo\nsteps: []\n", encoding="utf-8")
 
@@ -247,10 +267,25 @@ class RunOutputPlanTests(unittest.TestCase):
 
             self.assertFalse(plan.temporary_single_file)
             self.assertEqual(plan.scaffold_root, project.resolve())
-            self.assertEqual(plan.log_path, str((project / "logs" / "My-Test-System-20260327-101010.log").resolve()))
-            self.assertEqual(plan.html_path, str((project / "reports" / "My-Test-System-20260327-101010.html").resolve()))
+            self.assertEqual(
+                plan.log_path,
+                str(
+                    (project / "logs" / "My-Test-System-20260327-101010.log").resolve()
+                ),
+            )
+            self.assertEqual(
+                plan.html_path,
+                str(
+                    (
+                        project / "reports" / "My-Test-System-20260327-101010.html"
+                    ).resolve()
+                ),
+            )
             self.assertTrue(plan.generate_snippets)
-            self.assertEqual(plan.snippet_output, str((project / "snippets" / "20260327-101010").resolve()))
+            self.assertEqual(
+                plan.snippet_output,
+                str((project / "snippets" / "20260327-101010").resolve()),
+            )
 
     def test_build_output_plan_respects_explicit_outputs(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -277,10 +312,14 @@ class RunOutputPlanTests(unittest.TestCase):
 
 
 class RunOutputsIntegrationTests(unittest.TestCase):
-    def test_run_cases_temporary_single_file_logs_case_and_step_summary_and_failed_cases(self) -> None:
+    def test_run_cases_temporary_single_file_logs_case_and_step_summary_and_failed_cases(
+        self,
+    ) -> None:
         with TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
-            (tmpdir / "demo.env").write_text("BASE_URL=http://localhost:8000\n", encoding="utf-8")
+            (tmpdir / "demo.env").write_text(
+                "BASE_URL=http://localhost:8000\n", encoding="utf-8"
+            )
             target = tmpdir / "test_temp.yaml"
             target.write_text(
                 """config:
@@ -299,9 +338,20 @@ steps:
             old_cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                with patch("drun.commands.run.Runner", _StubRunner), patch("drun.commands.run.get_functions_for", return_value={}):
-                    with patch("drun.reporter.html_reporter.write_html", side_effect=AssertionError("write_html should not be called")):
-                        with patch("drun.commands.run._save_code_snippets", side_effect=AssertionError("snippets should not be generated")):
+                with (
+                    patch("drun.commands.run.Runner", _StubRunner),
+                    patch("drun.commands.run.get_functions_for", return_value={}),
+                ):
+                    with patch(
+                        "drun.reporter.html_reporter.write_html",
+                        side_effect=AssertionError("write_html should not be called"),
+                    ):
+                        with patch(
+                            "drun.commands.run._save_code_snippets",
+                            side_effect=AssertionError(
+                                "snippets should not be generated"
+                            ),
+                        ):
                             with self.assertRaises(typer.Exit) as ctx:
                                 run_cases(
                                     path="test_temp.yaml",
@@ -345,7 +395,9 @@ steps:
             self.assertIn("- Temporary File", log_text)
             self.assertIn("  failed_step: Ping", log_text)
 
-    def test_run_cases_scaffold_single_file_from_subdir_keeps_project_outputs(self) -> None:
+    def test_run_cases_scaffold_single_file_from_subdir_keeps_project_outputs(
+        self,
+    ) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp) / "demo-project"
             testcase_dir = project / "testcases"
@@ -354,8 +406,10 @@ steps:
             testcase_dir.mkdir(parents=True)
             testsuite_dir.mkdir()
             subdir.mkdir()
-            (project / ".env").write_text("BASE_URL=http://localhost:8000\n", encoding="utf-8")
-            (project / "drun_hooks.py").write_text("", encoding="utf-8")
+            (project / ".env").write_text(
+                "BASE_URL=http://localhost:8000\n", encoding="utf-8"
+            )
+            (project / "Dhook.py").write_text("", encoding="utf-8")
             target = testcase_dir / "test_login.yaml"
             target.write_text(
                 """config:
@@ -374,7 +428,10 @@ steps:
             old_cwd = os.getcwd()
             os.chdir(subdir)
             try:
-                with patch("drun.commands.run.Runner", _StubRunner), patch("drun.commands.run.get_functions_for", return_value={}):
+                with (
+                    patch("drun.commands.run.Runner", _StubRunner),
+                    patch("drun.commands.run.get_functions_for", return_value={}),
+                ):
                     run_cases(
                         path="../testcases/test_login.yaml",
                         k=None,
@@ -413,15 +470,19 @@ steps:
             self.assertFalse((subdir / "reports").exists())
             self.assertFalse((subdir / "snippets").exists())
 
-    def test_run_cases_directory_input_includes_case_summary_and_multiple_failed_case_steps(self) -> None:
+    def test_run_cases_directory_input_includes_case_summary_and_multiple_failed_case_steps(
+        self,
+    ) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp) / "demo-project"
             testcase_dir = project / "testcases"
             testsuite_dir = project / "testsuites"
             testcase_dir.mkdir(parents=True)
             testsuite_dir.mkdir()
-            (project / ".env").write_text("BASE_URL=http://localhost:8000\n", encoding="utf-8")
-            (project / "drun_hooks.py").write_text("", encoding="utf-8")
+            (project / ".env").write_text(
+                "BASE_URL=http://localhost:8000\n", encoding="utf-8"
+            )
+            (project / "Dhook.py").write_text("", encoding="utf-8")
 
             good = testcase_dir / "case_good.yaml"
             good.write_text(
@@ -473,7 +534,10 @@ steps:
             old_cwd = os.getcwd()
             os.chdir(project)
             try:
-                with patch("drun.commands.run.Runner", _StubRunner), patch("drun.commands.run.get_functions_for", return_value={}):
+                with (
+                    patch("drun.commands.run.Runner", _StubRunner),
+                    patch("drun.commands.run.get_functions_for", return_value={}),
+                ):
                     with self.assertRaises(typer.Exit) as ctx:
                         run_cases(
                             path="testcases",
@@ -515,7 +579,9 @@ steps:
             self.assertIn("- Another Broken Case", log_text)
             self.assertIn("  failed_step: Step 1: Upload", log_text)
             self.assertIn("  failed_step: Step 2: Validate", log_text)
-            self.assertIn("  reason: request.files.file path not found: ./data/demo.wav", log_text)
+            self.assertIn(
+                "  reason: request.files.file path not found: ./data/demo.wav", log_text
+            )
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ from drun.models.step import Step
 from drun.models.validators import Validator
 from drun.runner.runner import Runner
 
+
 class _FlowSeq(list):
     """Sequence rendered in flow-style YAML (e.g., [a, b])."""
 
@@ -56,6 +57,7 @@ def _get_drun_version() -> str:
     # 1) module attribute
     try:
         from drun import __version__ as _v  # type: ignore
+
         if _v:
             return str(_v)
     except Exception:
@@ -72,7 +74,7 @@ def _get_drun_version() -> str:
                 for line in text.splitlines():
                     s = line.strip()
                     if s.startswith("[") and s.endswith("]"):
-                        in_project = (s == "[project]")
+                        in_project = s == "[project]"
                     elif in_project and s.startswith("version") and "=" in s:
                         # naive TOML parse: version = "x.y.z"
                         try:
@@ -120,10 +122,11 @@ def main(
         help="Show version and exit",
         callback=_version_callback,
         is_eager=True,
-    )
+    ),
 ):
     """drun - Zero-code HTTP API test framework"""
     pass
+
 
 # Importers / exporters (lazy optional imports inside functions where needed)
 
@@ -131,7 +134,12 @@ def main(
 def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
     # Dump with aliases and prune fields loader forbids at top-level.
     d = case.model_dump(by_alias=True, exclude_none=True)
-    for k in ("setup_hooks", "teardown_hooks", "suite_setup_hooks", "suite_teardown_hooks"):
+    for k in (
+        "setup_hooks",
+        "teardown_hooks",
+        "suite_setup_hooks",
+        "suite_teardown_hooks",
+    ):
         if k in d and not d.get(k):
             d.pop(k, None)
     # Drop empty config blocks (variables/headers/tags) to keep YAML clean.
@@ -144,8 +152,16 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
     steps = d.get("steps") or []
     from drun.models.step import Step as _Step
 
-    default_retry = _Step.model_fields.get("retry").default if "retry" in _Step.model_fields else None
-    default_backoff = _Step.model_fields.get("retry_backoff").default if "retry_backoff" in _Step.model_fields else None
+    default_retry = (
+        _Step.model_fields.get("retry").default
+        if "retry" in _Step.model_fields
+        else None
+    )
+    default_backoff = (
+        _Step.model_fields.get("retry_backoff").default
+        if "retry_backoff" in _Step.model_fields
+        else None
+    )
     cleaned_steps: List[Dict[str, object]] = []
     for step in steps:
         if not isinstance(step, dict):
@@ -174,7 +190,11 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
         if isinstance(req, dict) and ("json" in req) and ("body" not in req):
             req["body"] = req.pop("json")
         headers = req.get("headers") or {}
-        headers_lc = {str(k).lower(): v for k, v in headers.items()} if isinstance(headers, dict) else {}
+        headers_lc = (
+            {str(k).lower(): v for k, v in headers.items()}
+            if isinstance(headers, dict)
+            else {}
+        )
         accept = str(headers_lc.get("accept", "")) if headers_lc else ""
         content_type = str(headers_lc.get("content-type", "")) if headers_lc else ""
         body_obj = req.get("body")
@@ -189,7 +209,9 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
         ensure_body = expect_json or method in {"POST", "PUT", "PATCH"}
 
         # Add default validators when applicable.
-        def _ensure_validator(comp: str, check_value: str | object, expect_value: object) -> None:
+        def _ensure_validator(
+            comp: str, check_value: str | object, expect_value: object
+        ) -> None:
             for item in step_validators:
                 if comp in item:
                     seq = item[comp]
@@ -237,9 +259,13 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
         if step_validators:
             step["validate"] = step_validators
 
-        if "retry" in step and (step["retry"] is None or step["retry"] == default_retry):
+        if "retry" in step and (
+            step["retry"] is None or step["retry"] == default_retry
+        ):
             step.pop("retry", None)
-        if "retry_backoff" in step and (step["retry_backoff"] is None or step["retry_backoff"] == default_backoff):
+        if "retry_backoff" in step and (
+            step["retry_backoff"] is None or step["retry_backoff"] == default_backoff
+        ):
             step.pop("retry_backoff", None)
 
         cleaned_steps.append(step)
@@ -280,6 +306,7 @@ def _derive_case_name(base: Optional[str], step_name: Optional[str], idx: int) -
 
 def _sanitize_var_name(name: str) -> str:
     import re as _re
+
     s = _re.sub(r"[^A-Za-z0-9_]", "_", str(name or "").strip())
     if not s:
         s = "var"
@@ -288,14 +315,23 @@ def _sanitize_var_name(name: str) -> str:
     return s
 
 
-def _apply_convert_filters(case: Case, *, redact_headers: list[str] | None = None, placeholders: bool = False) -> Case:
+def _apply_convert_filters(
+    case: Case, *, redact_headers: list[str] | None = None, placeholders: bool = False
+) -> Case:
     """Mutate case in-place to redact sensitive headers or lift values into variables as placeholders.
 
     - redact_headers: list of header names (case-insensitive) to mask as '***'.
     - placeholders: when True, convert sensitive headers into variables and reference via $var in headers.
     """
     redact_lc = {h.lower() for h in (redact_headers or [])}
-    default_sensitive = {"authorization", "cookie", "x-api-key", "x-api-token", "api-key", "apikey"}
+    default_sensitive = {
+        "authorization",
+        "cookie",
+        "x-api-key",
+        "x-api-token",
+        "api-key",
+        "apikey",
+    }
     # if placeholders requested but no explicit headers, use default set
     if placeholders and not redact_lc:
         redact_lc = set(default_sensitive)
@@ -381,17 +417,33 @@ def _make_step_from_imported(imported_step: Any) -> Step:
     )
 
 
-def _build_cases_from_import(icase: Any, *, split_output: bool) -> List[Tuple[Case, int]]:
+def _build_cases_from_import(
+    icase: Any, *, split_output: bool
+) -> List[Tuple[Case, int]]:
     cases: List[Tuple[Case, int]] = []
     if split_output:
         for idx, imported_step in enumerate(icase.steps, start=1):
             step_obj = _make_step_from_imported(imported_step)
             case_title = _derive_case_name(icase.name, imported_step.name, idx)
-            case = Case(config=Config(name=case_title, base_url=icase.base_url, variables=getattr(icase, 'variables', None) or {}), steps=[step_obj])
+            case = Case(
+                config=Config(
+                    name=case_title,
+                    base_url=icase.base_url,
+                    variables=getattr(icase, "variables", None) or {},
+                ),
+                steps=[step_obj],
+            )
             cases.append((case, idx))
     else:
         steps = [_make_step_from_imported(s) for s in icase.steps]
-        case = Case(config=Config(name=icase.name, base_url=icase.base_url, variables=getattr(icase, 'variables', None) or {}), steps=steps)
+        case = Case(
+            config=Config(
+                name=icase.name,
+                base_url=icase.base_url,
+                variables=getattr(icase, "variables", None) or {},
+            ),
+            steps=steps,
+        )
         cases.append((case, 1))
     return cases
 
@@ -419,17 +471,22 @@ def _resolve_output_paths(
     return [Path(f"{default_prefix}_{i}.yaml") for i in range(1, count + 1)]
 
 
-def _write_caseflow(paths: List[Path], names: List[str], *, suite_path: str, suite_name: Optional[str] = None) -> None:
+def _write_caseflow(
+    paths: List[Path],
+    names: List[str],
+    *,
+    suite_path: str,
+    suite_name: Optional[str] = None,
+) -> None:
     """生成 caseflow 格式的测试套件文件"""
     obj = {
         "config": {
             "name": suite_name or "Imported Caseflow",
         },
-        "caseflow": [
-            {"name": nm, "invoke": p.stem} for nm, p in zip(names, paths)
-        ],
+        "caseflow": [{"name": nm, "invoke": p.stem} for nm, p in zip(names, paths)],
     }
     from pathlib import Path as _Path
+
     out = yaml.dump(obj, Dumper=_YamlDumper, sort_keys=False, allow_unicode=True)
     _p = _Path(suite_path)
     _p.parent.mkdir(parents=True, exist_ok=True)
@@ -446,7 +503,8 @@ def _write_imported_cases(
     source_path: Optional[str],
 ) -> None:
     rendered: List[Tuple[Dict[str, object], int, Case]] = [
-        (_to_yaml_case_dict(case_obj), idx, case_obj) for case_obj, idx in cases_with_index
+        (_to_yaml_case_dict(case_obj), idx, case_obj)
+        for case_obj, idx in cases_with_index
     ]
     if into:
         out_dict, _, _case_obj = rendered[0]
@@ -478,7 +536,9 @@ def _write_imported_cases(
         return
 
     if split_output:
-        paths = _resolve_output_paths(len(rendered), outfile=outfile, source_path=source_path)
+        paths = _resolve_output_paths(
+            len(rendered), outfile=outfile, source_path=source_path
+        )
         for (out_dict, _, case_obj), path in zip(rendered, paths):
             text = _dump_case_dict(out_dict)
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -519,10 +579,20 @@ def convert_auto(
     infile: str = typer.Argument(..., help="待转换的源文件 (.curl/.har/.json)"),
     outfile: Optional[str] = typer.Option(None, "--outfile", help="输出到指定文件"),
     into: Optional[str] = typer.Option(None, "--into", help="追加到已存在的 YAML 文件"),
-    case_name: Optional[str] = typer.Option(None, "--case-name", help="覆盖生成的用例名称"),
-    base_url: Optional[str] = typer.Option(None, "--base-url", help="覆盖生成用例的 base_url"),
-    postman_env: Optional[str] = typer.Option(None, "--postman-env", help="Postman 环境 JSON 文件，用于导入变量"),
-    suite_out: Optional[str] = typer.Option(None, "--suite-out", help="生成引用测试套件 YAML（需配合 --split-output 或 --outfile）"),
+    case_name: Optional[str] = typer.Option(
+        None, "--case-name", help="覆盖生成的用例名称"
+    ),
+    base_url: Optional[str] = typer.Option(
+        None, "--base-url", help="覆盖生成用例的 base_url"
+    ),
+    postman_env: Optional[str] = typer.Option(
+        None, "--postman-env", help="Postman 环境 JSON 文件，用于导入变量"
+    ),
+    suite_out: Optional[str] = typer.Option(
+        None,
+        "--suite-out",
+        help="生成引用测试套件 YAML（需配合 --split-output 或 --outfile）",
+    ),
     split_output: bool = typer.Option(
         False,
         "--split-output/--single-output",
@@ -557,22 +627,28 @@ def convert_auto(
                 pos = i
                 break
         if pos is not None and any(t.startswith("-") for t in tail[:pos]):
-            typer.echo("[CONVERT] Options must follow INFILE. Example:\n  drun convert file.curl --outfile out.yaml")
+            typer.echo(
+                "[CONVERT] Options must follow INFILE. Example:\n  drun convert file.curl --outfile out.yaml"
+            )
             raise typer.Exit(code=2)
     # Enforce: no bare conversion without any options
-    any_option = any([
-        outfile is not None,
-        into is not None,
-        case_name is not None,
-        base_url is not None,
-        postman_env is not None,
-        suite_out is not None,
-        split_output,
-        (redact is not None),
-        placeholders,
-    ])
+    any_option = any(
+        [
+            outfile is not None,
+            into is not None,
+            case_name is not None,
+            base_url is not None,
+            postman_env is not None,
+            suite_out is not None,
+            split_output,
+            (redact is not None),
+            placeholders,
+        ]
+    )
     if not any_option:
-        typer.echo("[CONVERT] No options provided. Bare conversion is not supported. Place options after INFILE, e.g.:\n  drun convert my.curl --outfile testcases/from_curl.yaml")
+        typer.echo(
+            "[CONVERT] No options provided. Bare conversion is not supported. Place options after INFILE, e.g.:\n  drun convert my.curl --outfile testcases/from_curl.yaml"
+        )
         raise typer.Exit(code=2)
 
     if infile == "-":
@@ -646,19 +722,39 @@ def convert_auto(
                 suite_out=suite_out,
             )
     else:
-        typer.echo("[CONVERT] Unrecognized file format. Supported suffixes: .curl, .har, .json")
+        typer.echo(
+            "[CONVERT] Unrecognized file format. Supported suffixes: .curl, .har, .json"
+        )
         raise typer.Exit(code=2)
 
 
 # Helper for curl conversion
 def convert_curl(
-    infile: str = typer.Argument(..., help="Path to file with curl commands or '-' for stdin"),
-    redact: Optional[str] = typer.Option(None, "--redact", help="Comma-separated header names to mask or placeholder, e.g., Authorization,Cookie"),
-    placeholders: bool = typer.Option(False, "--placeholders/--no-placeholders", help="Replace sensitive headers with $vars and store values in config.variables"),
-    outfile: Optional[str] = typer.Option(None, "--outfile", help="Write to new YAML file (default stdout)"),
-    into: Optional[str] = typer.Option(None, "--into", help="Append into existing YAML (case or suite)"),
-    case_name: Optional[str] = typer.Option(None, "--case-name", help="Case name; default 'Imported Case'"),
-    base_url: Optional[str] = typer.Option(None, "--base-url", help="Override base_url in generated case"),
+    infile: str = typer.Argument(
+        ..., help="Path to file with curl commands or '-' for stdin"
+    ),
+    redact: Optional[str] = typer.Option(
+        None,
+        "--redact",
+        help="Comma-separated header names to mask or placeholder, e.g., Authorization,Cookie",
+    ),
+    placeholders: bool = typer.Option(
+        False,
+        "--placeholders/--no-placeholders",
+        help="Replace sensitive headers with $vars and store values in config.variables",
+    ),
+    outfile: Optional[str] = typer.Option(
+        None, "--outfile", help="Write to new YAML file (default stdout)"
+    ),
+    into: Optional[str] = typer.Option(
+        None, "--into", help="Append into existing YAML (case or suite)"
+    ),
+    case_name: Optional[str] = typer.Option(
+        None, "--case-name", help="Case name; default 'Imported Case'"
+    ),
+    base_url: Optional[str] = typer.Option(
+        None, "--base-url", help="Override base_url in generated case"
+    ),
     split_output: bool = typer.Option(
         False,
         "--split-output/--single-output",
@@ -674,7 +770,9 @@ def convert_curl(
         # Enforce .curl suffix for curl files
         pth = Path(infile)
         if pth.suffix.lower() != ".curl":
-            typer.echo(f"[CONVERT] Refusing to read '{infile}': curl file must have '.curl' suffix.")
+            typer.echo(
+                f"[CONVERT] Refusing to read '{infile}': curl file must have '.curl' suffix."
+            )
             raise typer.Exit(code=2)
         text = pth.read_text(encoding="utf-8")
 
@@ -685,12 +783,22 @@ def convert_curl(
         return
 
     if split_output and into:
-        typer.echo("[CONVERT] --split-output cannot be combined with --into; provide --outfile or rely on inferred names.")
+        typer.echo(
+            "[CONVERT] --split-output cannot be combined with --into; provide --outfile or rely on inferred names."
+        )
         raise typer.Exit(code=2)
 
     cases = _build_cases_from_import(icase, split_output=split_output)
-    redact_list = [x.strip() for x in (redact or '').split(',') if x.strip()]
-    cases = [(_apply_convert_filters(case, redact_headers=redact_list, placeholders=placeholders), idx) for case, idx in cases]
+    redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
+    cases = [
+        (
+            _apply_convert_filters(
+                case, redact_headers=redact_list, placeholders=placeholders
+            ),
+            idx,
+        )
+        for case, idx in cases
+    ]
     source_path = None if infile == "-" else infile
     _write_imported_cases(
         cases,
@@ -707,10 +815,24 @@ def convert_postman(
     into: Optional[str] = typer.Option(None, "--into"),
     case_name: Optional[str] = typer.Option(None, "--case-name"),
     base_url: Optional[str] = typer.Option(None, "--base-url"),
-    postman_env: Optional[str] = typer.Option(None, "--postman-env", help="Postman environment JSON to import variables"),
-    redact: Optional[str] = typer.Option(None, "--redact", help="Comma-separated header names to mask or placeholder, e.g., Authorization,Cookie"),
-    placeholders: bool = typer.Option(False, "--placeholders/--no-placeholders", help="Replace sensitive headers with $vars and store values in config.variables"),
-    suite_out: Optional[str] = typer.Option(None, "--suite-out", help="Write a reference testsuite YAML that includes generated case files (requires --split-output or --outfile)"),
+    postman_env: Optional[str] = typer.Option(
+        None, "--postman-env", help="Postman environment JSON to import variables"
+    ),
+    redact: Optional[str] = typer.Option(
+        None,
+        "--redact",
+        help="Comma-separated header names to mask or placeholder, e.g., Authorization,Cookie",
+    ),
+    placeholders: bool = typer.Option(
+        False,
+        "--placeholders/--no-placeholders",
+        help="Replace sensitive headers with $vars and store values in config.variables",
+    ),
+    suite_out: Optional[str] = typer.Option(
+        None,
+        "--suite-out",
+        help="Write a reference testsuite YAML that includes generated case files (requires --split-output or --outfile)",
+    ),
     split_output: bool = typer.Option(
         False,
         "--split-output/--single-output",
@@ -723,18 +845,30 @@ def convert_postman(
     env_text = None
     if postman_env:
         env_text = Path(postman_env).read_text(encoding="utf-8")
-    icase = parse_postman(text, case_name=case_name, base_url=base_url, env_text=env_text)
+    icase = parse_postman(
+        text, case_name=case_name, base_url=base_url, env_text=env_text
+    )
 
     if not icase.steps:
         typer.echo("[CONVERT] No requests detected in Postman collection.")
         return
     if split_output and into:
-        typer.echo("[CONVERT] --split-output cannot be combined with --into; provide --outfile or rely on inferred names.")
+        typer.echo(
+            "[CONVERT] --split-output cannot be combined with --into; provide --outfile or rely on inferred names."
+        )
         raise typer.Exit(code=2)
 
     cases = _build_cases_from_import(icase, split_output=split_output)
-    redact_list = [x.strip() for x in (redact or '').split(',') if x.strip()]
-    cases = [(_apply_convert_filters(case, redact_headers=redact_list, placeholders=placeholders), idx) for case, idx in cases]
+    redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
+    cases = [
+        (
+            _apply_convert_filters(
+                case, redact_headers=redact_list, placeholders=placeholders
+            ),
+            idx,
+        )
+        for case, idx in cases
+    ]
     _write_imported_cases(
         cases,
         outfile=outfile,
@@ -750,14 +884,20 @@ def convert_postman(
         # compute case paths/names similar to writer
         names = [c.config.name or f"Case {i}" for (c, i) in cases]
         if split_output:
-            paths = _resolve_output_paths(len(cases), outfile=outfile, source_path=collection)
+            paths = _resolve_output_paths(
+                len(cases), outfile=outfile, source_path=collection
+            )
         else:
             if outfile:
                 paths = [Path(outfile)]
             else:
-                typer.echo("[CONVERT] --suite-out requires --split-output or --outfile to materialize case files")
+                typer.echo(
+                    "[CONVERT] --suite-out requires --split-output or --outfile to materialize case files"
+                )
                 raise typer.Exit(code=2)
-        _write_caseflow(paths, names, suite_path=suite_out, suite_name=case_name or icase.name)
+        _write_caseflow(
+            paths, names, suite_path=suite_out, suite_name=case_name or icase.name
+        )
 
 
 def convert_har(
@@ -766,11 +906,29 @@ def convert_har(
     into: Optional[str] = typer.Option(None, "--into"),
     case_name: Optional[str] = typer.Option(None, "--case-name"),
     base_url: Optional[str] = typer.Option(None, "--base-url"),
-    redact: Optional[str] = typer.Option(None, "--redact", help="Comma-separated header names to mask or placeholder, e.g., Authorization,Cookie"),
-    placeholders: bool = typer.Option(False, "--placeholders/--no-placeholders", help="Replace sensitive headers with $vars and store values in config.variables"),
-    exclude_static: bool = typer.Option(True, "--exclude-static/--keep-static", help="Filter out images/css/js/font entries"),
-    only_2xx: bool = typer.Option(False, "--only-2xx/--all-status", help="Keep only responses with 2xx status code"),
-    exclude_pattern: Optional[str] = typer.Option(None, "--exclude-pattern", help="Regex to exclude entries by URL or mimeType"),
+    redact: Optional[str] = typer.Option(
+        None,
+        "--redact",
+        help="Comma-separated header names to mask or placeholder, e.g., Authorization,Cookie",
+    ),
+    placeholders: bool = typer.Option(
+        False,
+        "--placeholders/--no-placeholders",
+        help="Replace sensitive headers with $vars and store values in config.variables",
+    ),
+    exclude_static: bool = typer.Option(
+        True,
+        "--exclude-static/--keep-static",
+        help="Filter out images/css/js/font entries",
+    ),
+    only_2xx: bool = typer.Option(
+        False,
+        "--only-2xx/--all-status",
+        help="Keep only responses with 2xx status code",
+    ),
+    exclude_pattern: Optional[str] = typer.Option(
+        None, "--exclude-pattern", help="Regex to exclude entries by URL or mimeType"
+    ),
     split_output: bool = typer.Option(
         False,
         "--split-output/--single-output",
@@ -792,12 +950,22 @@ def convert_har(
         typer.echo("[CONVERT] No HTTP entries detected in HAR file.")
         return
     if split_output and into:
-        typer.echo("[CONVERT] --split-output cannot be combined with --into; provide --outfile or rely on inferred names.")
+        typer.echo(
+            "[CONVERT] --split-output cannot be combined with --into; provide --outfile or rely on inferred names."
+        )
         raise typer.Exit(code=2)
 
     cases = _build_cases_from_import(icase, split_output=split_output)
-    redact_list = [x.strip() for x in (redact or '').split(',') if x.strip()]
-    cases = [(_apply_convert_filters(case, redact_headers=redact_list, placeholders=placeholders), idx) for case, idx in cases]
+    redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
+    cases = [
+        (
+            _apply_convert_filters(
+                case, redact_headers=redact_list, placeholders=placeholders
+            ),
+            idx,
+        )
+        for case, idx in cases
+    ]
     _write_imported_cases(
         cases,
         outfile=outfile,
@@ -805,16 +973,32 @@ def convert_har(
         split_output=split_output,
         source_path=infile,
     )
+
+
 @export_app.command("curl")
 def export_curl(
     path: str = typer.Argument(..., help="要导出的用例/套件 YAML 文件或目录"),
-    case_name: Optional[str] = typer.Option(None, "--case-name", help="仅导出指定名称的用例"),
-    steps: Optional[str] = typer.Option(None, "--steps", help="步骤索引，如 '1,3-5'（从 1 开始）"),
-    multiline: bool = typer.Option(True, "--multiline/--one-line", help="多行格式化 curl 命令（带续行符）"),
+    case_name: Optional[str] = typer.Option(
+        None, "--case-name", help="仅导出指定名称的用例"
+    ),
+    steps: Optional[str] = typer.Option(
+        None, "--steps", help="步骤索引，如 '1,3-5'（从 1 开始）"
+    ),
+    multiline: bool = typer.Option(
+        True, "--multiline/--one-line", help="多行格式化 curl 命令（带续行符）"
+    ),
     shell: str = typer.Option("sh", "--shell", help="续行符风格：sh|ps"),
-    redact: Optional[str] = typer.Option(None, "--redact", help="逗号分隔的需要脱敏的请求头名称，如 Authorization,Cookie"),
-    with_comments: bool = typer.Option(False, "--with-comments/--no-comments", help="为每个 curl 命令添加 '# Case/Step' 注释"),
-    outfile: Optional[str] = typer.Option(None, "--outfile", help="输出到文件（必须以 .curl 结尾）"),
+    redact: Optional[str] = typer.Option(
+        None, "--redact", help="逗号分隔的需要脱敏的请求头名称，如 Authorization,Cookie"
+    ),
+    with_comments: bool = typer.Option(
+        False,
+        "--with-comments/--no-comments",
+        help="为每个 curl 命令添加 '# Case/Step' 注释",
+    ),
+    outfile: Optional[str] = typer.Option(
+        None, "--outfile", help="输出到文件（必须以 .curl 结尾）"
+    ),
 ) -> None:
     """导出测试用例为 curl 命令"""
     exporter = _require_exporter("curl")
@@ -829,6 +1013,7 @@ def export_curl(
     p = Path(path)
     if p.is_dir():
         from drun.loader.collector import discover
+
         files = discover([path])
     else:
         files = [path]
@@ -837,39 +1022,42 @@ def export_curl(
         if not spec:
             return list(range(maxn))
         out: List[int] = []
-        for part in spec.split(','):
+        for part in spec.split(","):
             part = part.strip()
             if not part:
                 continue
-            if '-' in part:
-                a, b = part.split('-', 1)
+            if "-" in part:
+                a, b = part.split("-", 1)
                 try:
                     ia = max(1, int(a))
                     ib = min(maxn, int(b))
                 except Exception:
                     continue
-                out.extend(list(range(ia-1, ib)))
+                out.extend(list(range(ia - 1, ib)))
             else:
                 try:
                     i = int(part)
                     if 1 <= i <= maxn:
-                        out.append(i-1)
+                        out.append(i - 1)
                 except Exception:
                     pass
         # dedupe preserve order
-        seen=set(); res=[]
+        seen = set()
+        res = []
         for i in out:
             if i not in seen:
-                res.append(i); seen.add(i)
+                res.append(i)
+                seen.add(i)
         return res
 
-    redact_list = [x.strip() for x in (redact or '').split(',') if x.strip()]
+    redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
 
-    if outfile and not outfile.lower().endswith('.curl'):
+    if outfile and not outfile.lower().endswith(".curl"):
         typer.echo(f"[EXPORT] Outfile must end with '.curl': {outfile}")
         raise typer.Exit(code=2)
 
     from pathlib import Path as _Path
+
     for f in files:
         cases, _meta = load_yaml_file(_Path(f))
         if case_name:
@@ -882,9 +1070,9 @@ def export_curl(
             idxs = parse_steps_spec(steps, len(c.steps))
             for j, idx in enumerate(idxs, start=1):
                 if with_comments:
-                    cname = c.config.name or 'Unnamed'
-                    sname = c.steps[idx].name or f"Step {idx+1}"
-                    out_lines.append(f"# Case: {cname} | Step {idx+1}: {sname}")
+                    cname = c.config.name or "Unnamed"
+                    sname = c.steps[idx].name or f"Step {idx + 1}"
+                    out_lines.append(f"# Case: {cname} | Step {idx + 1}: {sname}")
                     # Add placeholder annotations such as $token or ${...}
                     if step_placeholders:
                         vars_set, exprs_set = step_placeholders(c, idx)
@@ -892,7 +1080,16 @@ def export_curl(
                             out_lines.append("# Vars: " + " ".join(sorted(vars_set)))
                         if exprs_set:
                             out_lines.append("# Exprs: " + " ".join(sorted(exprs_set)))
-                out_lines.append(step_to_curl(c, idx, multiline=multiline, shell=shell, redact=redact_list, envmap=env_store))
+                out_lines.append(
+                    step_to_curl(
+                        c,
+                        idx,
+                        multiline=multiline,
+                        shell=shell,
+                        redact=redact_list,
+                        envmap=env_store,
+                    )
+                )
 
     output = "\n\n".join(out_lines)
     if outfile:
@@ -902,13 +1099,14 @@ def export_curl(
         typer.echo(f"[EXPORT] Wrote {len(out_lines)} curl commands to {outfile}")
     else:
         typer.echo(output)
+
+
 @app.command("tags")
 def list_tags(
     path: str = typer.Argument("testcases", help="要扫描的文件或目录"),
 ) -> None:
     """列出所有测试用例使用的标签"""
     run_tags(path)
-
 
 
 def _run_impl(
@@ -1040,12 +1238,18 @@ def _quick_parse_validate_expr(expr: str) -> tuple[str, str, Any]:
         i = rest.find(op)
         if i < 0:
             continue
-        if pos is None or i < pos or (i == pos and op_found and len(op) > len(op_found)):
+        if (
+            pos is None
+            or i < pos
+            or (i == pos and op_found and len(op) > len(op_found))
+        ):
             pos = i
             op_found = op
 
     if pos is None or op_found is None:
-        raise ValueError("Validate expression must contain one of: !=, >=, <=, ==, >, <, =")
+        raise ValueError(
+            "Validate expression must contain one of: !=, >=, <=, ==, >, <, ="
+        )
 
     check = rest[:pos].strip()
     expect_str = rest[pos + len(op_found) :].strip()
@@ -1091,16 +1295,32 @@ def _quick_truncate(text: str, max_chars: int) -> tuple[str, bool]:
 def quick(
     url: str = typer.Argument(..., help="请求 URL（必须以 http:// 或 https:// 开头）"),
     method: str = typer.Option("GET", "-X", "--method", help="HTTP 方法"),
-    header: List[str] = typer.Option([], "-H", "--header", help="请求头（可多次），格式: 'Key: Value'"),
-    param: List[str] = typer.Option([], "-p", "--param", help="Query 参数（可多次），格式: k=v"),
-    data: Optional[str] = typer.Option(None, "-d", "--data", help="请求体字符串（自动尝试按 JSON 解析）"),
-    data_file: Optional[str] = typer.Option(None, "--data-file", help="从文件读取请求体（推荐 Windows）"),
+    header: List[str] = typer.Option(
+        [], "-H", "--header", help="请求头（可多次），格式: 'Key: Value'"
+    ),
+    param: List[str] = typer.Option(
+        [], "-p", "--param", help="Query 参数（可多次），格式: k=v"
+    ),
+    data: Optional[str] = typer.Option(
+        None, "-d", "--data", help="请求体字符串（自动尝试按 JSON 解析）"
+    ),
+    data_file: Optional[str] = typer.Option(
+        None, "--data-file", help="从文件读取请求体（推荐 Windows）"
+    ),
     validate: List[str] = typer.Option([], "--validate", help="断言表达式（可多次）"),
-    extract: List[str] = typer.Option([], "--extract", help="提取变量（可多次），格式: name=$expr"),
+    extract: List[str] = typer.Option(
+        [], "--extract", help="提取变量（可多次），格式: name=$expr"
+    ),
     max_body: int = typer.Option(2048, "--max-body", help="终端输出 body 最大字符数"),
-    output: Optional[str] = typer.Option(None, "-o", "--output", help="保存完整响应体到文件"),
-    save_yaml: Optional[str] = typer.Option(None, "--save-yaml", help="转存为 YAML 用例（建议配合 --mask-secrets）"),
-    verbose: bool = typer.Option(False, "-v", "--verbose", help="输出请求/响应头等详细信息"),
+    output: Optional[str] = typer.Option(
+        None, "-o", "--output", help="保存完整响应体到文件"
+    ),
+    save_yaml: Optional[str] = typer.Option(
+        None, "--save-yaml", help="转存为 YAML 用例（建议配合 --mask-secrets）"
+    ),
+    verbose: bool = typer.Option(
+        False, "-v", "--verbose", help="输出请求/响应头等详细信息"
+    ),
     reveal_secrets: bool = typer.Option(
         True,
         "--reveal-secrets/--mask-secrets",
@@ -1122,7 +1342,9 @@ def quick(
     from drun.utils.mask import mask_body, mask_headers
 
     raw_url = (url or "").strip()
-    if not (raw_url.lower().startswith("http://") or raw_url.lower().startswith("https://")):
+    if not (
+        raw_url.lower().startswith("http://") or raw_url.lower().startswith("https://")
+    ):
         typer.echo("[ERROR] url must start with http:// or https://")
         raise typer.Exit(code=2)
 
@@ -1160,10 +1382,16 @@ def quick(
             raise typer.Exit(code=2)
 
         if comp not in OPS:
-            typer.echo(f"[ERROR] Invalid --validate '{rule}': unknown comparator '{comp}'")
+            typer.echo(
+                f"[ERROR] Invalid --validate '{rule}': unknown comparator '{comp}'"
+            )
             raise typer.Exit(code=2)
 
-        if not (check == "status_code" or check.startswith("headers.") or check.strip().startswith("$")):
+        if not (
+            check == "status_code"
+            or check.startswith("headers.")
+            or check.strip().startswith("$")
+        ):
             typer.echo(
                 f"[ERROR] Unsupported validate check: {check!r} (use status_code, headers.<name>, or $expr)"
             )
@@ -1187,7 +1415,9 @@ def quick(
             typer.echo(f"[ERROR] Invalid --extract '{item}' (expected name=$expr)")
             raise typer.Exit(code=2)
         if not expr.startswith("$"):
-            typer.echo(f"[ERROR] Unsupported extract expr: {expr!r} (must start with '$')")
+            typer.echo(
+                f"[ERROR] Unsupported extract expr: {expr!r} (must start with '$')"
+            )
             raise typer.Exit(code=2)
         parsed_extracts.append((name, expr))
 
@@ -1213,7 +1443,9 @@ def quick(
 
     if body_raw is not None:
         stripped = body_raw.lstrip()
-        should_try_json = bool(content_type and "json" in content_type.lower()) or stripped.startswith(("{", "["))
+        should_try_json = bool(
+            content_type and "json" in content_type.lower()
+        ) or stripped.startswith(("{", "["))
         if should_try_json:
             try:
                 json_body = json.loads(body_raw)
@@ -1284,7 +1516,12 @@ def quick(
             typer.echo(_quick_format_body(out_headers_req))
         if json_body is not None:
             typer.echo("Request body:")
-            preview, truncated = _quick_truncate(_quick_format_body(json_body if reveal_secrets else mask_body(json_body)), max_body)
+            preview, truncated = _quick_truncate(
+                _quick_format_body(
+                    json_body if reveal_secrets else mask_body(json_body)
+                ),
+                max_body,
+            )
             typer.echo(preview)
             if truncated:
                 typer.echo("... (truncated)")
@@ -1311,9 +1548,14 @@ def quick(
             out_path = Path(output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
             if isinstance(out_body, (dict, list)):
-                out_path.write_text(json.dumps(out_body, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                out_path.write_text(
+                    json.dumps(out_body, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
             else:
-                out_path.write_text(("" if out_body is None else str(out_body)) + "\n", encoding="utf-8")
+                out_path.write_text(
+                    ("" if out_body is None else str(out_body)) + "\n", encoding="utf-8"
+                )
         except Exception as e:
             typer.echo(f"[ERROR] Failed to write output file '{output}': {e}")
             raise typer.Exit(code=2)
@@ -1334,7 +1576,9 @@ def quick(
             typer.echo(f"Validate: {check} {comp} {expect!r} -> PASS")
         else:
             any_failed = True
-            typer.echo(f"Validate: {check} {comp} {expect!r} -> FAIL (actual={actual!r})")
+            typer.echo(
+                f"Validate: {check} {comp} {expect!r} -> FAIL (actual={actual!r})"
+            )
 
     extracted: dict[str, Any] = {}
     for name, expr in parsed_extracts:
@@ -1426,43 +1670,109 @@ def quick(
 @app.command("r", hidden=True)
 def r(
     path: str = typer.Argument(..., help="要运行的文件或目录"),
-    k: Optional[str] = typer.Option(None, "-k", help="标签过滤表达式（支持 and/or/not）"),
+    k: Optional[str] = typer.Option(
+        None, "-k", help="标签过滤表达式（支持 and/or/not）"
+    ),
     vars: List[str] = typer.Option([], "--vars", help="变量覆盖 k=v（可重复）"),
     failfast: bool = typer.Option(False, "--failfast", help="遇到第一个失败时停止"),
     report: Optional[str] = typer.Option(None, "--report", help="输出 JSON 报告到文件"),
-    html: Optional[str] = typer.Option(None, "--html", help="输出 HTML 报告到文件（脚手架项目默认 reports/report-<timestamp>.html；临时单文件运行默认不生成）"),
-    allure_results: Optional[str] = typer.Option(None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"),
+    html: Optional[str] = typer.Option(
+        None,
+        "--html",
+        help="输出 HTML 报告到文件（脚手架项目默认 reports/report-<timestamp>.html；临时单文件运行默认不生成）",
+    ),
+    allure_results: Optional[str] = typer.Option(
+        None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"
+    ),
     log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
-    env: Optional[str] = typer.Option(None, "--env", help="环境名称（如: dev, uat, prod），优先加载 .env.<name> 并合并命名环境配置"),
-    env_file: Optional[str] = typer.Option(None, "--env-file", help="显式指定环境文件路径（支持任意文件名；优先级高于 --env 与默认 .env）"),
-    persist_env: Optional[str] = typer.Option(None, "--persist-env", help="指定提取变量的持久化文件（默认：.env.<env> 文件）"),
-    log_file: Optional[str] = typer.Option(None, "--log-file", help="输出控制台日志到文件（脚手架项目默认 logs/run-<ts>.log；临时单文件运行默认在当前目录生成一个日志文件）"),
-    httpx_logs: bool = typer.Option(False, "--httpx-logs/--no-httpx-logs", help="显示 httpx 内部请求日志", show_default=False),
-    reveal_secrets: bool = typer.Option(True, "--reveal-secrets/--mask-secrets", help="在日志和报告中显示敏感字段明文（password、tokens）", show_default=True),
+    env: Optional[str] = typer.Option(
+        None,
+        "--env",
+        help="环境名称（如: dev, uat, prod），优先加载 .env.<name> 并合并命名环境配置",
+    ),
+    env_file: Optional[str] = typer.Option(
+        None,
+        "--env-file",
+        help="显式指定环境文件路径（支持任意文件名；优先级高于 --env 与默认 .env）",
+    ),
+    persist_env: Optional[str] = typer.Option(
+        None, "--persist-env", help="指定提取变量的持久化文件（默认：.env.<env> 文件）"
+    ),
+    log_file: Optional[str] = typer.Option(
+        None,
+        "--log-file",
+        help="输出控制台日志到文件（脚手架项目默认 logs/run-<ts>.log；临时单文件运行默认在当前目录生成一个日志文件）",
+    ),
+    httpx_logs: bool = typer.Option(
+        False,
+        "--httpx-logs/--no-httpx-logs",
+        help="显示 httpx 内部请求日志",
+        show_default=False,
+    ),
+    reveal_secrets: bool = typer.Option(
+        True,
+        "--reveal-secrets/--mask-secrets",
+        help="在日志和报告中显示敏感字段明文（password、tokens）",
+        show_default=True,
+    ),
     response_headers: bool = typer.Option(
         False,
         "--response-headers/--no-response-headers",
         help="记录 HTTP 响应头（默认关闭）",
         show_default=False,
     ),
-    notify: Optional[str] = typer.Option(None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"),
+    notify: Optional[str] = typer.Option(
+        None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"
+    ),
     notify_only: Optional[str] = typer.Option(
         None,
         "--notify-only",
         help="通知策略：failed|always（默认 $DRUN_NOTIFY_ONLY 或 'failed'）",
         show_default=False,
     ),
-    notify_attach_html: bool = typer.Option(False, "--notify-attach-html/--no-notify-attach-html", help="在邮件中附加 HTML 报告（如果启用邮件）", show_default=False),
-    no_snippet: bool = typer.Option(False, "--no-snippet", help="禁用代码片段生成（脚手架项目默认会自动生成到 snippets/；临时单文件运行默认关闭）"),
-    snippet_output: Optional[str] = typer.Option(None, "--snippet-output", help="自定义代码片段输出目录（显式指定时始终按该目录生成）"),
-    snippet_lang: str = typer.Option("all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"),
+    notify_attach_html: bool = typer.Option(
+        False,
+        "--notify-attach-html/--no-notify-attach-html",
+        help="在邮件中附加 HTML 报告（如果启用邮件）",
+        show_default=False,
+    ),
+    no_snippet: bool = typer.Option(
+        False,
+        "--no-snippet",
+        help="禁用代码片段生成（脚手架项目默认会自动生成到 snippets/；临时单文件运行默认关闭）",
+    ),
+    snippet_output: Optional[str] = typer.Option(
+        None,
+        "--snippet-output",
+        help="自定义代码片段输出目录（显式指定时始终按该目录生成）",
+    ),
+    snippet_lang: str = typer.Option(
+        "all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"
+    ),
 ):
     """Run test cases or suites."""
     return _run_impl(
-        path, k, vars, failfast, report, html, allure_results,
-        log_level, env, env_file, persist_env, log_file, httpx_logs,
-        reveal_secrets, response_headers, notify, notify_only,
-        notify_attach_html, no_snippet, snippet_output, snippet_lang,
+        path,
+        k,
+        vars,
+        failfast,
+        report,
+        html,
+        allure_results,
+        log_level,
+        env,
+        env_file,
+        persist_env,
+        log_file,
+        httpx_logs,
+        reveal_secrets,
+        response_headers,
+        notify,
+        notify_only,
+        notify_attach_html,
+        no_snippet,
+        snippet_output,
+        snippet_lang,
     )
 
 
@@ -1483,9 +1793,17 @@ def check(
 
 @app.command("fix")
 def fix(
-    paths: List[str] = typer.Argument(..., help="要修复的文件或目录（移动 hooks 到 config.* / 步骤间距）", metavar="PATH..."),
-    only_spacing: bool = typer.Option(False, "--only-spacing", help="仅修复步骤间距（不移动 hooks）"),
-    only_hooks: bool = typer.Option(False, "--only-hooks", help="仅移动 hooks 到 config.*（不修改间距）"),
+    paths: List[str] = typer.Argument(
+        ...,
+        help="要修复的文件或目录（移动 hooks 到 config.* / 步骤间距）",
+        metavar="PATH...",
+    ),
+    only_spacing: bool = typer.Option(
+        False, "--only-spacing", help="仅修复步骤间距（不移动 hooks）"
+    ),
+    only_hooks: bool = typer.Option(
+        False, "--only-hooks", help="仅移动 hooks 到 config.*（不修改间距）"
+    ),
 ):
     """自动修复 YAML 文件的格式和结构
 
@@ -1494,11 +1812,16 @@ def fix(
     """
     run_fix(paths=paths, only_spacing=only_spacing, only_hooks=only_hooks)
 
+
 @app.command("init")
 def init_project(
-    name: Optional[str] = typer.Argument(None, help="Project name (default: current directory)"),
+    name: Optional[str] = typer.Argument(
+        None, help="Project name (default: current directory)"
+    ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing files"),
-    ci: bool = typer.Option(False, "--ci", help="Generate CI workflow (GitHub Actions)"),
+    ci: bool = typer.Option(
+        False, "--ci", help="Generate CI workflow (GitHub Actions)"
+    ),
 ) -> None:
     """Initialize Drun test project scaffold.
 
@@ -1509,7 +1832,7 @@ def init_project(
         drun init --ci               # Include GitHub Actions workflow
     """
     from drun import scaffolds
-    
+
     # Display version
     typer.echo(f"Drun v{_get_drun_version()}")
 
@@ -1523,13 +1846,19 @@ def init_project(
         target_dir = Path.cwd()
 
     # 检查是否已存在关键文件
-    key_files = ["testcases", ".env", "drun_hooks.py", ".gitignore"]
+    key_files = ["testcases", ".env", "Dhook.py", ".gitignore"]
     existing_files = [f for f in key_files if (target_dir / f).exists()]
 
     if existing_files and not force:
-        typer.echo(f"[WARNING] Directory already contains Drun project files: {', '.join(existing_files)}")
-        typer.echo("Use --force to overwrite existing files. Existing files will be kept otherwise.")
-        if not typer.confirm("Continue without overwriting existing files?", default=False):
+        typer.echo(
+            f"[WARNING] Directory already contains Drun project files: {', '.join(existing_files)}"
+        )
+        typer.echo(
+            "Use --force to overwrite existing files. Existing files will be kept otherwise."
+        )
+        if not typer.confirm(
+            "Continue without overwriting existing files?", default=False
+        ):
             raise typer.Exit(code=0)
 
     # 开始创建项目
@@ -1593,12 +1922,14 @@ def init_project(
 
     # Config files
     _write_template(".env", scaffolds.ENV_TEMPLATE)
-    _write_template("drun_hooks.py", scaffolds.HOOKS_TEMPLATE)
+    _write_template("Dhook.py", scaffolds.HOOKS_TEMPLATE)
     _write_template(".gitignore", scaffolds.GITIGNORE_TEMPLATE)
 
     # CI workflow (optional)
     if ci:
-        _write_template(".github/workflows/test.yml", scaffolds.GITHUB_WORKFLOW_TEMPLATE)
+        _write_template(
+            ".github/workflows/test.yml", scaffolds.GITHUB_WORKFLOW_TEMPLATE
+        )
 
     # Output file tree
     project_name = name if name else "."
@@ -1620,16 +1951,20 @@ def init_project(
     ]
 
     if ci:
-        tree_entries.extend([
-            ("├── ", ".github/workflows/", ""),
-            ("│   └── ", "test.yml", "CI workflow"),
-        ])
+        tree_entries.extend(
+            [
+                ("├── ", ".github/workflows/", ""),
+                ("│   └── ", "test.yml", "CI workflow"),
+            ]
+        )
 
-    tree_entries.extend([
-        ("├── ", ".env", "Environment config"),
-        ("├── ", "drun_hooks.py", "Custom hooks"),
-        ("└── ", ".gitignore", "Git ignore"),
-    ])
+    tree_entries.extend(
+        [
+            ("├── ", ".env", "Environment config"),
+            ("├── ", "Dhook.py", "Custom hooks"),
+            ("└── ", ".gitignore", "Git ignore"),
+        ]
+    )
 
     pad = max(len(prefix + entry) for prefix, entry, desc in tree_entries if desc) + 4
 
@@ -1676,22 +2011,42 @@ def convert_openapi(
     outfile: Optional[str] = typer.Option(None, "--outfile", help="输出文件路径"),
     case_name: Optional[str] = typer.Option(None, "--case-name", help="用例名称"),
     base_url: Optional[str] = typer.Option(None, "--base-url", help="基础 URL"),
-    tags: Optional[str] = typer.Option(None, "--tags", help="逗号分隔的标签列表（区分大小写）"),
-    split_output: bool = typer.Option(False, "--split-output/--single-output", help="每个操作生成一个 YAML 文件"),
-    redact: Optional[str] = typer.Option(None, "--redact", help="逗号分隔的需要脱敏的请求头名称，如 Authorization,Cookie"),
-    placeholders: bool = typer.Option(False, "--placeholders/--no-placeholders", help="将敏感请求头替换为 $变量 并保存到 config.variables"),
+    tags: Optional[str] = typer.Option(
+        None, "--tags", help="逗号分隔的标签列表（区分大小写）"
+    ),
+    split_output: bool = typer.Option(
+        False, "--split-output/--single-output", help="每个操作生成一个 YAML 文件"
+    ),
+    redact: Optional[str] = typer.Option(
+        None, "--redact", help="逗号分隔的需要脱敏的请求头名称，如 Authorization,Cookie"
+    ),
+    placeholders: bool = typer.Option(
+        False,
+        "--placeholders/--no-placeholders",
+        help="将敏感请求头替换为 $变量 并保存到 config.variables",
+    ),
 ) -> None:
     """转换 OpenAPI 规范到 YAML 测试用例"""
     parse_openapi = _require_importer("openapi")
     text = Path(spec).read_text(encoding="utf-8")
-    tag_list = [t.strip() for t in (tags or '').split(',') if t.strip()]
-    icase = parse_openapi(text, case_name=case_name, base_url=base_url, tags=tag_list or None)
+    tag_list = [t.strip() for t in (tags or "").split(",") if t.strip()]
+    icase = parse_openapi(
+        text, case_name=case_name, base_url=base_url, tags=tag_list or None
+    )
     if not icase.steps:
         typer.echo("[CONVERT] No operations detected in OpenAPI spec.")
         return
     cases = _build_cases_from_import(icase, split_output=split_output)
-    redact_list = [x.strip() for x in (redact or '').split(',') if x.strip()]
-    cases = [(_apply_convert_filters(case, redact_headers=redact_list, placeholders=placeholders), idx) for case, idx in cases]
+    redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
+    cases = [
+        (
+            _apply_convert_filters(
+                case, redact_headers=redact_list, placeholders=placeholders
+            ),
+            idx,
+        )
+        for case, idx in cases
+    ]
     _write_imported_cases(
         cases,
         outfile=outfile,
@@ -1705,9 +2060,13 @@ def convert_openapi(
 @app.command("s", hidden=True)
 def serve_reports(
     port: int = typer.Option(8080, "--port", help="监听端口"),
-    host: str = typer.Option("0.0.0.0", "--host", help="监听地址 (0.0.0.0 允许外部访问)"),
+    host: str = typer.Option(
+        "0.0.0.0", "--host", help="监听地址 (0.0.0.0 允许外部访问)"
+    ),
     reports_dir: str = typer.Option("reports", "--reports-dir", help="报告目录路径"),
-    reload: bool = typer.Option(False, "--reload/--no-reload", help="开发模式（热重载）"),
+    reload: bool = typer.Option(
+        False, "--reload/--no-reload", help="开发模式（热重载）"
+    ),
     open_browser: bool = typer.Option(True, "--open/--no-open", help="自动打开浏览器"),
 ):
     """启动 Web Server 查看测试报告"""
@@ -1719,17 +2078,17 @@ def serve_reports(
         typer.echo("[ERROR] FastAPI and uvicorn are required for the serve command.")
         typer.echo("Install them with: pip install fastapi uvicorn")
         raise typer.Exit(code=1)
-    
+
     # Convert to absolute path and ensure directory exists
     reports_path = Path(reports_dir).resolve()
     if not reports_path.exists():
         typer.echo(f"[WARN] Reports directory not found: {reports_dir}")
         typer.echo(f"[INFO] Creating directory: {reports_dir}")
         reports_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Pass absolute path to server via environment variable
     os.environ["DRUN_REPORTS_DIR"] = str(reports_path)
-    
+
     url = f"http://{host}:{port}"
     typer.echo(f"[SERVER] Starting Drun Report Server")
     typer.echo(f"[SERVER] Web UI: {url}")
@@ -1739,18 +2098,14 @@ def serve_reports(
     if host == "0.0.0.0":
         typer.echo(f"[SERVER] ⚠️  Server is accessible from public network")
     typer.echo(f"[SERVER] Press Ctrl+C to stop")
-    
+
     if open_browser and not reload and host in ["127.0.0.1", "localhost"]:
         # Open browser after a short delay (only for local access)
         threading.Timer(1.5, lambda: webbrowser.open(url)).start()
-    
+
     try:
         uvicorn.run(
-            "drun.server.app:app",
-            host=host,
-            port=port,
-            reload=reload,
-            log_level="info"
+            "drun.server.app:app", host=host, port=port, reload=reload, log_level="info"
         )
     except KeyboardInterrupt:
         typer.echo("\n[SERVER] Stopped")

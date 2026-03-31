@@ -103,7 +103,7 @@ my-api-test/
 ├── logs/                       # Log file output
 ├── snippets/                   # Auto-generated code snippets
 ├── .env                        # Environment variables
-├── drun_hooks.py               # Custom Hooks functions
+├── Dhook.py               # Custom Hooks functions
 └── .gitignore                  # Git ignore rules
 ```
 
@@ -462,7 +462,7 @@ $ drun run test_api --env dev --snippet-output exports/
 
 ### Custom Hooks
 
-**drun_hooks.py**
+**Dhook.py**
 ```python
 import hmac
 import hashlib
@@ -852,7 +852,7 @@ my-api-test/
 │   ├── staging.yaml
 │   └── prod.yaml
 ├── .env                        # Local environment
-├── drun_hooks.py               # Custom functions
+├── Dhook.py               # Custom functions
 ├── .gitignore                  # Exclude .env, logs, reports
 └── README.md
 ```
@@ -1093,7 +1093,7 @@ steps:
 
 ### Database Assertions
 
-**drun_hooks.py:**
+**Dhook.py:**
 ```python
 import pymysql
 
@@ -1158,13 +1158,14 @@ steps:
 git clone https://github.com/Devliang24/drun.git
 cd drun
 
-# Install development dependencies
+# Install development dependencies (includes pytest)
 pip install -e ".[dev]"
 
 # Validation commands for the current P0 baseline
 drun --version
 drun run --help
 drun server --help
+python -m pytest -q
 python -m build
 python -m drun.cli --version
 ```

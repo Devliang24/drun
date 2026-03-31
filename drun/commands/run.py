@@ -13,7 +13,11 @@ import typer
 from drun.loader.collector import discover, match_tags
 from drun.loader.env import load_environment
 from drun.loader.hooks import get_functions_for
-from drun.loader.yaml_loader import expand_parameters, format_variables_multiline, load_yaml_file
+from drun.loader.yaml_loader import (
+    expand_parameters,
+    format_variables_multiline,
+    load_yaml_file,
+)
 from drun.models.case import Case
 from drun.models.report import NotifyResult, RunReport
 from drun.reporter.json_reporter import write_json
@@ -29,7 +33,7 @@ def _sanitize_filename_component(value: str, fallback: str) -> str:
     if not value:
         return fallback
     normalized = unicodedata.normalize("NFKC", value)
-    invalid_chars = {'<', '>', ':', '"', '/', '\\', '|', '?', '*'}
+    invalid_chars = {"<", ">", ":", '"', "/", "\\", "|", "?", "*"}
     cleaned_chars = []
     for ch in normalized:
         if ord(ch) < 32:
@@ -98,7 +102,9 @@ def _format_rate(passed: int, total: int) -> str:
 
 def _normalize_summary_rows(report: RunReport) -> List[Tuple[str, str]]:
     s = report.summary or {}
-    rows: List[Tuple[str, str]] = [("Duration", _format_duration_seconds(float(s.get("duration_ms", 0.0) or 0.0)))]
+    rows: List[Tuple[str, str]] = [
+        ("Duration", _format_duration_seconds(float(s.get("duration_ms", 0.0) or 0.0)))
+    ]
 
     total = int(s.get("total", 0) or 0)
     passed = int(s.get("passed", 0) or 0)
@@ -208,7 +214,7 @@ def _build_run_summary_text(report: RunReport) -> str:
 
 def _has_scaffold_markers(root: Path) -> bool:
     has_case_dirs = (root / "testcases").is_dir() or (root / "testsuites").is_dir()
-    has_project_files = (root / ".env").exists() or (root / "drun_hooks.py").exists()
+    has_project_files = (root / ".env").exists() or (root / "Dhook.py").exists()
     return has_case_dirs and has_project_files
 
 
@@ -226,7 +232,9 @@ def _find_scaffold_root(start: Path | None) -> Path | None:
     return None
 
 
-def _resolve_default_output_path(root: Path | None, relative_path: str, cwd: Path) -> str:
+def _resolve_default_output_path(
+    root: Path | None, relative_path: str, cwd: Path
+) -> str:
     if root is None or root.resolve() == cwd.resolve():
         return relative_path
     return str((root / relative_path).resolve())
@@ -247,7 +255,11 @@ def _build_run_output_plan(
     current_dir = (cwd or Path.cwd()).resolve()
     raw_path = Path(path)
     is_directory_target = raw_path.exists() and raw_path.is_dir()
-    single_file_target = discovered_files[0].resolve() if (not is_directory_target and len(discovered_files) == 1) else None
+    single_file_target = (
+        discovered_files[0].resolve()
+        if (not is_directory_target and len(discovered_files) == 1)
+        else None
+    )
 
     search_start: Path | None = None
     if single_file_target is not None:
@@ -265,12 +277,11 @@ def _build_run_output_plan(
         "run",
     )
 
-    default_log_path = (
-        log_file
-        or (
-            f"{single_file_component}-{ts}.log"
-            if temporary_single_file
-            else _resolve_default_output_path(scaffold_root, f"logs/{log_component}-{ts}.log", current_dir)
+    default_log_path = log_file or (
+        f"{single_file_component}-{ts}.log"
+        if temporary_single_file
+        else _resolve_default_output_path(
+            scaffold_root, f"logs/{log_component}-{ts}.log", current_dir
         )
     )
     default_html_path = (
@@ -279,7 +290,9 @@ def _build_run_output_plan(
         else (
             None
             if temporary_single_file
-            else _resolve_default_output_path(scaffold_root, f"reports/{html_component}-{ts}.html", current_dir)
+            else _resolve_default_output_path(
+                scaffold_root, f"reports/{html_component}-{ts}.html", current_dir
+            )
         )
     )
 
@@ -290,7 +303,9 @@ def _build_run_output_plan(
             generate_snippets = True
         elif not temporary_single_file:
             generate_snippets = True
-            resolved_snippet_output = _resolve_default_output_path(scaffold_root, f"snippets/{ts}", current_dir)
+            resolved_snippet_output = _resolve_default_output_path(
+                scaffold_root, f"snippets/{ts}", current_dir
+            )
 
     return RunOutputPlan(
         single_file_target=single_file_target,
@@ -340,14 +355,18 @@ def _save_code_snippets(
 
             if "curl" in langs:
                 shell_file = target_dir / f"{file_prefix}_curl.sh"
-                content = generator.generate_shell_script_for_step(case, step_idx, len(case.steps), env_store)
+                content = generator.generate_shell_script_for_step(
+                    case, step_idx, len(case.steps), env_store
+                )
                 shell_file.write_text(content, encoding="utf-8")
                 shell_file.chmod(0o755)
                 saved_files.append(shell_file.name)
 
             if "python" in langs:
                 python_file = target_dir / f"{file_prefix}_python.py"
-                content = generator.generate_python_script_for_step(case, step_idx, len(case.steps), env_store)
+                content = generator.generate_python_script_for_step(
+                    case, step_idx, len(case.steps), env_store
+                )
                 python_file.write_text(content, encoding="utf-8")
                 python_file.chmod(0o755)
                 saved_files.append(python_file.name)
@@ -358,7 +377,9 @@ def _save_code_snippets(
             log.info("[SNIPPET] - %s", file)
 
 
-def _resolve_runtime_env_file(env: Optional[str], env_file: Optional[str]) -> Optional[Path]:
+def _resolve_runtime_env_file(
+    env: Optional[str], env_file: Optional[str]
+) -> Optional[Path]:
     cwd = Path.cwd()
 
     explicit_env_file: Optional[Path] = None
@@ -415,7 +436,9 @@ def run_cases(
 ) -> None:
     runtime_env_file = _resolve_runtime_env_file(env, env_file)
     if env is None and runtime_env_file is None:
-        typer.echo("[ERROR] Environment not found. Use --env, --env-file, or provide .env in current directory.")
+        typer.echo(
+            "[ERROR] Environment not found. Use --env, --env-file, or provide .env in current directory."
+        )
         typer.echo()
         typer.echo("Usage:")
         typer.echo("  drun run <path> --env <env_name>")
@@ -445,8 +468,12 @@ def run_cases(
     _httpx_logger.setLevel(_logging.INFO if httpx_logs else _logging.WARNING)
 
     env_label = env or "default"
-    env_file_label = str(runtime_env_file) if runtime_env_file is not None else "(OS env only)"
-    env_store = load_environment(env, str(runtime_env_file) if runtime_env_file is not None else None)
+    env_file_label = (
+        str(runtime_env_file) if runtime_env_file is not None else "(OS env only)"
+    )
+    env_store = load_environment(
+        env, str(runtime_env_file) if runtime_env_file is not None else None
+    )
     for env_key, env_val in env_store.items():
         if env_key and isinstance(env_val, str) and env_key.upper() == env_key:
             os.environ.setdefault(env_key, env_val)
@@ -462,7 +489,9 @@ def run_cases(
         pth = Path(path)
         hints: list[str] = []
         if not pth.exists():
-            hints.append("Path does not exist. Create it or use an existing directory/file.")
+            hints.append(
+                "Path does not exist. Create it or use an existing directory/file."
+            )
             if not pth.suffix:
                 for ext in (".yaml", ".yml"):
                     cand = pth.with_suffix(ext)
@@ -558,7 +587,11 @@ def run_cases(
             typer.echo(line)
         raise typer.Exit(code=2)
 
-    persist_file = persist_env or env_file or (str(runtime_env_file) if runtime_env_file is not None else ".env")
+    persist_file = (
+        persist_env
+        or env_file
+        or (str(runtime_env_file) if runtime_env_file is not None else ".env")
+    )
 
     runner = Runner(
         log=log,
@@ -570,7 +603,12 @@ def run_cases(
     )
     templater = TemplateEngine()
     instance_results = []
-    log.info("[RUN] Discovered files: %s | Matched cases: %s | Failfast=%s", len(files), len(items), failfast)
+    log.info(
+        "[RUN] Discovered files: %s | Matched cases: %s | Failfast=%s",
+        len(files),
+        len(items),
+        failfast,
+    )
 
     def _need_base_url(case: Case) -> bool:
         try:
@@ -598,9 +636,15 @@ def run_cases(
                 or env_store.get("base_url")
             ):
                 c.config.base_url = base
-            if c.config.base_url and ("{{" in c.config.base_url or "${" in c.config.base_url):
-                c.config.base_url = templater.render_value(c.config.base_url, global_vars, funcs, envmap=env_store)
-            if _need_base_url(c) and not (c.config.base_url and str(c.config.base_url).strip()):
+            if c.config.base_url and (
+                "{{" in c.config.base_url or "${" in c.config.base_url
+            ):
+                c.config.base_url = templater.render_value(
+                    c.config.base_url, global_vars, funcs, envmap=env_store
+                )
+            if _need_base_url(c) and not (
+                c.config.base_url and str(c.config.base_url).strip()
+            ):
                 env_hint_lines = []
                 if runtime_env_file is not None:
                     env_hint_lines = [
@@ -628,18 +672,38 @@ def run_cases(
                 log.info("[CONFIG] base_url: %s", c.config.base_url)
 
             if c.config.variables:
-                vars_str = format_variables_multiline(c.config.variables, "[CONFIG] variables: ")
+                vars_str = format_variables_multiline(
+                    c.config.variables, "[CONFIG] variables: "
+                )
                 log.info(vars_str)
 
-            res = runner.run_case(c, global_vars=global_vars, params=ps, funcs=funcs, envmap=env_store, source=meta.get("file"))
-            log.info("[CASE] Result: %s | status=%s | duration=%.1fms", res.name, res.status, res.duration_ms)
+            res = runner.run_case(
+                c,
+                global_vars=global_vars,
+                params=ps,
+                funcs=funcs,
+                envmap=env_store,
+                source=meta.get("file"),
+            )
+            log.info(
+                "[CASE] Result: %s | status=%s | duration=%.1fms",
+                res.name,
+                res.status,
+                res.duration_ms,
+            )
             instance_results.append(res)
             if failfast and res.status == "failed":
                 break
 
     report_obj: RunReport = runner.build_report(instance_results)
     s = report_obj.summary
-    log.info("[CASE] Total: %s Passed: %s Failed: %s Skipped: %s", s["total"], s.get("passed", 0), s.get("failed", 0), s.get("skipped", 0))
+    log.info(
+        "[CASE] Total: %s Passed: %s Failed: %s Skipped: %s",
+        s["total"],
+        s.get("passed", 0),
+        s.get("failed", 0),
+        s.get("skipped", 0),
+    )
     if "steps_total" in s:
         log.info(
             "[STEP] Total: %s Passed: %s Failed: %s Skipped: %s",
@@ -671,7 +735,12 @@ def run_cases(
             log.error("Failed to write Allure results: %s", e)
 
     try:
-        from drun.notifier import DingTalkNotifier, EmailNotifier, FeishuNotifier, NotifyContext
+        from drun.notifier import (
+            DingTalkNotifier,
+            EmailNotifier,
+            FeishuNotifier,
+            NotifyContext,
+        )
 
         env_channels = get_env_clean("DRUN_NOTIFY") or ""
         channels_spec = notify.strip() if (notify and notify.strip()) else env_channels
@@ -691,25 +760,45 @@ def run_cases(
             if smtp_host_env or mail_to_env:
                 auto_channels.append("email")
             if auto_channels:
-                log.info("[NOTIFY] Auto-enabling channels from environment: %s", ", ".join(auto_channels))
+                log.info(
+                    "[NOTIFY] Auto-enabling channels from environment: %s",
+                    ", ".join(auto_channels),
+                )
             channels = auto_channels
         seen = set()
         channels = [c for c in channels if not (c in seen or seen.add(c))]
-        policy_source = notify_only.strip() if (notify_only and notify_only.strip()) else get_env_clean("DRUN_NOTIFY_ONLY", "failed")
+        policy_source = (
+            notify_only.strip()
+            if (notify_only and notify_only.strip())
+            else get_env_clean("DRUN_NOTIFY_ONLY", "failed")
+        )
         policy = (policy_source or "failed").lower()
         topn_raw = get_env_clean("NOTIFY_TOPN", "5") or "5"
         topn = int(topn_raw)
 
         log.info("[NOTIFY] channels=%s policy=%s", channels, policy)
 
-        should_send = (policy == "always") or (policy == "failed" and (s.get("failed", 0) or 0) > 0)
-        log.info("[NOTIFY] should_send=%s (failed_count=%s)", should_send, s.get("failed", 0))
+        should_send = (policy == "always") or (
+            policy == "failed" and (s.get("failed", 0) or 0) > 0
+        )
+        log.info(
+            "[NOTIFY] should_send=%s (failed_count=%s)", should_send, s.get("failed", 0)
+        )
 
         if channels and should_send:
-            log.info("[NOTIFY] Preparing to send notifications to: %s", ", ".join(channels))
+            log.info(
+                "[NOTIFY] Preparing to send notifications to: %s", ", ".join(channels)
+            )
             if notify_attach_html and not html_target:
-                log.info("[NOTIFY] HTML attachment requested but no HTML report path is configured; pass --html to attach a report")
-            ctx = NotifyContext(html_path=html_target, log_path=default_log, notify_only=policy, topn=topn)
+                log.info(
+                    "[NOTIFY] HTML attachment requested but no HTML report path is configured; pass --html to attach a report"
+                )
+            ctx = NotifyContext(
+                html_path=html_target,
+                log_path=default_log,
+                notify_only=policy,
+                topn=topn,
+            )
             notifiers = []
 
             if "feishu" in channels:
@@ -718,10 +807,14 @@ def run_cases(
                     fs = get_env_clean("FEISHU_SECRET")
                     fm = get_env_clean("FEISHU_MENTION")
                     style = (get_env_clean("FEISHU_STYLE", "text") or "text").lower()
-                    notifiers.append(FeishuNotifier(webhook=fw, secret=fs, mentions=fm, style=style))
+                    notifiers.append(
+                        FeishuNotifier(webhook=fw, secret=fs, mentions=fm, style=style)
+                    )
                     log.info("[NOTIFY] Feishu notifier created (style=%s)", style)
                 else:
-                    log.warning("[NOTIFY] Feishu channel requested but FEISHU_WEBHOOK not configured")
+                    log.warning(
+                        "[NOTIFY] Feishu channel requested but FEISHU_WEBHOOK not configured"
+                    )
 
             if "email" in channels:
                 host = smtp_host_env or ""
@@ -734,12 +827,23 @@ def run_cases(
                             smtp_pass=get_env_clean("SMTP_PASS"),
                             mail_from=get_env_clean("MAIL_FROM"),
                             mail_to=mail_to_env,
-                            use_ssl=((get_env_clean("SMTP_SSL", "true") or "true").lower() != "false"),
+                            use_ssl=(
+                                (get_env_clean("SMTP_SSL", "true") or "true").lower()
+                                != "false"
+                            ),
                             attach_html=bool(
                                 notify_attach_html
-                                or ((get_env_clean("NOTIFY_ATTACH_HTML") or "").lower() in {"1", "true", "yes"})
+                                or (
+                                    (get_env_clean("NOTIFY_ATTACH_HTML") or "").lower()
+                                    in {"1", "true", "yes"}
+                                )
                             ),
-                            html_body=((get_env_clean("NOTIFY_HTML_BODY", "true") or "true").lower() != "false"),
+                            html_body=(
+                                (
+                                    get_env_clean("NOTIFY_HTML_BODY", "true") or "true"
+                                ).lower()
+                                != "false"
+                            ),
                         )
                     )
 
@@ -749,11 +853,25 @@ def run_cases(
                     ds = get_env_clean("DINGTALK_SECRET")
                     mobiles = get_env_clean("DINGTALK_AT_MOBILES") or ""
                     at_mobiles = [m.strip() for m in mobiles.split(",") if m.strip()]
-                    at_all = (get_env_clean("DINGTALK_AT_ALL") or "").lower() in {"1", "true", "yes"}
+                    at_all = (get_env_clean("DINGTALK_AT_ALL") or "").lower() in {
+                        "1",
+                        "true",
+                        "yes",
+                    }
                     style = (get_env_clean("DINGTALK_STYLE", "text") or "text").lower()
-                    notifiers.append(DingTalkNotifier(webhook=dw, secret=ds, at_mobiles=at_mobiles, at_all=at_all, style=style))
+                    notifiers.append(
+                        DingTalkNotifier(
+                            webhook=dw,
+                            secret=ds,
+                            at_mobiles=at_mobiles,
+                            at_all=at_all,
+                            style=style,
+                        )
+                    )
 
-            log.info("[NOTIFY] Sending notifications via %d notifier(s)", len(notifiers))
+            log.info(
+                "[NOTIFY] Sending notifications via %d notifier(s)", len(notifiers)
+            )
 
             notifier_channel_map = {
                 "FeishuNotifier": "feishu",
@@ -761,7 +879,12 @@ def run_cases(
                 "DingTalkNotifier": "dingtalk",
             }
 
-            active_channels = [notifier_channel_map.get(n.__class__.__name__, n.__class__.__name__.lower()) for n in notifiers]
+            active_channels = [
+                notifier_channel_map.get(
+                    n.__class__.__name__, n.__class__.__name__.lower()
+                )
+                for n in notifiers
+            ]
             for case in report_obj.cases:
                 case.notify_channels = active_channels.copy()
 
@@ -772,11 +895,19 @@ def run_cases(
                 try:
                     log.info("[NOTIFY] Sending via %s...", notifier_name)
                     n.send(report_obj, ctx)
-                    log.info("[NOTIFY] %s notification sent successfully", notifier_name)
-                    notify_results.append(NotifyResult(channel=channel, status="success"))
+                    log.info(
+                        "[NOTIFY] %s notification sent successfully", notifier_name
+                    )
+                    notify_results.append(
+                        NotifyResult(channel=channel, status="success")
+                    )
                 except Exception as e:
-                    log.error("[NOTIFY] Failed to send via %s: %s", notifier_name, str(e))
-                    notify_results.append(NotifyResult(channel=channel, status="failed"))
+                    log.error(
+                        "[NOTIFY] Failed to send via %s: %s", notifier_name, str(e)
+                    )
+                    notify_results.append(
+                        NotifyResult(channel=channel, status="failed")
+                    )
 
             for case in report_obj.cases:
                 case.notify_results = notify_results.copy()
@@ -791,7 +922,9 @@ def run_cases(
 
     if output_plan.generate_snippets and output_plan.snippet_output:
         try:
-            _save_code_snippets(items, output_plan.snippet_output, snippet_lang, env_store, log)
+            _save_code_snippets(
+                items, output_plan.snippet_output, snippet_lang, env_store, log
+            )
         except Exception as e:
             log.error("[SNIPPET] Failed to generate code snippets: %s", str(e))
 

@@ -281,7 +281,7 @@ API automation testing with [Drun](https://github.com/Devliang24/drun).
 ├── logs/                # Log file output
 ├── snippets/            # Auto-generated code snippets
 ├── .env                 # Environment variables
-├── drun_hooks.py        # Custom hooks
+├── Dhook.py           # Custom hooks
 └── .gitignore           # Git ignore rules
 ```
 
