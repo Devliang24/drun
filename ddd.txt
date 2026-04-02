@@ -1,0 +1,76 @@
+第一次技术分享
+分享主题：Drun接口自动化框架入门实战-从Postman到YAML的零代码迁移
+分享内容：
+第一部分：Drun框架核心功能解析
+为什么选择Drun框架：零代码YAML DSL vs 传统代码测试
+核心功能对比演示：Postman请求 vs Drun YAML用例（对比展示相同请求）
+环境变量管理：Drun多环境配置(.env.dev/.env.staging) vs Postman环境切换
+变量自动持久化：提取的变量自动保存到.env，无需手动管理
+断言机制：Drun 19种断言类型 vs Postman Tests脚本
+第二部分：Drun框架易用性实操
+项目初始化：drun init快速创建项目结构
+环境配置：多环境文件管理最佳实践
+第一个测试用例编写演示：YAML DSL语法详解
+如何组织测试用例结构：testcases/目录组织与命名规范
+参数化技巧：CSV数据驱动与模板变量(${uuid()}, ${fake_email()})
+依赖接口的处理：测试套件caseflow与变量链式传递
+第三部分：数据驱动测试实战
+CSV数据导入导出功能详解：批量测试与数据导出
+代码片段自动生成：Shell和Python脚本导出功能
+
+第二次技术分享
+分享主题：Drun接口自动化进阶-企业级集成与高级功能实战
+分享内容：
+第一部分：Drun框架复用策略
+多系统接口复用实践：
+抽象层设计：Dhook.py自定义函数封装系统共性逻辑
+配置化管理：一套Drun框架支持多个被测系统（.env.dev/.env.staging）
+测试用例复用：invoke嵌套调用实现用例模块化
+案例分享：现有X系统如何扩展到Y系统（环境配置切换）
+扩展性设计：自定义Hooks实现请求签名、数据清理等扩展
+第二部分：高级断言与数据验证
+数据库断言深入解析：MySQL集成实现接口响应 vs 数据库数据验证
+复杂断言场景：关联数据验证、跨表查询、性能断言($elapsed_ms)
+第三部分：格式转换工具实战
+格式转换工具实战：
+  - cURL转Drun：drun convert快速迁移现有接口
+  - Postman转Drun：批量导入Postman Collection
+  - OpenAPI转Drun：基于API文档自动生成测试用例
+  - HAR转Drun：浏览器录制转测试用例
+代码导出功能：drun export curl生成可执行脚本
+第四部分：企业级集成方案
+CI/CD版本管理与持续集成：
+测试代码版本控制策略：Git管理YAML用例与.env.example模板
+Jenkins Pipeline配置详解：drun命令集成与报告上传
+GitLab CI/CD自动化触发机制：push/MR触发测试执行
+报告与通知体系：
+HTML测试报告定制与解读：单文件报告、质量评分展示
+Web报告服务器：drun s启动实时报告查看界面
+钉钉/飞书通知集成：
+实时反馈测试结果：失败用例智能分析通知
+通知策略配置：--notify-only failed策略
+
+第三次技术分享
+分享主题：AI在测试中的应用入门——智能用例生成与Drun框架结合实战
+分享内容：
+第一部分：AI辅助测试基础概念
+AI在测试中的常见应用场景：用例生成、代码补全、问题诊断
+当前主流AI编程工具简介：Claude Code（VS Code扩展）
+如何选择合适的AI辅助工具：根据团队技术栈和需求选择
+第二部分：AI辅助Drun测试用例生成实战
+基于需求文档自动生成YAML用例：使用Claude Code生成Drun测试用例结构
+AI辅助编写测试脚本：
+  - Claude Code对话式生成Drun YAML用例
+  - Claude Code代码补全加速用例编写
+  - Claude Code智能提示Drun内置函数(${uuid()}, ${fake_email()})
+格式转换与用例迁移：
+  - 使用AI工具将Postman/cURL转换为Drun YAML格式
+  - AI辅助优化现有测试用例结构
+AI辅助测试数据生成：
+  - Drun内置Faker函数：${fake_name()}, ${fake_email()}, ${fake_phone_number()}
+  - AI生成复杂业务场景数据：结合业务规则生成测试数据
+  - CSV数据文件智能生成：批量测试数据准备
+第三部分：AI辅助测试分析与优化
+AI辅助测试报告分析：解读HTML报告，定位问题根因
+AI辅助用例优化建议：基于drun score结果优化测试用例质量
+AI辅助调试技巧：使用AI工具快速定位测试失败原因

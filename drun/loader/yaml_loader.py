@@ -229,6 +229,8 @@ def load_yaml_file(path: Path) -> Tuple[List[Case], Dict[str, Any]]:
                 "name": item.get("name", f"Step {idx + 1}"),
                 "invoke": invoke_path,
                 "variables": item.get("variables", {}),
+                "invoke_case_name": item.get("invoke_case_name"),
+                "invoke_case_names": item.get("invoke_case_names", []),
             }
             steps.append(Step.model_validate_obj(step_dict))
         

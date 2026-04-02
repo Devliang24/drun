@@ -1669,7 +1669,10 @@ def quick(
 @app.command("run")
 @app.command("r", hidden=True)
 def r(
-    path: str = typer.Argument(..., help="要运行的文件或目录"),
+    path: str = typer.Argument(
+        ...,
+        help="要运行的文件或目录（支持 <path>:<case_name> 或 <path>:<case1>,<case2> 精确筛选）",
+    ),
     k: Optional[str] = typer.Option(
         None, "-k", help="标签过滤表达式（支持 and/or/not）"
     ),

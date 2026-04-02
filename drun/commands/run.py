@@ -70,6 +70,44 @@ def _parse_kv(items: List[str]) -> Dict[str, str]:
     return out
 
 
+def _parse_run_target_with_case_selector(path: str) -> Tuple[str, List[str] | None]:
+    run_target = (path or "").strip()
+    if not run_target:
+        raise ValueError("Run path cannot be empty.")
+
+    if ":" not in run_target:
+        return run_target, None
+
+    target_path, selector_raw = run_target.rsplit(":", 1)
+    target_path = target_path.strip()
+    selector_raw = selector_raw.strip()
+    if not target_path:
+        raise ValueError("Invalid run target: missing file path before ':'.")
+    if not selector_raw:
+        raise ValueError(
+            "Invalid case selector: provide at least one case name after ':'."
+        )
+
+    selected_case_names: List[str] = []
+    seen_names: set[str] = set()
+    for raw_name in selector_raw.split(","):
+        case_name = raw_name.strip()
+        if not case_name:
+            raise ValueError(
+                "Invalid case selector: case names must be non-empty and comma-separated."
+            )
+        if case_name in seen_names:
+            continue
+        seen_names.add(case_name)
+        selected_case_names.append(case_name)
+
+    if not selected_case_names:
+        raise ValueError(
+            "Invalid case selector: provide at least one non-empty case name."
+        )
+    return target_path, selected_case_names
+
+
 def _sanitize_name(name: str) -> str:
     name = name.lower()
     name = name.replace(" ", "_")
@@ -434,6 +472,13 @@ def run_cases(
     snippet_output: Optional[str],
     snippet_lang: str,
 ) -> None:
+    input_path = path
+    try:
+        path, selected_case_names = _parse_run_target_with_case_selector(path)
+    except ValueError as exc:
+        typer.echo(f"[ERROR] {exc}")
+        raise typer.Exit(code=2)
+
     runtime_env_file = _resolve_runtime_env_file(env, env_file)
     if env is None and runtime_env_file is None:
         typer.echo(
@@ -564,9 +609,17 @@ def run_cases(
             env_file_label,
         )
     log.info("[FILTER] expression: %r", k)
+    if selected_case_names:
+        log.info(
+            "[FILTER] case names (path selector): %s",
+            ", ".join(selected_case_names),
+        )
 
     items: List[tuple[Case, Dict[str, str]]] = []
     debug_info: List[str] = []
+    selected_name_set = set(selected_case_names or [])
+    selected_hits: Dict[str, int] = {name: 0 for name in selected_case_names or []}
+    available_case_names: List[str] = []
     for f in files:
         try:
             loaded, meta = load_yaml_file(f)
@@ -575,11 +628,42 @@ def run_cases(
             raise typer.Exit(code=2)
         debug_info.append(f"file={f} cases={len(loaded)}")
         for c in loaded:
+            case_name = c.config.name or "Unnamed Case"
+            available_case_names.append(case_name)
+            if selected_case_names:
+                if case_name not in selected_name_set:
+                    continue
+                selected_hits[case_name] = selected_hits.get(case_name, 0) + 1
+
             tags = c.config.tags or []
             m = match_tags(tags, k)
-            debug_info.append(f"  case={c.config.name!r} tags={tags} match={m}")
+            debug_info.append(f"  case={case_name!r} tags={tags} match={m}")
             if m:
                 items.append((c, meta))
+
+    if selected_case_names:
+        missing_case_names = [
+            name for name in selected_case_names if selected_hits.get(name, 0) <= 0
+        ]
+        if missing_case_names:
+            requested_display = ", ".join(selected_case_names)
+            available_display = (
+                ", ".join(available_case_names) if available_case_names else "(none)"
+            )
+            error_message = (
+                "No matched case names for run target "
+                f"'{path}': requested=[{requested_display}] available=[{available_display}]"
+            )
+            log.error("[FILTER] %s", error_message)
+            typer.echo(f"[ERROR] {error_message}")
+            raise typer.Exit(code=2)
+
+        duplicate_names = [name for name, count in selected_hits.items() if count > 1]
+        if duplicate_names:
+            log.warning(
+                "[FILTER] Duplicate case names matched and all will run: %s",
+                ", ".join(duplicate_names),
+            )
 
     if not items:
         typer.echo("No cases matched tag expression.")
@@ -653,7 +737,7 @@ def run_cases(
                     ]
                 msg_lines = [
                     "[ERROR] base_url is required for cases using relative URLs.",
-                    f"        Case: {c.config.name or 'Unnamed'} | Source: {meta.get('file', path)}",
+                    f"        Case: {c.config.name or 'Unnamed'} | Source: {meta.get('file', input_path)}",
                     "        Provide base_url in one of the following ways:",
                     *env_hint_lines,
                     "          - Or pass CLI vars: --vars base_url=http://localhost:8000",

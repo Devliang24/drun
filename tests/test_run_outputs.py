@@ -13,6 +13,7 @@ from drun.commands.run import (
     _build_run_output_plan,
     _build_run_summary_text,
     _format_failed_cases_block,
+    _parse_run_target_with_case_selector,
     run_cases,
 )
 from drun.models.report import (
@@ -205,6 +206,32 @@ class SummaryFormattingTests(unittest.TestCase):
             "  reason: request.files.file path not found: ./data/demo.wav", text
         )
         self.assertIn("  reason: expected=200 actual=500", text)
+
+
+class RunPathCaseSelectorParseTests(unittest.TestCase):
+    def test_parse_single_case_selector(self) -> None:
+        target, selected = _parse_run_target_with_case_selector(
+            "test_channel_token_flow:获取渠道 token"
+        )
+        self.assertEqual(target, "test_channel_token_flow")
+        self.assertEqual(selected, ["获取渠道 token"])
+
+    def test_parse_multi_case_selector_deduplicates_names(self) -> None:
+        target, selected = _parse_run_target_with_case_selector(
+            "test_channel_token_flow:Case C, Case A,Case C, Case A "
+        )
+        self.assertEqual(target, "test_channel_token_flow")
+        self.assertEqual(selected, ["Case C", "Case A"])
+
+    def test_parse_case_selector_rejects_empty_names(self) -> None:
+        with self.assertRaises(ValueError):
+            _parse_run_target_with_case_selector("test_channel_token_flow:Case A,")
+
+        with self.assertRaises(ValueError):
+            _parse_run_target_with_case_selector("test_channel_token_flow: , ")
+
+        with self.assertRaises(ValueError):
+            _parse_run_target_with_case_selector("test_channel_token_flow:")
 
 
 class RunOutputPlanTests(unittest.TestCase):
@@ -582,6 +609,337 @@ steps:
             self.assertIn(
                 "  reason: request.files.file path not found: ./data/demo.wav", log_text
             )
+
+
+class _RecordingRunner(_StubRunner):
+    executed_case_names: list[str] = []
+
+    @classmethod
+    def reset(cls) -> None:
+        cls.executed_case_names = []
+
+    def run_case(self, case, **kwargs) -> CaseInstanceResult:
+        case_name = case.config.name or "Unnamed"
+        type(self).executed_case_names.append(case_name)
+        return super().run_case(case, **kwargs)
+
+
+class RunCaseSelectorExecutionTests(unittest.TestCase):
+    def test_run_cases_single_case_selector_runs_only_target_case(self) -> None:
+        with TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            testcases = project / "testcases"
+            testsuites = project / "testsuites"
+            testcases.mkdir(parents=True)
+            testsuites.mkdir()
+            (project / ".env").write_text(
+                "BASE_URL=http://localhost:8000\n", encoding="utf-8"
+            )
+            case_a = testcases / "test_case_a.yaml"
+            case_a.write_text(
+                """config:
+  name: Case A
+  base_url: http://example.com
+steps:
+  - name: Step A
+    request:
+      method: GET
+      path: /a
+""",
+                encoding="utf-8",
+            )
+            case_b = testcases / "test_case_b.yaml"
+            case_b.write_text(
+                """config:
+  name: Case B
+  base_url: http://example.com
+steps:
+  - name: Step B
+    request:
+      method: GET
+      path: /b
+""",
+                encoding="utf-8",
+            )
+
+            _RecordingRunner.reset()
+            old_cwd = os.getcwd()
+            os.chdir(project)
+            try:
+                with (
+                    patch("drun.commands.run.Runner", _RecordingRunner),
+                    patch("drun.commands.run.get_functions_for", return_value={}),
+                ):
+                    run_cases(
+                        path="testcases:Case B",
+                        k=None,
+                        vars=[],
+                        failfast=False,
+                        report=None,
+                        html=None,
+                        allure_results=None,
+                        log_level="WARNING",
+                        env=None,
+                        env_file=".env",
+                        persist_env=None,
+                        log_file=None,
+                        httpx_logs=False,
+                        reveal_secrets=True,
+                        response_headers=False,
+                        notify=None,
+                        notify_only=None,
+                        notify_attach_html=False,
+                        no_snippet=False,
+                        snippet_output=None,
+                        snippet_lang="all",
+                    )
+            finally:
+                os.chdir(old_cwd)
+                logging.shutdown()
+
+            self.assertEqual(_RecordingRunner.executed_case_names, ["Case B"])
+
+    def test_run_cases_multi_case_selector_runs_in_source_order(self) -> None:
+        with TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            testcases = project / "testcases"
+            testsuites = project / "testsuites"
+            testcases.mkdir(parents=True)
+            testsuites.mkdir()
+            (project / ".env").write_text(
+                "BASE_URL=http://localhost:8000\n", encoding="utf-8"
+            )
+            case_a = testcases / "test_case_a.yaml"
+            case_a.write_text(
+                """config:
+  name: Case A
+  base_url: http://example.com
+steps:
+  - name: Step A
+    request:
+      method: GET
+      path: /a
+""",
+                encoding="utf-8",
+            )
+            case_b = testcases / "test_case_b.yaml"
+            case_b.write_text(
+                """config:
+  name: Case B
+  base_url: http://example.com
+steps:
+  - name: Step B
+    request:
+      method: GET
+      path: /b
+""",
+                encoding="utf-8",
+            )
+            case_c = testcases / "test_case_c.yaml"
+            case_c.write_text(
+                """config:
+  name: Case C
+  base_url: http://example.com
+steps:
+  - name: Step C
+    request:
+      method: GET
+      path: /c
+""",
+                encoding="utf-8",
+            )
+
+            _RecordingRunner.reset()
+            old_cwd = os.getcwd()
+            os.chdir(project)
+            try:
+                with (
+                    patch("drun.commands.run.Runner", _RecordingRunner),
+                    patch("drun.commands.run.get_functions_for", return_value={}),
+                ):
+                    run_cases(
+                        path="testcases:Case C,Case A",
+                        k=None,
+                        vars=[],
+                        failfast=False,
+                        report=None,
+                        html=None,
+                        allure_results=None,
+                        log_level="WARNING",
+                        env=None,
+                        env_file=".env",
+                        persist_env=None,
+                        log_file=None,
+                        httpx_logs=False,
+                        reveal_secrets=True,
+                        response_headers=False,
+                        notify=None,
+                        notify_only=None,
+                        notify_attach_html=False,
+                        no_snippet=False,
+                        snippet_output=None,
+                        snippet_lang="all",
+                    )
+            finally:
+                os.chdir(old_cwd)
+                logging.shutdown()
+
+            self.assertEqual(_RecordingRunner.executed_case_names, ["Case A", "Case C"])
+
+    def test_run_cases_selector_matches_all_duplicate_case_names(self) -> None:
+        with TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            testcases = project / "testcases"
+            testsuites = project / "testsuites"
+            testcases.mkdir(parents=True)
+            testsuites.mkdir()
+            (project / ".env").write_text(
+                "BASE_URL=http://localhost:8000\n", encoding="utf-8"
+            )
+            case_a = testcases / "test_case_a.yaml"
+            case_a.write_text(
+                """config:
+  name: Case A
+  base_url: http://example.com
+steps:
+  - name: Step A
+    request:
+      method: GET
+      path: /a
+""",
+                encoding="utf-8",
+            )
+            case_a_dup = testcases / "test_case_a_dup.yaml"
+            case_a_dup.write_text(
+                """config:
+  name: Case A
+  base_url: http://example.com
+steps:
+  - name: Step A Dup
+    request:
+      method: GET
+      path: /a-dup
+""",
+                encoding="utf-8",
+            )
+
+            _RecordingRunner.reset()
+            old_cwd = os.getcwd()
+            os.chdir(project)
+            try:
+                with (
+                    patch("drun.commands.run.Runner", _RecordingRunner),
+                    patch("drun.commands.run.get_functions_for", return_value={}),
+                ):
+                    run_cases(
+                        path="testcases:Case A",
+                        k=None,
+                        vars=[],
+                        failfast=False,
+                        report=None,
+                        html=None,
+                        allure_results=None,
+                        log_level="WARNING",
+                        env=None,
+                        env_file=".env",
+                        persist_env=None,
+                        log_file=None,
+                        httpx_logs=False,
+                        reveal_secrets=True,
+                        response_headers=False,
+                        notify=None,
+                        notify_only=None,
+                        notify_attach_html=False,
+                        no_snippet=False,
+                        snippet_output=None,
+                        snippet_lang="all",
+                    )
+            finally:
+                os.chdir(old_cwd)
+                logging.shutdown()
+
+            self.assertEqual(_RecordingRunner.executed_case_names, ["Case A", "Case A"])
+
+    def test_run_cases_selector_no_match_fails_with_available_case_names(self) -> None:
+        with TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            testcases = project / "testcases"
+            testsuites = project / "testsuites"
+            testcases.mkdir(parents=True)
+            testsuites.mkdir()
+            (project / ".env").write_text(
+                "BASE_URL=http://localhost:8000\n", encoding="utf-8"
+            )
+            case_a = testcases / "test_case_a.yaml"
+            case_a.write_text(
+                """config:
+  name: Case A
+  base_url: http://example.com
+steps:
+  - name: Step A
+    request:
+      method: GET
+      path: /a
+""",
+                encoding="utf-8",
+            )
+            case_b = testcases / "test_case_b.yaml"
+            case_b.write_text(
+                """config:
+  name: Case B
+  base_url: http://example.com
+steps:
+  - name: Step B
+    request:
+      method: GET
+      path: /b
+""",
+                encoding="utf-8",
+            )
+
+            _RecordingRunner.reset()
+            old_cwd = os.getcwd()
+            os.chdir(project)
+            try:
+                with (
+                    patch("drun.commands.run.Runner", _RecordingRunner),
+                    patch("drun.commands.run.get_functions_for", return_value={}),
+                    patch("drun.commands.run.typer.echo") as echo_mock,
+                ):
+                    with self.assertRaises(typer.Exit) as ctx:
+                        run_cases(
+                            path="testcases:Case Z",
+                            k=None,
+                            vars=[],
+                            failfast=False,
+                            report=None,
+                            html=None,
+                            allure_results=None,
+                            log_level="WARNING",
+                            env=None,
+                            env_file=".env",
+                            persist_env=None,
+                            log_file=None,
+                            httpx_logs=False,
+                            reveal_secrets=True,
+                            response_headers=False,
+                            notify=None,
+                            notify_only=None,
+                            notify_attach_html=False,
+                            no_snippet=False,
+                            snippet_output=None,
+                            snippet_lang="all",
+                        )
+            finally:
+                os.chdir(old_cwd)
+                logging.shutdown()
+
+            self.assertEqual(ctx.exception.exit_code, 2)
+            emitted = "\n".join(
+                call.args[0] for call in echo_mock.call_args_list if call.args
+            )
+            self.assertIn("requested=[Case Z]", emitted)
+            self.assertIn("available=[Case A, Case B]", emitted)
 
 
 if __name__ == "__main__":

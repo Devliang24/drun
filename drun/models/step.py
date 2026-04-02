@@ -19,6 +19,8 @@ class Step(BaseModel):
     request: Optional[StepRequest] = None
     response: Optional[StepResponseConfig] = None
     invoke: Optional[str] = None
+    invoke_case_name: Optional[str] = None
+    invoke_case_names: List[str] = Field(default_factory=list)
     extract: Dict[str, str] = Field(default_factory=dict)
     export: Optional[Union[Dict[str, Any], List[str]]] = None
     validators: List[Validator] = Field(default_factory=list, alias="validate")
@@ -35,6 +37,31 @@ class Step(BaseModel):
             raise ValueError("Step cannot have both 'request' and 'invoke'. Use one or the other.")
         if self.request is None and self.invoke is None:
             raise ValueError("Step must have either 'request' or 'invoke'.")
+
+        has_single_case_selector = self.invoke_case_name is not None
+        has_multi_case_selector = bool(self.invoke_case_names)
+
+        if self.request is not None and (has_single_case_selector or has_multi_case_selector):
+            raise ValueError("Step with 'request' cannot use 'invoke_case_name' or 'invoke_case_names'.")
+        if has_single_case_selector and has_multi_case_selector:
+            raise ValueError("Use either 'invoke_case_name' or 'invoke_case_names', not both.")
+        if has_single_case_selector:
+            cleaned_name = self.invoke_case_name.strip() if isinstance(self.invoke_case_name, str) else ""
+            if not cleaned_name:
+                raise ValueError("'invoke_case_name' must be a non-empty string.")
+            self.invoke_case_name = cleaned_name
+        if self.invoke_case_names:
+            deduped_names: List[str] = []
+            seen: set[str] = set()
+            for name in self.invoke_case_names:
+                cleaned_name = name.strip() if isinstance(name, str) else ""
+                if not cleaned_name:
+                    raise ValueError("'invoke_case_names' entries must be non-empty strings.")
+                if cleaned_name in seen:
+                    continue
+                seen.add(cleaned_name)
+                deduped_names.append(cleaned_name)
+            self.invoke_case_names = deduped_names
         return self
 
     @classmethod
