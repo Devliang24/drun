@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sys
 from importlib import metadata as _im
 from pathlib import Path
@@ -101,6 +102,33 @@ def _get_drun_version() -> str:
 _APP_HELP = f"drun v{_get_drun_version()} · Zero-code HTTP API test framework"
 
 
+def _resolve_help_width() -> int:
+    columns_raw = os.environ.get("COLUMNS")
+    if columns_raw is not None:
+        try:
+            columns = int(columns_raw.strip())
+            if columns > 0:
+                return columns
+        except (TypeError, ValueError):
+            pass
+
+    try:
+        columns = shutil.get_terminal_size(fallback=(120, 24)).columns
+        if columns > 0:
+            return columns
+    except Exception:
+        pass
+
+    return 120
+
+
+_HELP_WIDTH = _resolve_help_width()
+_CLI_CONTEXT_SETTINGS = {
+    "terminal_width": _HELP_WIDTH,
+    "max_content_width": _HELP_WIDTH,
+}
+
+
 def _version_callback(value: bool):
     """Display version and exit."""
     if value:
@@ -108,8 +136,16 @@ def _version_callback(value: bool):
         raise typer.Exit()
 
 
-app = typer.Typer(add_completion=False, help=_APP_HELP, rich_markup_mode=None)
-export_app = typer.Typer(help="导出测试用例到其他格式")
+app = typer.Typer(
+    add_completion=False,
+    help=_APP_HELP,
+    rich_markup_mode=None,
+    context_settings=_CLI_CONTEXT_SETTINGS,
+)
+export_app = typer.Typer(
+    help="导出测试用例到其他格式",
+    context_settings=_CLI_CONTEXT_SETTINGS,
+)
 app.add_typer(export_app, name="export")
 
 
@@ -1294,38 +1330,38 @@ def _quick_truncate(text: str, max_chars: int) -> tuple[str, bool]:
 @app.command("q", hidden=True)
 def quick(
     url: str = typer.Argument(..., help="请求 URL（必须以 http:// 或 https:// 开头）"),
-    method: str = typer.Option("GET", "-X", "--method", help="HTTP 方法"),
+    method: str = typer.Option("GET", "-X", "-method", help="HTTP 方法"),
     header: List[str] = typer.Option(
-        [], "-H", "--header", help="请求头（可多次），格式: 'Key: Value'"
+        [], "-H", "-header", help="请求头（可多次），格式: 'Key: Value'"
     ),
     param: List[str] = typer.Option(
-        [], "-p", "--param", help="Query 参数（可多次），格式: k=v"
+        [], "-p", "-param", help="Query 参数（可多次），格式: k=v"
     ),
     data: Optional[str] = typer.Option(
-        None, "-d", "--data", help="请求体字符串（自动尝试按 JSON 解析）"
+        None, "-d", "-data", help="请求体字符串（自动尝试按 JSON 解析）"
     ),
     data_file: Optional[str] = typer.Option(
-        None, "--data-file", help="从文件读取请求体（推荐 Windows）"
+        None, "-data-file", help="从文件读取请求体（推荐 Windows）"
     ),
-    validate: List[str] = typer.Option([], "--validate", help="断言表达式（可多次）"),
+    validate: List[str] = typer.Option([], "-validate", help="断言表达式（可多次）"),
     extract: List[str] = typer.Option(
-        [], "--extract", help="提取变量（可多次），格式: name=$expr"
+        [], "-extract", help="提取变量（可多次），格式: name=$expr"
     ),
-    max_body: int = typer.Option(2048, "--max-body", help="终端输出 body 最大字符数"),
+    max_body: int = typer.Option(2048, "-max-body", help="终端输出 body 最大字符数"),
     output: Optional[str] = typer.Option(
-        None, "-o", "--output", help="保存完整响应体到文件"
+        None, "-o", "-output", help="保存完整响应体到文件"
     ),
     save_yaml: Optional[str] = typer.Option(
-        None, "--save-yaml", help="转存为 YAML 用例（建议配合 --mask-secrets）"
+        None, "-save-yaml", help="转存为 YAML 用例（建议配合 -secrets mask）"
     ),
     verbose: bool = typer.Option(
-        False, "-v", "--verbose", help="输出请求/响应头等详细信息"
+        False, "-v", "-verbose", help="输出请求/响应头等详细信息"
     ),
-    reveal_secrets: bool = typer.Option(
-        True,
-        "--reveal-secrets/--mask-secrets",
-        help="在输出/转存中显示敏感字段明文（Authorization/token/password）",
-        show_default=True,
+    secrets: str = typer.Option(
+        "plain",
+        "-secrets",
+        help="敏感信息模式 plain|mask。例: -secrets mask",
+        metavar="",
     ),
 ) -> None:
     """快速调试：直接执行 HTTP 请求（httpie 风格），无需 YAML 和环境文件。
@@ -1333,6 +1369,11 @@ def quick(
     默认输出：Status + Body（截断）。
     退出码：0=通过，1=断言失败，2=参数或请求错误。
     """
+    secrets_mode = (secrets or "plain").strip().lower()
+    if secrets_mode not in {"plain", "mask"}:
+        typer.echo("[ERROR] Invalid -secrets value. Use 'plain' or 'mask'.")
+        raise typer.Exit(code=2)
+    resolved_reveal_secrets = secrets_mode == "plain"
 
     from http import HTTPStatus
     from urllib.parse import urlsplit, urlunsplit, parse_qsl
@@ -1349,7 +1390,7 @@ def quick(
         raise typer.Exit(code=2)
 
     if data is not None and data_file is not None:
-        typer.echo("[ERROR] --data and --data-file cannot be used together")
+        typer.echo("[ERROR] -data and -data-file cannot be used together")
         raise typer.Exit(code=2)
 
     # Parse URL + params
@@ -1378,12 +1419,12 @@ def quick(
         try:
             comp, check, expect = _quick_parse_validate_expr(rule)
         except ValueError as e:
-            typer.echo(f"[ERROR] Invalid --validate '{rule}': {e}")
+            typer.echo(f"[ERROR] Invalid -validate '{rule}': {e}")
             raise typer.Exit(code=2)
 
         if comp not in OPS:
             typer.echo(
-                f"[ERROR] Invalid --validate '{rule}': unknown comparator '{comp}'"
+                f"[ERROR] Invalid -validate '{rule}': unknown comparator '{comp}'"
             )
             raise typer.Exit(code=2)
 
@@ -1406,13 +1447,13 @@ def quick(
     parsed_extracts: list[tuple[str, str]] = []
     for item in extract or []:
         if "=" not in item:
-            typer.echo(f"[ERROR] Invalid --extract '{item}' (expected name=$expr)")
+            typer.echo(f"[ERROR] Invalid -extract '{item}' (expected name=$expr)")
             raise typer.Exit(code=2)
         name, expr = item.split("=", 1)
         name = name.strip()
         expr = expr.strip()
         if not name or not expr:
-            typer.echo(f"[ERROR] Invalid --extract '{item}' (expected name=$expr)")
+            typer.echo(f"[ERROR] Invalid -extract '{item}' (expected name=$expr)")
             raise typer.Exit(code=2)
         if not expr.startswith("$"):
             typer.echo(
@@ -1427,7 +1468,7 @@ def quick(
         try:
             body_raw = Path(data_file).read_text(encoding="utf-8")
         except Exception as e:
-            typer.echo(f"[ERROR] Failed to read --data-file '{data_file}': {e}")
+            typer.echo(f"[ERROR] Failed to read -data-file '{data_file}': {e}")
             raise typer.Exit(code=2)
     elif data is not None:
         body_raw = data
@@ -1485,7 +1526,7 @@ def quick(
     out_headers_req: dict[str, Any] = dict(headers)
     out_headers_resp: dict[str, Any] = dict(resp_obj.get("headers") or {})
     out_body: Any = resp_obj.get("body")
-    if not reveal_secrets:
+    if not resolved_reveal_secrets:
         out_headers_req = mask_headers(out_headers_req)
         out_headers_resp = mask_headers(out_headers_resp)
         if isinstance(out_body, (dict, list)):
@@ -1518,7 +1559,9 @@ def quick(
             typer.echo("Request body:")
             preview, truncated = _quick_truncate(
                 _quick_format_body(
-                    json_body if reveal_secrets else mask_body(json_body)
+                    json_body
+                    if resolved_reveal_secrets
+                    else mask_body(json_body)
                 ),
                 max_body,
             )
@@ -1540,7 +1583,7 @@ def quick(
     preview, truncated = _quick_truncate(body_text, max_body)
     typer.echo(preview if preview else "<empty>")
     if truncated:
-        typer.echo("... (truncated, use -o/--output to save full body)")
+        typer.echo("... (truncated, use -o/-output to save full body)")
 
     # Save full body to file
     if output:
@@ -1610,7 +1653,7 @@ def quick(
             yaml_headers: dict[str, Any] | None = dict(headers) if headers else None
             yaml_body: Any = json_body
             yaml_data: Any = data_body
-            if not reveal_secrets:
+            if not resolved_reveal_secrets:
                 if yaml_headers is not None:
                     yaml_headers = mask_headers(yaml_headers)
                 if isinstance(yaml_body, (dict, list)):
@@ -1671,89 +1714,111 @@ def quick(
 def r(
     path: str = typer.Argument(
         ...,
-        help="要运行的文件或目录（支持 <path>:<case_name> 或 <path>:<case1>,<case2> 精确筛选）",
+        help="运行目标（文件/目录；支持 <path>:<case[,case]>）。例: testcases:登录",
     ),
     k: Optional[str] = typer.Option(
-        None, "-k", help="标签过滤表达式（支持 and/or/not）"
+        None, "-k", help='标签过滤表达式。例: -k "smoke and not slow"', metavar=""
     ),
-    vars: List[str] = typer.Option([], "--vars", help="变量覆盖 k=v（可重复）"),
-    failfast: bool = typer.Option(False, "--failfast", help="遇到第一个失败时停止"),
-    report: Optional[str] = typer.Option(None, "--report", help="输出 JSON 报告到文件"),
+    vars: List[str] = typer.Option([], "-vars", help="变量覆盖 k=v（可重复）。例: -vars token=abc", metavar=""),
+    failfast: bool = typer.Option(False, "-failfast", help="遇到首个失败即停止。例: -failfast"),
+    report: Optional[str] = typer.Option(None, "-report", help="输出 JSON 报告文件。例: -report reports/result.json", metavar=""),
     html: Optional[str] = typer.Option(
         None,
-        "--html",
-        help="输出 HTML 报告到文件（脚手架项目默认 reports/report-<timestamp>.html；临时单文件运行默认不生成）",
+        "-html",
+        help="输出 HTML 报告文件。例: -html reports/report.html",
+        metavar="",
     ),
     allure_results: Optional[str] = typer.Option(
-        None, "--allure-results", help="输出 Allure 结果到目录（用于 allure generate）"
+        None, "-allure-results", help="输出 Allure 结果目录。例: -allure-results allure-results", metavar=""
     ),
-    log_level: str = typer.Option("INFO", "--log-level", help="日志级别"),
+    log_level: str = typer.Option("INFO", "-log-level", help="日志级别。例: -log-level DEBUG", metavar=""),
     env: Optional[str] = typer.Option(
         None,
-        "--env",
-        help="环境名称（如: dev, uat, prod），优先加载 .env.<name> 并合并命名环境配置",
+        "-env",
+        help="环境名（对应 .env.<name>）。例: -env dev",
+        metavar="",
     ),
     env_file: Optional[str] = typer.Option(
         None,
-        "--env-file",
-        help="显式指定环境文件路径（支持任意文件名；优先级高于 --env 与默认 .env）",
+        "-env-file",
+        help="显式环境文件路径。例: -env-file .env.local",
+        metavar="",
     ),
     persist_env: Optional[str] = typer.Option(
-        None, "--persist-env", help="指定提取变量的持久化文件（默认：.env.<env> 文件）"
+        None, "-persist-env", help="提取变量持久化文件。例: -persist-env .env.runtime", metavar=""
     ),
     log_file: Optional[str] = typer.Option(
         None,
-        "--log-file",
-        help="输出控制台日志到文件（脚手架项目默认 logs/run-<ts>.log；临时单文件运行默认在当前目录生成一个日志文件）",
+        "-log-file",
+        help="控制台日志输出文件。例: -log-file logs/run.log",
+        metavar="",
     ),
     httpx_logs: bool = typer.Option(
         False,
-        "--httpx-logs/--no-httpx-logs",
-        help="显示 httpx 内部请求日志",
+        "-httpx-logs",
+        help="启用 httpx 内部请求日志。例: -httpx-logs",
         show_default=False,
     ),
-    reveal_secrets: bool = typer.Option(
-        True,
-        "--reveal-secrets/--mask-secrets",
-        help="在日志和报告中显示敏感字段明文（password、tokens）",
-        show_default=True,
+    secrets: str = typer.Option(
+        "plain",
+        "-secrets",
+        help="敏感信息模式 plain|mask。例: -secrets mask",
+        metavar="",
     ),
     response_headers: bool = typer.Option(
         False,
-        "--response-headers/--no-response-headers",
-        help="记录 HTTP 响应头（默认关闭）",
+        "-response-headers",
+        help="记录 HTTP 响应头。例: -response-headers",
         show_default=False,
     ),
     notify: Optional[str] = typer.Option(
-        None, "--notify", help="通知渠道，逗号分隔：feishu,email,dingtalk"
+        None, "-notify", help="通知渠道（逗号分隔）。例: -notify feishu,email", metavar=""
     ),
     notify_only: Optional[str] = typer.Option(
         None,
-        "--notify-only",
-        help="通知策略：failed|always（默认 $DRUN_NOTIFY_ONLY 或 'failed'）",
+        "-notify-only",
+        help="通知策略 failed|always。例: -notify-only always",
         show_default=False,
+        metavar="",
     ),
     notify_attach_html: bool = typer.Option(
         False,
-        "--notify-attach-html/--no-notify-attach-html",
-        help="在邮件中附加 HTML 报告（如果启用邮件）",
+        "-notify-attach-html",
+        help="邮件附加 HTML 报告。例: -notify-attach-html",
         show_default=False,
     ),
-    no_snippet: bool = typer.Option(
-        False,
-        "--no-snippet",
-        help="禁用代码片段生成（脚手架项目默认会自动生成到 snippets/；临时单文件运行默认关闭）",
+    snippet: str = typer.Option(
+        "all",
+        "-snippet",
+        help="代码片段模式 off|all|curl|python。例: -snippet curl",
+        metavar="",
     ),
     snippet_output: Optional[str] = typer.Option(
         None,
-        "--snippet-output",
-        help="自定义代码片段输出目录（显式指定时始终按该目录生成）",
-    ),
-    snippet_lang: str = typer.Option(
-        "all", "--snippet-lang", help="生成的语言: all|curl|python（默认 all）"
+        "-snippet-output",
+        help="代码片段输出目录。例: -snippet-output snippets_out",
+        metavar="",
     ),
 ):
     """Run test cases or suites."""
+    secrets_mode = (secrets or "plain").strip().lower()
+    if secrets_mode not in {"plain", "mask"}:
+        typer.echo("[ERROR] Invalid -secrets value. Use 'plain' or 'mask'.")
+        raise typer.Exit(code=2)
+
+    snippet_mode = (snippet or "all").strip().lower()
+    if snippet_mode not in {"off", "all", "curl", "python"}:
+        typer.echo(
+            "[ERROR] Invalid -snippet value. Use one of: off, all, curl, python."
+        )
+        raise typer.Exit(code=2)
+
+    resolved_reveal_secrets = secrets_mode == "plain"
+    resolved_no_snippet = snippet_mode == "off"
+    resolved_snippet_lang = (
+        "all" if snippet_mode == "off" else snippet_mode
+    )
+
     return _run_impl(
         path,
         k,
@@ -1768,14 +1833,14 @@ def r(
         persist_env,
         log_file,
         httpx_logs,
-        reveal_secrets,
+        resolved_reveal_secrets,
         response_headers,
         notify,
         notify_only,
         notify_attach_html,
-        no_snippet,
+        resolved_no_snippet,
         snippet_output,
-        snippet_lang,
+        resolved_snippet_lang,
     )
 
 
@@ -2002,8 +2067,8 @@ def init_project(
     typer.echo("Quick start:")
     if name:
         typer.echo(f"  cd {name}")
-    typer.echo("  drun run testcases --env dev")
-    typer.echo("  drun run testsuite_smoke --env dev")
+    typer.echo("  drun run testcases -env dev")
+    typer.echo("  drun run testsuite_smoke -env dev")
     typer.echo("")
     typer.echo("Docs: https://github.com/Devliang24/drun")
 
@@ -2062,17 +2127,21 @@ def convert_openapi(
 @app.command("server")
 @app.command("s", hidden=True)
 def serve_reports(
-    port: int = typer.Option(8080, "--port", help="监听端口"),
+    port: int = typer.Option(8080, "-port", help="监听端口"),
     host: str = typer.Option(
-        "0.0.0.0", "--host", help="监听地址 (0.0.0.0 允许外部访问)"
+        "0.0.0.0", "-host", help="监听地址 (0.0.0.0 允许外部访问)"
     ),
-    reports_dir: str = typer.Option("reports", "--reports-dir", help="报告目录路径"),
+    reports_dir: str = typer.Option("reports", "-reports-dir", help="报告目录路径"),
     reload: bool = typer.Option(
-        False, "--reload/--no-reload", help="开发模式（热重载）"
+        False, "-reload", help="开发模式（热重载）", show_default=False
     ),
-    open_browser: bool = typer.Option(True, "--open/--no-open", help="自动打开浏览器"),
+    headless: bool = typer.Option(
+        False, "-headless", help="不自动打开浏览器", show_default=False
+    ),
 ):
     """启动 Web Server 查看测试报告"""
+    resolved_open_browser = not headless
+
     try:
         import uvicorn
         import webbrowser
@@ -2102,13 +2171,17 @@ def serve_reports(
         typer.echo(f"[SERVER] ⚠️  Server is accessible from public network")
     typer.echo(f"[SERVER] Press Ctrl+C to stop")
 
-    if open_browser and not reload and host in ["127.0.0.1", "localhost"]:
+    if resolved_open_browser and not reload and host in ["127.0.0.1", "localhost"]:
         # Open browser after a short delay (only for local access)
         threading.Timer(1.5, lambda: webbrowser.open(url)).start()
 
     try:
         uvicorn.run(
-            "drun.server.app:app", host=host, port=port, reload=reload, log_level="info"
+            "drun.server.app:app",
+            host=host,
+            port=port,
+            reload=reload,
+            log_level="info",
         )
     except KeyboardInterrupt:
         typer.echo("\n[SERVER] Stopped")

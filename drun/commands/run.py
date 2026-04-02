@@ -429,7 +429,7 @@ def _resolve_runtime_env_file(
         if not explicit_env_file.exists():
             typer.echo(f"[ERROR] Environment file not found: {explicit_env_file}")
             typer.echo()
-            typer.echo("Hint: Check if --env-file path is correct")
+            typer.echo("Hint: Check if -env-file path is correct")
             raise typer.Exit(code=2)
 
     named_env_file: Optional[Path] = None
@@ -482,26 +482,26 @@ def run_cases(
     runtime_env_file = _resolve_runtime_env_file(env, env_file)
     if env is None and runtime_env_file is None:
         typer.echo(
-            "[ERROR] Environment not found. Use --env, --env-file, or provide .env in current directory."
+            "[ERROR] Environment not found. Use -env, -env-file, or provide .env in current directory."
         )
         typer.echo()
         typer.echo("Usage:")
-        typer.echo("  drun run <path> --env <env_name>")
-        typer.echo("  drun run <path> --env-file /path/to/.env")
+        typer.echo("  drun run <path> -env <env_name>")
+        typer.echo("  drun run <path> -env-file /path/to/.env")
         typer.echo("  drun run <path>   # auto-loads .env when present")
         typer.echo()
         typer.echo("Environment file naming:")
-        typer.echo("  .env.dev    -> --env dev")
-        typer.echo("  .env.uat    -> --env uat")
-        typer.echo("  .env.prod   -> --env prod")
+        typer.echo("  .env.dev    -> -env dev")
+        typer.echo("  .env.uat    -> -env uat")
+        typer.echo("  .env.prod   -> -env prod")
         typer.echo("  .env        -> default (single-file mode)")
         typer.echo()
         typer.echo("Examples:")
-        typer.echo("  drun run demo --env dev")
-        typer.echo("  drun run demo --env-file ./demo.env")
+        typer.echo("  drun run demo -env dev")
+        typer.echo("  drun run demo -env-file ./demo.env")
         typer.echo("  drun run test_smoke.yaml")
-        typer.echo("  drun run testcases --env uat")
-        typer.echo("  drun run testsuites --env prod")
+        typer.echo("  drun run testcases -env uat")
+        typer.echo("  drun run testsuites -env prod")
         raise typer.Exit(code=2)
 
     ts = time.strftime("%Y%m%d-%H%M%S")
@@ -740,7 +740,7 @@ def run_cases(
                     f"        Case: {c.config.name or 'Unnamed'} | Source: {meta.get('file', input_path)}",
                     "        Provide base_url in one of the following ways:",
                     *env_hint_lines,
-                    "          - Or pass CLI vars: --vars base_url=http://localhost:8000",
+                    "          - Or pass CLI vars: -vars base_url=http://localhost:8000",
                     "          - Or export env:   export BASE_URL=http://localhost:8000",
                 ]
                 for line in msg_lines:
@@ -875,7 +875,7 @@ def run_cases(
             )
             if notify_attach_html and not html_target:
                 log.info(
-                    "[NOTIFY] HTML attachment requested but no HTML report path is configured; pass --html to attach a report"
+                    "[NOTIFY] HTML attachment requested but no HTML report path is configured; pass -html to attach a report"
                 )
             ctx = NotifyContext(
                 html_path=html_target,

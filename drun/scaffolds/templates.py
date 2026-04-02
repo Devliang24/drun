@@ -292,13 +292,13 @@ API automation testing with [Drun](https://github.com/Devliang24/drun).
 pip install drun
 
 # Run tests
-drun run testcases --env dev --html reports/report.html
+drun run testcases -env dev -html reports/report.html
 
 # Run test suite
-drun run testsuite_smoke --env dev
+drun run testsuite_smoke -env dev
 
 # Run with tag filter
-drun run testcases -k "smoke" --env dev
+drun run testcases -k "smoke" -env dev
 ```
 
 ## Test Case Example
@@ -369,8 +369,8 @@ jobs:
           BASE_URL: ${{ secrets.BASE_URL }}
         run: |
           drun run testcases \\
-            --html reports/report.html \\
-            --mask-secrets
+            -html reports/report.html \\
+            -secrets mask
 
       - name: Upload Reports
         if: always()

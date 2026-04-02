@@ -156,17 +156,17 @@ steps:
 
 ```bash
 # Run single test (with or without .yaml extension)
-drun run testcases/test_user_api.yaml --env dev
-drun run test_user_api --env dev
+drun run testcases/test_user_api.yaml -env dev
+drun run test_user_api -env dev
 
 # Run with HTML report
-drun run test_user_api --env dev --html reports/report.html
+drun run test_user_api -env dev -html reports/report.html
 
 # Run with tag filtering
-drun run testcases --env dev -k "smoke and not slow"
+drun run testcases -env dev -k "smoke and not slow"
 
 # Run test suite
-drun run testsuite_e2e --env dev
+drun run testsuite_e2e -env dev
 ```
 
 ## Core Concepts
@@ -436,7 +436,7 @@ Automatically generate executable Shell and Python scripts from test steps:
 
 ```bash
 # Run test - code snippets are generated automatically
-$ drun run test_login --env dev
+$ drun run test_login -env dev
 
 2025-11-24 14:23:18.551 | INFO | [CASE] Total: 1 Passed: 1 Failed: 0 Skipped: 0
 2025-11-24 14:23:18.553 | INFO | [CASE] HTML report written to reports/report.html
@@ -448,16 +448,16 @@ $ drun run test_login --env dev
 **CLI Options:**
 ```bash
 # Disable snippet generation
-$ drun run test_api --env dev --no-snippet
+$ drun run test_api -env dev -snippet off
 
 # Generate only Python scripts
-$ drun run test_api --env dev --snippet-lang python
+$ drun run test_api -env dev -snippet python
 
 # Generate only curl scripts
-$ drun run test_api --env dev --snippet-lang curl
+$ drun run test_api -env dev -snippet curl
 
 # Custom output directory
-$ drun run test_api --env dev --snippet-output exports/
+$ drun run test_api -env dev -snippet-output exports/
 ```
 
 ### Custom Hooks
@@ -516,10 +516,10 @@ steps:
 drun server
 
 # Custom port and options
-drun server --port 8080 --no-open
+drun server -port 8080 -headless
 
 # Development mode with auto-reload
-drun server --reload
+drun server -reload
 
 # Server will be accessible at http://0.0.0.0:8080
 # Features:
@@ -535,48 +535,48 @@ drun server --reload
 
 ```bash
 # Basic execution
-drun run PATH --env <env_name>
+drun run PATH -env <env_name>
 
 # Smart file discovery - extension optional
-drun run test_api_health --env dev              # Finds test_api_health.yaml or .yml
-drun run testcases/test_user --env dev          # Supports paths without extension
-drun run test_api_health.yaml --env dev         # Traditional format still works
+drun run test_api_health -env dev              # Finds test_api_health.yaml or .yml
+drun run testcases/test_user -env dev          # Supports paths without extension
+drun run test_api_health.yaml -env dev         # Traditional format still works
 
 # Temporary single-file run outside scaffold
 # Default output: only one log file in current directory
-drun run ./test_api_health.yaml --env-file ./demo.env
+drun run ./test_api_health.yaml -env-file ./demo.env
 
 # With more options
 drun run testcases/ \
-  --env staging \
+  -env staging \
   -k "smoke and not slow" \
-  --vars api_key=secret \
-  --html reports/report.html \
-  --report reports/results.json \
-  --allure-results allure-results \
-  --mask-secrets \
-  --failfast
+  -vars api_key=secret \
+  -html reports/report.html \
+  -report reports/results.json \
+  -allure-results allure-results \
+  -secrets mask \
+  -failfast
 ```
 
 **Options:**
-- `--env NAME`: Optional named environment; prefers `.env.<name>` and merges named env config if present
-- `--env-file FILE`: Explicit environment file path; higher priority than `--env` and default `.env`
+- `-env NAME`: Optional named environment; prefers `.env.<name>` and merges named env config if present
+- `-env-file FILE`: Explicit environment file path; higher priority than `-env` and default `.env`
 - `-k TAG_EXPR`: Filter by tags (e.g., `smoke and not slow`)
-- `--vars k=v`: Override variables from CLI
-- `--html FILE`: Generate HTML report (temporary single-file runs do not generate one by default)
-- `--report FILE`: Generate JSON report
-- `--allure-results DIR`: Generate Allure results
-- `--mask-secrets`: Mask sensitive data in logs/reports
-- `--reveal-secrets`: Show sensitive data (default for local runs)
-- `--response-headers`: Log response headers
-- `--failfast`: Stop on first failure
-- `--log-level LEVEL`: Set log level (DEBUG, INFO, WARNING, ERROR)
-- `--log-file FILE`: Write logs to file (temporary single-file runs otherwise default to `./<yaml>-<ts>.log`)
-- `--notify CHANNELS`: Enable notifications (feishu, dingtalk, email)
-- `--notify-only POLICY`: Notification policy (always, failed, passed)
-- `--no-snippet`: Disable code snippet generation (temporary single-file runs are already disabled by default)
-- `--snippet-output DIR`: Custom output directory for snippets
-- `--snippet-lang LANG`: Generate snippets in specific language: all|curl|python
+- `-vars k=v`: Override variables from CLI
+- `-html FILE`: Generate HTML report (temporary single-file runs do not generate one by default)
+- `-report FILE`: Generate JSON report
+- `-allure-results DIR`: Generate Allure results
+- `-secrets mask`: Mask sensitive data in logs/reports
+- `-secrets plain`: Show sensitive data (default for local runs)
+- `-response-headers`: Log response headers
+- `-failfast`: Stop on first failure
+- `-log-level LEVEL`: Set log level (DEBUG, INFO, WARNING, ERROR)
+- `-log-file FILE`: Write logs to file (temporary single-file runs otherwise default to `./<yaml>-<ts>.log`)
+- `-notify CHANNELS`: Enable notifications (feishu, dingtalk, email)
+- `-notify-only POLICY`: Notification policy (always, failed, passed)
+- `-snippet off`: Disable code snippet generation (temporary single-file runs are already disabled by default)
+- `-snippet-output DIR`: Custom output directory for snippets
+- `-snippet MODE`: Snippet mode: off|all|curl|python
 
 ### Format Conversion
 
@@ -656,7 +656,7 @@ drun --version
 ### HTML Reports
 
 ```bash
-drun run testcases --env dev --html reports/report.html --mask-secrets
+drun run testcases -env dev -html reports/report.html -secrets mask
 ```
 
 **Features:**
@@ -670,7 +670,7 @@ drun run testcases --env dev --html reports/report.html --mask-secrets
 ### JSON Reports
 
 ```bash
-drun run testcases --env dev --report reports/results.json
+drun run testcases -env dev -report reports/results.json
 ```
 
 **Structure:**
@@ -698,7 +698,7 @@ drun run testcases --env dev --report reports/results.json
 
 ```bash
 # Generate Allure results
-drun run testcases --env dev --allure-results allure-results
+drun run testcases -env dev -allure-results allure-results
 
 # View Allure report
 allure serve allure-results
@@ -732,10 +732,10 @@ NOTIFY_ATTACH_HTML=true
 
 **Usage:**
 ```bash
-drun run testcases --env dev \
-  --notify feishu,email \
-  --notify-only failed \
-  --notify-attach-html
+drun run testcases -env dev \
+  -notify feishu,email \
+  -notify-only failed \
+  -notify-attach-html
 ```
 
 ## Architecture
@@ -860,12 +860,12 @@ my-api-test/
 ### Environment Management
 
 ```bash
-# .env.dev (used with --env dev)
+# .env.dev (used with -env dev)
 BASE_URL=https://api.dev.example.com
 API_KEY=dev-key-here
 DB_HOST=localhost
 
-# .env.staging (used with --env staging)
+# .env.staging (used with -env staging)
 BASE_URL=https://api.staging.example.com
 API_KEY=staging-key-here
 DB_HOST=staging-db.example.com
@@ -874,13 +874,13 @@ DB_HOST=staging-db.example.com
 **Multi-environment:**
 ```bash
 # Development
-drun run testsuites/testsuite_smoke.yaml --env dev
+drun run testsuites/testsuite_smoke.yaml -env dev
 
 # Staging
-drun run testsuites/testsuite_regression.yaml --env staging
+drun run testsuites/testsuite_regression.yaml -env staging
 
 # Production (smoke tests only)
-drun run testsuites/testsuite_smoke.yaml --env prod
+drun run testsuites/testsuite_smoke.yaml -env prod
 ```
 
 ### Naming Conventions
@@ -910,9 +910,9 @@ tags: [db, data-verify]           # Database validation
 
 **Filtering:**
 ```bash
-drun run testcases --env dev -k "smoke"                    # Smoke tests only
-drun run testcases --env dev -k "regression and not slow"  # Fast regression
-drun run testcases --env dev -k "critical or e2e"          # Critical + E2E
+drun run testcases -env dev -k "smoke"                    # Smoke tests only
+drun run testcases -env dev -k "regression and not slow"  # Fast regression
+drun run testcases -env dev -k "critical or e2e"          # Critical + E2E
 ```
 
 ### CI/CD Integration
@@ -943,19 +943,19 @@ jobs:
       
       - name: Run Smoke Tests
         run: |
-          drun run testsuites/testsuite_smoke.yaml --env ci \
-            --html reports/smoke.html \
-            --report reports/smoke.json \
-            --mask-secrets \
-            --failfast
+          drun run testsuites/testsuite_smoke.yaml -env ci \
+            -html reports/smoke.html \
+            -report reports/smoke.json \
+            -secrets mask \
+            -failfast
       
       - name: Run Regression Tests
         if: github.event_name == 'pull_request'
         run: |
-          drun run testsuites/testsuite_regression.yaml --env ci \
-            --html reports/regression.html \
-            --report reports/regression.json \
-            --mask-secrets
+          drun run testsuites/testsuite_regression.yaml -env ci \
+            -html reports/regression.html \
+            -report reports/regression.json \
+            -secrets mask
       
       - name: Upload Reports
         uses: actions/upload-artifact@v3
@@ -968,9 +968,9 @@ jobs:
         if: failure()
         run: |
           echo "FEISHU_WEBHOOK=${{ secrets.FEISHU_WEBHOOK }}" >> .env.ci
-          drun run testsuites/testsuite_smoke.yaml --env ci \
-            --notify feishu \
-            --notify-only failed
+          drun run testsuites/testsuite_smoke.yaml -env ci \
+            -notify feishu \
+            -notify-only failed
 ```
 
 ## Advanced Topics
@@ -1211,7 +1211,7 @@ python -m drun.cli --version
   - Automatic report scanning and indexing
   - SQLite-based report database
   - RESTful API for report management
-  - Command: `drun server --port 8080 --no-open`
+  - Command: `drun server -port 8080 -headless`
 - **NEW**: Report list and detail pages with pagination
 
 ### v5.0.0 (2024-11-24) - Enhanced User Experience
@@ -1252,7 +1252,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Tips
 
 - Use `drun check` before commits
-- Enable `--mask-secrets` in CI/CD
+- Enable `-secrets mask` in CI/CD
 - Organize tests by module/feature
 - Use test suites for complex workflows
 - Tag tests for easy filtering
