@@ -297,6 +297,42 @@ class InvokeCaseSelectionExecutionTests(unittest.TestCase):
             any("Duplicate case names matched" in message for message in runner.log.warning_messages)
         )
 
+    @patch("drun.runner.invoke.resolve_invoke_path")
+    @patch("drun.runner.invoke.load_yaml_file")
+    def test_invoke_repeat_prefixes_child_step_names(self, mock_load, mock_resolve) -> None:
+        mock_resolve.return_value = Path("/tmp/testcases/test_channel_token_flow.yaml")
+        mock_load.return_value = ([_build_case("Case A")], {})
+        runner = _FakeRunner()
+        ctx = _FakeCtx()
+        step = Step(name="Invoke flow", invoke="test_channel_token_flow")
+
+        results = execute_invoke_step(
+            runner=runner,
+            step=step,
+            step_idx=1,
+            rendered_step_name="Invoke flow [repeat=2/3]",
+            variables={},
+            global_vars={},
+            funcs={},
+            envmap={},
+            ctx=ctx,
+            params={},
+            invoke_result_prefix="Invoke flow [repeat=2/3]",
+            repeat_index=1,
+            repeat_no=2,
+            repeat_total=3,
+        )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(
+            results[0].name,
+            "Invoke flow [repeat=2/3] :: Case A::step",
+        )
+        self.assertEqual(results[0].origin_step_name, "Case A::step")
+        self.assertEqual(results[0].repeat_index, 1)
+        self.assertEqual(results[0].repeat_no, 2)
+        self.assertEqual(results[0].repeat_total, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -126,6 +126,13 @@ def _normalize_case_dict(d: Dict[str, Any], path: Path | None = None, raw_text: 
         new_steps: List[Dict[str, Any]] = []
         for idx, s in enumerate(dd["steps"]):
             ss = dict(s)
+            for legacy_field in ("loop", "foreach"):
+                if legacy_field in ss:
+                    step_label = str(ss.get("name") or f"steps[{idx + 1}]")
+                    raise LoadError(
+                        f"Invalid step field '{legacy_field}' in step '{step_label}': "
+                        "please migrate to 'repeat'."
+                    )
             # Disallow legacy request.json field (no compatibility)
             if isinstance(ss.get("request"), dict) and "json" in ss["request"]:
                 step_label = str(ss.get("name") or f"steps[{idx + 1}]")
@@ -220,7 +227,14 @@ def load_yaml_file(path: Path) -> Tuple[List[Case], Dict[str, Any]]:
         for idx, item in enumerate(caseflow_items):
             if not isinstance(item, dict):
                 raise LoadError(f"Invalid caseflow item at index {idx}: expected dict")
-            
+
+            for legacy_field in ("loop", "foreach"):
+                if legacy_field in item:
+                    raise LoadError(
+                        f"Invalid caseflow item at index {idx}: field '{legacy_field}' is deprecated. "
+                        "Please use 'repeat'."
+                    )
+
             invoke_path = item.get("invoke")
             if not invoke_path:
                 raise LoadError(f"Caseflow item at index {idx}: missing 'invoke'")
@@ -231,6 +245,7 @@ def load_yaml_file(path: Path) -> Tuple[List[Case], Dict[str, Any]]:
                 "variables": item.get("variables", {}),
                 "invoke_case_name": item.get("invoke_case_name"),
                 "invoke_case_names": item.get("invoke_case_names", []),
+                "repeat": item.get("repeat", 1),
             }
             steps.append(Step.model_validate_obj(step_dict))
         

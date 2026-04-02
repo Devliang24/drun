@@ -22,6 +22,10 @@ def execute_invoke_step(
     envmap: Dict[str, Any] | None,
     ctx: Any,
     params: Dict[str, Any] | None,
+    invoke_result_prefix: str | None = None,
+    repeat_index: int | None = None,
+    repeat_no: int | None = None,
+    repeat_total: int | None = None,
 ) -> List[StepResult]:
     t0 = time.perf_counter()
     invoke_path = step.invoke
@@ -38,6 +42,10 @@ def execute_invoke_step(
         return [
             StepResult(
                 name=rendered_step_name,
+                origin_step_name=step.name,
+                repeat_index=repeat_index,
+                repeat_no=repeat_no,
+                repeat_total=repeat_total,
                 status="failed",
                 error=error_msg,
                 duration_ms=(time.perf_counter() - t0) * 1000,
@@ -56,6 +64,10 @@ def execute_invoke_step(
             return [
                 StepResult(
                     name=rendered_step_name,
+                    origin_step_name=step.name,
+                    repeat_index=repeat_index,
+                    repeat_no=repeat_no,
+                    repeat_total=repeat_total,
                     status="failed",
                     error=error_msg,
                     duration_ms=(time.perf_counter() - t0) * 1000,
@@ -68,6 +80,10 @@ def execute_invoke_step(
         return [
             StepResult(
                 name=rendered_step_name,
+                origin_step_name=step.name,
+                repeat_index=repeat_index,
+                repeat_no=repeat_no,
+                repeat_total=repeat_total,
                 status="failed",
                 error=error_msg,
                 duration_ms=(time.perf_counter() - t0) * 1000,
@@ -107,6 +123,10 @@ def execute_invoke_step(
             return [
                 StepResult(
                     name=rendered_step_name,
+                    origin_step_name=step.name,
+                    repeat_index=repeat_index,
+                    repeat_no=repeat_no,
+                    repeat_total=repeat_total,
                     status="failed",
                     error=error_msg,
                     duration_ms=(time.perf_counter() - t0) * 1000,
@@ -198,7 +218,20 @@ def execute_invoke_step(
                         if should_update:
                             accumulated_vars[k] = v
 
-            all_step_results.extend(invoke_result.steps)
+            for sr in invoke_result.steps:
+                sr_copy = sr.model_copy(deep=True)
+                original_name = sr_copy.name
+                if invoke_result_prefix:
+                    sr_copy.name = f"{invoke_result_prefix} :: {original_name}"
+                    sr_copy.origin_step_name = sr_copy.origin_step_name or original_name
+                if (
+                    repeat_total is not None
+                    and sr_copy.repeat_total is None
+                ):
+                    sr_copy.repeat_index = repeat_index
+                    sr_copy.repeat_no = repeat_no
+                    sr_copy.repeat_total = repeat_total
+                all_step_results.append(sr_copy)
             if invoke_result.status == "failed":
                 final_status = "failed"
                 if runner.failfast:

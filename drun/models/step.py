@@ -27,6 +27,7 @@ class Step(BaseModel):
     setup_hooks: List[str] = Field(default_factory=list)
     teardown_hooks: List[str] = Field(default_factory=list)
     skip: Optional[str | bool] = None
+    repeat: Union[int, str, None] = 1
     retry: int = 0
     retry_backoff: float = 0.5
 
@@ -62,6 +63,22 @@ class Step(BaseModel):
                 seen.add(cleaned_name)
                 deduped_names.append(cleaned_name)
             self.invoke_case_names = deduped_names
+
+        if self.repeat is None:
+            self.repeat = 1
+        elif isinstance(self.repeat, bool):
+            raise ValueError("'repeat' must be an integer or expression string, not boolean.")
+        elif isinstance(self.repeat, int):
+            if self.repeat < 0:
+                raise ValueError("'repeat' must be >= 0.")
+        elif isinstance(self.repeat, str):
+            cleaned_repeat = self.repeat.strip()
+            if not cleaned_repeat:
+                raise ValueError("'repeat' must be a non-empty integer or expression string.")
+            self.repeat = cleaned_repeat
+        else:
+            raise ValueError("'repeat' must be an integer or expression string.")
+
         return self
 
     @classmethod

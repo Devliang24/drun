@@ -56,6 +56,10 @@ class AssertionResult(BaseModel):
 
 class StepResult(BaseModel):
     name: str
+    origin_step_name: Optional[str] = None
+    repeat_index: Optional[int] = None
+    repeat_no: Optional[int] = None
+    repeat_total: Optional[int] = None
     request: Dict[str, Any] = Field(default_factory=dict)
     response: Dict[str, Any] = Field(default_factory=dict)
     asserts: List[AssertionResult] = Field(default_factory=list)

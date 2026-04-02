@@ -432,6 +432,10 @@ class Runner:
         envmap: Dict[str, Any] | None,
         ctx: VarContext,
         params: Dict[str, Any] | None,
+        invoke_result_prefix: str | None = None,
+        repeat_index: int | None = None,
+        repeat_no: int | None = None,
+        repeat_total: int | None = None,
     ) -> List[StepResult]:
         return execute_invoke_step(
             runner=self,
@@ -444,7 +448,62 @@ class Runner:
             envmap=envmap,
             ctx=ctx,
             params=params,
+            invoke_result_prefix=invoke_result_prefix,
+            repeat_index=repeat_index,
+            repeat_no=repeat_no,
+            repeat_total=repeat_total,
         )
+
+    def _format_repeat_step_name(self, step_name: str, repeat_index: int, repeat_total: int) -> str:
+        if repeat_total <= 1:
+            return step_name
+        return f"{step_name} [repeat={repeat_index + 1}/{repeat_total}]"
+
+    def _build_repeat_variables(self, variables: Dict[str, Any], repeat_index: int) -> Dict[str, Any]:
+        return {
+            **variables,
+            "repeat_index": repeat_index,
+            "repeat_no": repeat_index + 1,
+        }
+
+    def _resolve_repeat_count(
+        self,
+        step: Step,
+        variables: Dict[str, Any],
+        funcs: Dict[str, Any] | None,
+        envmap: Dict[str, Any] | None,
+    ) -> int:
+        raw_repeat = step.repeat if step.repeat is not None else 1
+        rendered_repeat: Any = raw_repeat
+        if isinstance(raw_repeat, str):
+            try:
+                rendered_repeat = self._render(raw_repeat, variables, funcs, envmap, strict=True)
+            except Exception as exc:
+                raise ValueError(
+                    f"Invalid repeat expression for step '{step.name}': {exc}"
+                ) from exc
+
+        if isinstance(rendered_repeat, bool):
+            raise ValueError(f"Step '{step.name}' repeat must be an integer, got boolean.")
+
+        if isinstance(rendered_repeat, int):
+            repeat_count = rendered_repeat
+        elif isinstance(rendered_repeat, str):
+            stripped = rendered_repeat.strip()
+            if re.fullmatch(r"-?\d+", stripped):
+                repeat_count = int(stripped)
+            else:
+                raise ValueError(
+                    f"Step '{step.name}' repeat must resolve to an integer, got '{rendered_repeat}'."
+                )
+        else:
+            raise ValueError(
+                f"Step '{step.name}' repeat must resolve to an integer, got {type(rendered_repeat).__name__}."
+            )
+
+        if repeat_count < 0:
+            raise ValueError(f"Step '{step.name}' repeat must be >= 0.")
+        return repeat_count
 
     def run_case(self, case: Case, global_vars: Dict[str, Any], params: Dict[str, Any], *, funcs: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None, source: str | None = None) -> CaseInstanceResult:
         name = case.config.name or "Unnamed Case"
@@ -516,558 +575,586 @@ class Runner:
                 raise
 
             for step_idx, step in enumerate(case.steps, 1):
-                # skip handling
                 if step.skip:
                     if self.log:
                         self.log.info(f"[STEP] Step {step_idx} Skip: {step.name} | reason={step.skip}")
-                    steps_results.append(StepResult(name=step.name, status="skipped"))
+                    steps_results.append(StepResult(name=step.name, status="skipped", origin_step_name=step.name))
                     continue
 
-                # variables: case -> step -> CLI/global overrides
-                # First, get base variables WITHOUT step.variables to render step-level expressions
                 base_variables = ctx.get_merged(global_vars)
-                # render step-level variables so expressions like ${token_key} inside values are resolved
-                # Use base_variables (without step.variables) so $token_key resolves to the actual value
                 rendered_locals = self._render(step.variables, base_variables, funcs, envmap)
                 ctx.push(rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {}))
                 variables = ctx.get_merged(global_vars)
 
-                # Render step name to support variable interpolation (e.g., $model_name in parametrized tests)
-                rendered_step_name = self._render(step.name, variables, funcs, envmap)
-                if not isinstance(rendered_step_name, str):
-                    rendered_step_name = str(step.name)
+                rendered_base_step_name = self._render(step.name, variables, funcs, envmap)
+                if not isinstance(rendered_base_step_name, str):
+                    rendered_base_step_name = str(step.name)
 
-                # Handle invoke step type
-                if step.invoke:
-                    invoke_results = self._run_invoke_step(
-                        step=step,
-                        step_idx=step_idx,
-                        rendered_step_name=rendered_step_name,
-                        variables=variables,
-                        global_vars=global_vars,
-                        funcs=funcs,
-                        envmap=envmap,
-                        ctx=ctx,
-                        params=params,
-                    )
-                    steps_results.extend(invoke_results)  # 展开添加所有子步骤
-                    # 检查是否有失败的子步骤
-                    if any(r.status == "failed" for r in invoke_results):
-                        status = "failed"
-                        if self.failfast:
-                            ctx.pop()
-                            break
-                    ctx.pop()
-                    continue
-
-                # render request (only for non-invoke steps)
-                req_dict = self._request_dict(step)
-                req_rendered = self._render(req_dict, variables, funcs, envmap, strict=True)
-                step_locals_for_hook = rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {})
-                session_vars_for_hook = variables
-                setup_meta = {
-                    "step_name": step.name,
-                    "case_name": case.config.name or name,
-                    "step_request": req_rendered,
-                    "step_variables": step_locals_for_hook,
-                    "session_variables": session_vars_for_hook,
-                    "session_env": envmap or {},
-                }
-                # run setup hooks (mutation allowed)
                 try:
-                    new_vars = self._run_setup_hooks(
-                        step.setup_hooks,
-                        funcs=funcs,
-                        req=req_rendered,
-                        variables=variables,
-                        envmap=envmap,
-                        meta=setup_meta,
-                    )
-                    for k, v in (new_vars or {}).items():
-                        ctx.set_base(k, v)
-                        if self.log:
-                            self.log.info(f"[HOOK] set var: {k} = {v!r}")
-                    variables = ctx.get_merged(global_vars)
+                    repeat_total = self._resolve_repeat_count(step, variables, funcs, envmap)
                 except Exception as e:
                     status = "failed"
+                    error_msg = f"repeat error: {e}"
                     if self.log:
-                        self.log.error(f"[HOOK] setup error: {e}")
-                    steps_results.append(StepResult(name=rendered_step_name, status="failed", error=f"setup hook error: {e}"))
+                        self.log.error(f"[STEP] Step {step_idx} Repeat error: {e}")
+                    steps_results.append(
+                        StepResult(
+                            name=rendered_base_step_name,
+                            origin_step_name=rendered_base_step_name,
+                            status="failed",
+                            error=error_msg,
+                        )
+                    )
+                    ctx.pop()
                     if self.failfast:
                         break
+                    continue
+
+                if repeat_total == 0:
+                    skipped_name = f"{rendered_base_step_name} [repeat=0]"
+                    if self.log:
+                        self.log.info(f"[STEP] Step {step_idx} Skip: {skipped_name} | reason=repeat=0")
+                    steps_results.append(
+                        StepResult(
+                            name=skipped_name,
+                            origin_step_name=rendered_base_step_name,
+                            status="skipped",
+                            repeat_total=0,
+                        )
+                    )
                     ctx.pop()
                     continue
-                # sanitize headers to avoid illegal values (e.g., Bearer <empty>)
-                if isinstance(req_rendered.get("headers"), dict):
-                    headers = dict(req_rendered["headers"])  # type: ignore[index]
-                    for hk, hv in list(headers.items()):
-                        if hv is None:
-                            headers.pop(hk, None)
-                        elif isinstance(hv, str) and (hv.strip() == "" or hv.strip().lower() in {"bearer", "bearer none"}):
-                            headers.pop(hk, None)
-                    req_rendered["headers"] = headers
-                # Auto-inject Authorization if token is available and no header set
-                if (not (isinstance(req_rendered.get("headers"), dict) and any(k.lower()=="authorization" for k in req_rendered["headers"]))):
-                    tok = variables.get("token") if isinstance(variables, dict) else None
-                    if isinstance(tok, str) and tok.strip():
-                        hdrs = dict(req_rendered.get("headers") or {})
-                        hdrs["Authorization"] = f"Bearer {tok}"
-                        req_rendered["headers"] = hdrs
 
-                if self.log:
-                    self.log.info(f"[STEP] Step {step_idx} Start: {rendered_step_name}")
+                stop_current_step = False
 
-                    # Log variable substitution before/after values
-                    self._log_render_diffs(req_dict, req_rendered)
+                if step.invoke:
+                    for repeat_index in range(repeat_total):
+                        iteration_base_vars = ctx.get_merged(global_vars)
+                        iteration_vars = self._build_repeat_variables(iteration_base_vars, repeat_index)
 
-                    # Print step variables if present
-                    step_vars = step.variables or {}
-                    if step_vars:
-                        # Format variables with proper indentation
-                        vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
-                        self.log.info(vars_str)
+                        iteration_step_name = self._render(step.name, iteration_vars, funcs, envmap)
+                        if not isinstance(iteration_step_name, str):
+                            iteration_step_name = str(step.name)
+                        rendered_step_name = self._format_repeat_step_name(
+                            iteration_step_name, repeat_index, repeat_total
+                        )
 
-                    # brief request line
-                    self.log.info(f"[REQUEST] {req_rendered.get('method','GET')} {req_rendered.get('path')}")
-                    if req_rendered.get("params") is not None:
-                        self.log.info(self._fmt_aligned("REQ", "params", self._fmt_json(req_rendered.get("params"))))
-                    if req_rendered.get("headers"):
-                        hdrs_out = req_rendered.get("headers")
-                        if not self.reveal:
-                            hdrs_out = mask_headers(hdrs_out)
-                        self.log.info(self._fmt_aligned("REQ", "headers", self._fmt_json(hdrs_out)))
-                    if req_rendered.get("body") is not None:
-                        body = req_rendered.get("body")
-                        if isinstance(body, (dict, list)) and not self.reveal:
-                            body = mask_body(body)
-                        self.log.info(self._fmt_aligned("REQ", "body", self._fmt_json(body)))
-                    if req_rendered.get("data") is not None:
-                        data = req_rendered.get("data")
-                        if isinstance(data, (dict, list)) and not self.reveal:
-                            data = mask_body(data)
-                        self.log.info(self._fmt_aligned("REQ", "data", self._fmt_json(data)))
-                    if req_rendered.get("files") is not None:
-                        self.log.info(self._fmt_aligned("REQ", "files", self._fmt_json(req_rendered.get("files"))))
+                        invoke_results = self._run_invoke_step(
+                            step=step,
+                            step_idx=step_idx,
+                            rendered_step_name=rendered_step_name,
+                            variables=iteration_vars,
+                            global_vars=global_vars,
+                            funcs=funcs,
+                            envmap=envmap,
+                            ctx=ctx,
+                            params=params,
+                            invoke_result_prefix=rendered_step_name if repeat_total > 1 else None,
+                            repeat_index=repeat_index,
+                            repeat_no=repeat_index + 1,
+                            repeat_total=repeat_total,
+                        )
+                        steps_results.extend(invoke_results)
+                        if any(r.status == "failed" for r in invoke_results):
+                            status = "failed"
+                            if self.failfast:
+                                stop_current_step = True
+                                break
 
-                # send with retry
-                last_error: Optional[str] = None
-                attempt = 0
-                resp_obj: Optional[Dict[str, Any]] = None
-                while attempt <= max(step.retry, 0):
-                    try:
-                        resp_obj = client.request(req_rendered)
-                        last_error = None
+                    ctx.pop()
+                    if stop_current_step:
                         break
-                    except Exception as e:
-                        last_error = str(e)
-                        if attempt >= step.retry:
-                            break
-                        backoff = min(step.retry_backoff * (2 ** attempt), 2.0)
-                        time.sleep(backoff)
-                        attempt += 1
+                    continue
 
-                if last_error:
-                    status = "failed"
-                    if self.log:
-                        self.log.error(f"[STEP] Request error: {last_error}")
+                req_dict = self._request_dict(step)
+                step_locals_for_hook = rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {})
 
-                    # Build request summary (method/url/params/headers/body/data)
-                    req_summary = {
-                        k: to_report_safe(v)
-                        for k, v in (req_rendered or {}).items()
-                        if k in ("method", "path", "params", "headers", "body", "data", "files")
+                for repeat_index in range(repeat_total):
+                    iteration_base_vars = ctx.get_merged(global_vars)
+                    variables = self._build_repeat_variables(iteration_base_vars, repeat_index)
+
+                    iteration_step_name = self._render(step.name, variables, funcs, envmap)
+                    if not isinstance(iteration_step_name, str):
+                        iteration_step_name = str(step.name)
+                    rendered_step_name = self._format_repeat_step_name(
+                        iteration_step_name, repeat_index, repeat_total
+                    )
+
+                    req_rendered = self._render(req_dict, variables, funcs, envmap, strict=True)
+                    session_vars_for_hook = variables
+                    setup_meta = {
+                        "step_name": step.name,
+                        "case_name": case.config.name or name,
+                        "step_request": req_rendered,
+                        "step_variables": step_locals_for_hook,
+                        "session_variables": session_vars_for_hook,
+                        "session_env": envmap or {},
                     }
-                    # Build cURL even on error for better diagnostics
-                    url_rendered = (req_rendered or {}).get("path")
-                    curl_headers = (req_rendered or {}).get("headers") or {}
+                    try:
+                        new_vars = self._run_setup_hooks(
+                            step.setup_hooks,
+                            funcs=funcs,
+                            req=req_rendered,
+                            variables=variables,
+                            envmap=envmap,
+                            meta=setup_meta,
+                        )
+                        for k, v in (new_vars or {}).items():
+                            ctx.set_base(k, v)
+                            if self.log:
+                                self.log.info(f"[HOOK] set var: {k} = {v!r}")
+                        variables = self._build_repeat_variables(ctx.get_merged(global_vars), repeat_index)
+                    except Exception as e:
+                        status = "failed"
+                        if self.log:
+                            self.log.error(f"[HOOK] setup error: {e}")
+                        steps_results.append(
+                            StepResult(
+                                name=rendered_step_name,
+                                origin_step_name=iteration_step_name,
+                                repeat_index=repeat_index,
+                                repeat_no=repeat_index + 1,
+                                repeat_total=repeat_total,
+                                status="failed",
+                                error=f"setup hook error: {e}",
+                            )
+                        )
+                        if self.failfast:
+                            stop_current_step = True
+                            break
+                        continue
+
+                    if isinstance(req_rendered.get("headers"), dict):
+                        headers = dict(req_rendered["headers"])  # type: ignore[index]
+                        for hk, hv in list(headers.items()):
+                            if hv is None:
+                                headers.pop(hk, None)
+                            elif isinstance(hv, str) and (hv.strip() == "" or hv.strip().lower() in {"bearer", "bearer none"}):
+                                headers.pop(hk, None)
+                        req_rendered["headers"] = headers
+                    if not (isinstance(req_rendered.get("headers"), dict) and any(k.lower() == "authorization" for k in req_rendered["headers"])):
+                        tok = variables.get("token") if isinstance(variables, dict) else None
+                        if isinstance(tok, str) and tok.strip():
+                            hdrs = dict(req_rendered.get("headers") or {})
+                            hdrs["Authorization"] = f"Bearer {tok}"
+                            req_rendered["headers"] = hdrs
+
+                    if self.log:
+                        self.log.info(f"[STEP] Step {step_idx} Start: {rendered_step_name}")
+                        self._log_render_diffs(req_dict, req_rendered)
+                        step_vars = step.variables or {}
+                        if step_vars:
+                            vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
+                            self.log.info(vars_str)
+                        self.log.info(f"[REQUEST] {req_rendered.get('method','GET')} {req_rendered.get('path')}")
+                        if req_rendered.get("params") is not None:
+                            self.log.info(self._fmt_aligned("REQ", "params", self._fmt_json(req_rendered.get("params"))))
+                        if req_rendered.get("headers"):
+                            hdrs_out = req_rendered.get("headers")
+                            if not self.reveal:
+                                hdrs_out = mask_headers(hdrs_out)
+                            self.log.info(self._fmt_aligned("REQ", "headers", self._fmt_json(hdrs_out)))
+                        if req_rendered.get("body") is not None:
+                            body = req_rendered.get("body")
+                            if isinstance(body, (dict, list)) and not self.reveal:
+                                body = mask_body(body)
+                            self.log.info(self._fmt_aligned("REQ", "body", self._fmt_json(body)))
+                        if req_rendered.get("data") is not None:
+                            data = req_rendered.get("data")
+                            if isinstance(data, (dict, list)) and not self.reveal:
+                                data = mask_body(data)
+                            self.log.info(self._fmt_aligned("REQ", "data", self._fmt_json(data)))
+                        if req_rendered.get("files") is not None:
+                            self.log.info(self._fmt_aligned("REQ", "files", self._fmt_json(req_rendered.get("files"))))
+
+                    last_error: Optional[str] = None
+                    attempt = 0
+                    resp_obj: Optional[Dict[str, Any]] = None
+                    while attempt <= max(step.retry, 0):
+                        try:
+                            resp_obj = client.request(req_rendered)
+                            last_error = None
+                            break
+                        except Exception as e:
+                            last_error = str(e)
+                            if attempt >= step.retry:
+                                break
+                            backoff = min(step.retry_backoff * (2 ** attempt), 2.0)
+                            time.sleep(backoff)
+                            attempt += 1
+
+                    if last_error:
+                        status = "failed"
+                        if self.log:
+                            self.log.error(f"[STEP] Request error: {last_error}")
+
+                        req_summary = {
+                            k: to_report_safe(v)
+                            for k, v in (req_rendered or {}).items()
+                            if k in ("method", "path", "params", "headers", "body", "data", "files")
+                        }
+                        url_rendered = (req_rendered or {}).get("path")
+                        curl_headers = (req_rendered or {}).get("headers") or {}
+                        if not self.reveal and isinstance(curl_headers, dict):
+                            curl_headers = mask_headers(curl_headers)
+                        curl_data = (req_rendered or {}).get("body")
+                        if curl_data is None:
+                            curl_data = (req_rendered or {}).get("data")
+                        if not self.reveal and isinstance(curl_data, (dict, list)):
+                            curl_data = mask_body(curl_data)
+                        curl_cmd = to_curl(
+                            (req_rendered or {}).get("method", "GET"),
+                            url_rendered,
+                            headers=curl_headers if isinstance(curl_headers, dict) else {},
+                            data=curl_data,
+                        )
+
+                        steps_results.append(
+                            StepResult(
+                                name=rendered_step_name,
+                                origin_step_name=iteration_step_name,
+                                repeat_index=repeat_index,
+                                repeat_no=repeat_index + 1,
+                                repeat_total=repeat_total,
+                                status="failed",
+                                request=req_summary,
+                                response={"error": f"Request error: {last_error}"},
+                                curl=curl_cmd,
+                                error=f"Request error: {last_error}",
+                                duration_ms=0.0,
+                            )
+                        )
+                        if self.failfast:
+                            stop_current_step = True
+                            break
+                        continue
+
+                    assert resp_obj is not None
+                    last_resp_obj = resp_obj
+
+                    if self.log:
+                        hdrs = resp_obj.get("headers") or {}
+                        if not self.reveal:
+                            hdrs = mask_headers(hdrs)
+
+                        is_stream = resp_obj.get("is_stream", False)
+                        if is_stream:
+                            stream_summary = resp_obj.get("stream_summary", {})
+                            event_count = stream_summary.get("event_count", 0)
+                            first_chunk_ms = stream_summary.get("first_chunk_ms", 0)
+                            self.log.info(f"[RESPONSE] status={resp_obj.get('status_code')} elapsed={resp_obj.get('elapsed_ms'):.1f}ms (streaming: {event_count} events, first chunk: {first_chunk_ms:.1f}ms)")
+                        else:
+                            self.log.info(f"[RESPONSE] status={resp_obj.get('status_code')} elapsed={resp_obj.get('elapsed_ms'):.1f}ms")
+
+                        if self.log_response_headers:
+                            self.log.info(self._fmt_aligned("RESP", "headers", self._fmt_json(hdrs)))
+
+                        if is_stream:
+                            stream_events = resp_obj.get("stream_events", [])
+                            progressive_content = resp_obj.get("progressive_content", [])
+
+                            if stream_events:
+                                self.log.info(f"[STREAM] {len(stream_events)} events received")
+
+                                if progressive_content:
+                                    chunk_num = 0
+                                    for event in stream_events:
+                                        event_data = event.get("data")
+                                        if event_data and isinstance(event_data, dict):
+                                            choices = event_data.get("choices", [])
+                                            if choices and len(choices) > 0:
+                                                delta = choices[0].get("delta", {})
+                                                if delta.get("content"):
+                                                    chunk_num += 1
+                                                    self.log.info(self._fmt_aligned("STREAM", f"Chunk {chunk_num}", self._fmt_json(event)))
+
+                                    if progressive_content:
+                                        final_chunk = progressive_content[-1]
+                                        final_content = final_chunk.get("content", "")
+                                        final_time = final_chunk.get("timestamp_ms", 0)
+                                        self.log.info(f"[STREAM] 完成 ({final_time:.0f}ms)，最终内容：")
+                                        self.log.info(final_content)
+                                else:
+                                    if len(stream_events) > 0:
+                                        first_event = stream_events[0]
+                                        self.log.info(self._fmt_aligned("STREAM", "event[0]", self._fmt_json(first_event)))
+                                    if len(stream_events) > 1:
+                                        last_event = stream_events[-1]
+                                        self.log.info(self._fmt_aligned("STREAM", f"event[{len(stream_events)-1}]", self._fmt_json(last_event)))
+                        else:
+                            body_preview = resp_obj.get("body")
+                            if isinstance(body_preview, (dict, list)):
+                                out_body = body_preview
+                                if not self.reveal:
+                                    out_body = mask_body(out_body)
+                                self.log.info(self._fmt_aligned("RESP", "body", self._fmt_json(out_body)))
+                            elif body_preview is not None:
+                                text = str(body_preview)
+                                if len(text) > 2000:
+                                    text = text[:2000] + "..."
+                                self.log.info(self._fmt_aligned("RESP", "text", text))
+                            elif resp_obj.get("body_size") is not None:
+                                content_type = resp_obj.get("content_type") or "application/octet-stream"
+                                self.log.info(
+                                    "[RESPONSE] binary body=%s bytes content-type=%s",
+                                    resp_obj.get("body_size"),
+                                    content_type,
+                                )
+
+                    extracts: Dict[str, Any] = {}
+                    for var, expr in (step.extract or {}).items():
+                        if isinstance(expr, str) and "${" in expr:
+                            import re
+                            jpath_pattern = r'\$\.[\w\[\]\.]+(?:\[\d+\])*(?:\.[\w\[\]]+)*'
+                            jpaths = re.findall(jpath_pattern, expr)
+                            temp_vars = dict(variables)
+                            temp_expr = expr
+                            for idx, jp in enumerate(jpaths):
+                                extracted = self._eval_extract(jp, resp_obj)
+                                temp_var_name = f"_jpath_{idx}"
+                                temp_vars[temp_var_name] = extracted
+                                temp_expr = temp_expr.replace(jp, temp_var_name)
+                            val = self.templater.render_expression(temp_expr, temp_vars, funcs, envmap)
+                        else:
+                            val = self._eval_extract(expr, resp_obj)
+                        extracts[var] = val
+                        ctx.set_base(var, val)
+                        if self.log:
+                            self.log.info(f"[EXTRACT] {var} = {val!r} from {expr}")
+
+                    if extracts and envmap is not None:
+                        from drun.utils.env_writer import to_env_var_name
+                        for var_name, value in extracts.items():
+                            env_key = to_env_var_name(var_name)
+                            envmap[env_key] = value
+                            envmap[var_name] = value
+
+                    if extracts:
+                        from pathlib import Path
+                        from drun.utils.env_writer import (
+                            write_env_variable,
+                            write_yaml_variable,
+                            to_env_var_name
+                        )
+
+                        env_path = Path(self.persist_env_file)
+                        is_yaml = env_path.suffix.lower() in {'.yaml', '.yml'}
+
+                        for var_name, value in extracts.items():
+                            try:
+                                env_key = to_env_var_name(var_name)
+
+                                if is_yaml:
+                                    write_yaml_variable(str(env_path), var_name, value)
+                                else:
+                                    write_env_variable(str(env_path), var_name, value)
+
+                                if self.log:
+                                    self.log.info(
+                                        f"[PERSIST] {var_name} → {env_key} = {value!r} "
+                                        f"(已写入 {self.persist_env_file})"
+                                    )
+                            except Exception as e:
+                                if self.log:
+                                    self.log.warning(f"[PERSIST] 写入失败 {var_name}: {e}")
+
+                    if step.export:
+                        if "csv" in step.export:
+                            csv_config = step.export["csv"]
+                            rendered_config = self._render(csv_config, variables, funcs, envmap)
+                            data_expr = rendered_config.get("data")
+                            if not data_expr:
+                                raise ValueError("export.csv.data 字段是必填的")
+
+                            array_data = self._eval_extract(data_expr, resp_obj)
+
+                            from pathlib import Path
+                            from drun.utils.data_exporter import export_to_csv
+
+                            try:
+                                from drun.loader.hooks import find_hooks
+                                hooks_file = find_hooks(Path.cwd())
+                                base_dir = hooks_file.parent if hooks_file else Path.cwd()
+
+                                row_count = export_to_csv(
+                                    data=array_data,
+                                    file_path=rendered_config["file"],
+                                    columns=rendered_config.get("columns"),
+                                    encoding=rendered_config.get("encoding", "utf-8"),
+                                    mode=rendered_config.get("mode", "overwrite"),
+                                    delimiter=rendered_config.get("delimiter", ","),
+                                    base_dir=base_dir,
+                                )
+
+                                if self.log:
+                                    self.log.info(
+                                        f"[EXPORT CSV] {row_count} rows → {rendered_config['file']}"
+                                    )
+                            except Exception as e:
+                                if self.log:
+                                    self.log.error(f"[EXPORT CSV] 导出失败: {e}")
+                                raise
+
+                    variables = self._build_repeat_variables(ctx.get_merged(global_vars), repeat_index)
+
+                    saved_body_to: Optional[str] = None
+                    save_error: Optional[str] = None
+                    if step.response and step.response.save_body_to:
+                        try:
+                            saved_body_to = self._save_response_body(
+                                target=step.response.save_body_to,
+                                resp=resp_obj,
+                                variables=variables,
+                                funcs=funcs,
+                                envmap=envmap,
+                            )
+                            resp_obj["saved_body_to"] = saved_body_to
+                            if self.log:
+                                self.log.info(f"[RESPONSE] body saved to {saved_body_to}")
+                        except Exception as e:
+                            save_error = f"Save response body failed: {e}"
+                            resp_obj["save_error"] = save_error
+                            if self.log:
+                                self.log.error(f"[RESPONSE] {save_error}")
+
+                    assertions, step_failed = evaluate_validators(
+                        runner=self,
+                        validators=step.validators,
+                        variables=variables,
+                        funcs=funcs,
+                        envmap=envmap,
+                        resp_obj=resp_obj,
+                    )
+                    if save_error:
+                        step_failed = True
+
+                    try:
+                        teardown_meta = {
+                            "step_name": step.name,
+                            "case_name": case.config.name or name,
+                            "step_response": resp_obj,
+                            "step_request": req_rendered,
+                            "step_variables": variables,
+                            "session_variables": ctx.get_merged(global_vars),
+                            "session_env": envmap or {},
+                        }
+                        new_vars_td = self._run_teardown_hooks(
+                            step.teardown_hooks,
+                            funcs=funcs,
+                            resp=resp_obj,
+                            variables=variables,
+                            envmap=envmap,
+                            meta=teardown_meta,
+                        )
+                        for k, v in (new_vars_td or {}).items():
+                            ctx.set_base(k, v)
+                            if self.log:
+                                self.log.info(f"[HOOK] set var: {k} = {v!r}")
+                        variables = self._build_repeat_variables(ctx.get_merged(global_vars), repeat_index)
+                    except Exception as e:
+                        step_failed = True
+                        if self.log:
+                            self.log.error(f"[HOOK] teardown error: {e}")
+
+                    body_masked = resp_obj.get("body")
+                    if not self.reveal:
+                        body_masked = mask_body(body_masked)
+
+                    response_dict = {
+                        "status_code": resp_obj.get("status_code"),
+                    }
+
+                    if resp_obj.get("is_stream"):
+                        response_dict["is_stream"] = True
+                        response_dict["stream_events"] = resp_obj.get("stream_events", [])
+                        response_dict["stream_summary"] = resp_obj.get("stream_summary", {})
+                        response_dict["stream_raw_chunks"] = resp_obj.get("stream_raw_chunks", [])
+                        if not self.reveal:
+                            masked_events = []
+                            for event in response_dict["stream_events"]:
+                                masked_event = event.copy()
+                                if isinstance(masked_event.get("data"), (dict, list)):
+                                    masked_event["data"] = mask_body(masked_event["data"])
+                                masked_events.append(masked_event)
+                            response_dict["stream_events"] = masked_events
+                    else:
+                        if isinstance(body_masked, (dict, list)):
+                            response_dict["body"] = body_masked
+                        elif body_masked is None:
+                            response_dict["body"] = None
+                        elif isinstance(body_masked, (str, bytes)):
+                            if isinstance(body_masked, bytes):
+                                text = body_masked.decode("utf-8", errors="replace")
+                            else:
+                                text = body_masked
+                            response_dict["body"] = text if len(text) <= 2048 else text[:2048] + "..."
+                        elif isinstance(body_masked, (bool, int, float)):
+                            response_dict["body"] = body_masked
+                        else:
+                            text = str(body_masked)
+                            response_dict["body"] = text if len(text) <= 2048 else text[:2048] + "..."
+                        if resp_obj.get("content_type") is not None:
+                            response_dict["content_type"] = resp_obj.get("content_type")
+                        if resp_obj.get("body_size") is not None:
+                            response_dict["body_size"] = resp_obj.get("body_size")
+                        if resp_obj.get("body_bytes_b64") is not None:
+                            response_dict["body_bytes_b64"] = resp_obj.get("body_bytes_b64")
+                        if resp_obj.get("saved_body_to") is not None:
+                            response_dict["saved_body_to"] = resp_obj.get("saved_body_to")
+                        if resp_obj.get("save_error") is not None:
+                            response_dict["save_error"] = resp_obj.get("save_error")
+
+                    url_rendered = resp_obj.get("url") or req_rendered.get("path")
+                    curl_headers = req_rendered.get("headers") or {}
                     if not self.reveal and isinstance(curl_headers, dict):
                         curl_headers = mask_headers(curl_headers)
-                    curl_data = (req_rendered or {}).get("body")
-                    if curl_data is None:
-                        curl_data = (req_rendered or {}).get("data")
+                    curl_data = req_rendered.get("body") if req_rendered.get("body") is not None else req_rendered.get("data")
                     if not self.reveal and isinstance(curl_data, (dict, list)):
                         curl_data = mask_body(curl_data)
-                    curl_cmd = to_curl(
-                        (req_rendered or {}).get("method", "GET"),
+                    curl = to_curl(
+                        req_rendered.get("method", "GET"),
                         url_rendered,
                         headers=curl_headers if isinstance(curl_headers, dict) else {},
                         data=curl_data,
                     )
+                    if self.log_debug:
+                        self.log.debug("cURL: %s", curl)
 
-                    steps_results.append(
-                        StepResult(
-                            name=rendered_step_name,
-                            status="failed",
-                            request=req_summary,
-                            response={"error": f"Request error: {last_error}"},
-                            curl=curl_cmd,
-                            error=f"Request error: {last_error}",
-                            duration_ms=0.0,
-                        )
+                    sr = StepResult(
+                        name=rendered_step_name,
+                        origin_step_name=iteration_step_name,
+                        repeat_index=repeat_index,
+                        repeat_no=repeat_index + 1,
+                        repeat_total=repeat_total,
+                        status="failed" if step_failed else "passed",
+                        request={
+                            k: to_report_safe(v)
+                            for k, v in req_rendered.items()
+                            if k in ("method", "path", "url", "params", "headers", "body", "data", "files")
+                        },
+                        response=response_dict,
+                        curl=curl,
+                        asserts=assertions,
+                        extracts=extracts,
+                        duration_ms=resp_obj.get("elapsed_ms") or 0.0,
+                        error=save_error,
                     )
-                    if self.failfast:
+                    steps_results.append(sr)
+                    if step_failed:
+                        status = "failed"
+                        if self.log:
+                            self.log.error(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | FAILED")
+                    else:
+                        if self.log:
+                            self.log.info(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | PASSED")
+
+                    if step_failed and self.failfast:
+                        stop_current_step = True
                         break
-                    ctx.pop()
-                    continue
 
-                assert resp_obj is not None
-                last_resp_obj = resp_obj
-
-                if self.log:
-                    hdrs = resp_obj.get("headers") or {}
-                    if not self.reveal:
-                        hdrs = mask_headers(hdrs)
-                    
-                    # Check if streaming response
-                    is_stream = resp_obj.get("is_stream", False)
-                    if is_stream:
-                        stream_summary = resp_obj.get("stream_summary", {})
-                        event_count = stream_summary.get("event_count", 0)
-                        first_chunk_ms = stream_summary.get("first_chunk_ms", 0)
-                        self.log.info(f"[RESPONSE] status={resp_obj.get('status_code')} elapsed={resp_obj.get('elapsed_ms'):.1f}ms (streaming: {event_count} events, first chunk: {first_chunk_ms:.1f}ms)")
-                    else:
-                        self.log.info(f"[RESPONSE] status={resp_obj.get('status_code')} elapsed={resp_obj.get('elapsed_ms'):.1f}ms")
-                    
-                    if self.log_response_headers:
-                        self.log.info(self._fmt_aligned("RESP", "headers", self._fmt_json(hdrs)))
-                    
-                    if is_stream:
-                        # For streaming, show progressive content instead of full events
-                        stream_events = resp_obj.get("stream_events", [])
-                        progressive_content = resp_obj.get("progressive_content", [])
-                        
-                        if stream_events:
-                            self.log.info(f"[STREAM] {len(stream_events)} events received")
-                            
-                            # Show progressive content if available
-                            if progressive_content:
-                                # Show each event that contains content with full JSON structure
-                                chunk_num = 0
-                                for event in stream_events:
-                                    event_data = event.get("data")
-                                    if event_data and isinstance(event_data, dict):
-                                        choices = event_data.get("choices", [])
-                                        if choices and len(choices) > 0:
-                                            delta = choices[0].get("delta", {})
-                                            if delta.get("content"):
-                                                chunk_num += 1
-                                                self.log.info(self._fmt_aligned("STREAM", f"Chunk {chunk_num}", self._fmt_json(event)))
-                                
-                                # Show final summary
-                                if progressive_content:
-                                    final_chunk = progressive_content[-1]
-                                    final_content = final_chunk.get("content", "")
-                                    final_time = final_chunk.get("timestamp_ms", 0)
-                                    self.log.info(f"[STREAM] 完成 ({final_time:.0f}ms)，最终内容：")
-                                    self.log.info(final_content)
-                            else:
-                                # Fallback: show first and last events if progressive content not available
-                                if len(stream_events) > 0:
-                                    first_event = stream_events[0]
-                                    self.log.info(self._fmt_aligned("STREAM", "event[0]", self._fmt_json(first_event)))
-                                if len(stream_events) > 1:
-                                    last_event = stream_events[-1]
-                                    self.log.info(self._fmt_aligned("STREAM", f"event[{len(stream_events)-1}]", self._fmt_json(last_event)))
-                    else:
-                        # Regular response body logging
-                        body_preview = resp_obj.get("body")
-                        if isinstance(body_preview, (dict, list)):
-                            out_body = body_preview
-                            if not self.reveal:
-                                out_body = mask_body(out_body)
-                            self.log.info(self._fmt_aligned("RESP", "body", self._fmt_json(out_body)))
-                        elif body_preview is not None:
-                            text = str(body_preview)
-                            if len(text) > 2000:
-                                text = text[:2000] + "..."
-                            self.log.info(self._fmt_aligned("RESP", "text", text))
-                        elif resp_obj.get("body_size") is not None:
-                            content_type = resp_obj.get("content_type") or "application/octet-stream"
-                            self.log.info(
-                                "[RESPONSE] binary body=%s bytes content-type=%s",
-                                resp_obj.get("body_size"),
-                                content_type,
-                            )
-
-                # extracts ($-only syntax) - moved before validation to allow using extracted vars in validate
-                # 支持两种模式：
-                # 1. JMESPath 提取：$.data.id
-                # 2. 函数调用：${append_models($.data[0].models, $chat_models)}
-                extracts: Dict[str, Any] = {}
-                for var, expr in (step.extract or {}).items():
-                    if isinstance(expr, str) and "${" in expr:
-                        # 函数调用模式：先提取表达式中的 $.xxx JMESPath，再渲染模板
-                        import re
-                        jpath_pattern = r'\$\.[\w\[\]\.]+(?:\[\d+\])*(?:\.[\w\[\]]+)*'
-                        jpaths = re.findall(jpath_pattern, expr)
-                        temp_vars = dict(variables)
-                        temp_expr = expr
-                        for idx, jp in enumerate(jpaths):
-                            extracted = self._eval_extract(jp, resp_obj)
-                            temp_var_name = f"_jpath_{idx}"
-                            temp_vars[temp_var_name] = extracted
-                            # 不加 $ 前缀，直接用变量名，避免 normalize 时产生嵌套 ${}
-                            temp_expr = temp_expr.replace(jp, temp_var_name)
-
-                        # 统一由模板引擎处理表达式求值和兼容 fallback
-                        val = self.templater.render_expression(temp_expr, temp_vars, funcs, envmap)
-                    else:
-                        # 原有 JMESPath 提取模式
-                        val = self._eval_extract(expr, resp_obj)
-                    extracts[var] = val
-                    ctx.set_base(var, val)
-                    if self.log:
-                        self.log.info(f"[EXTRACT] {var} = {val!r} from {expr}")
-                
-                # Update to memory environment variables (for immediate use in subsequent cases)
-                if extracts and envmap is not None:
-                    from drun.utils.env_writer import to_env_var_name
-                    for var_name, value in extracts.items():
-                        env_key = to_env_var_name(var_name)
-                        envmap[env_key] = value
-                        envmap[var_name] = value
-                
-                # Auto-persist extracted variables to env file
-                if extracts:
-                    from pathlib import Path
-                    from drun.utils.env_writer import (
-                        write_env_variable,
-                        write_yaml_variable,
-                        to_env_var_name
-                    )
-                    
-                    env_path = Path(self.persist_env_file)
-                    is_yaml = env_path.suffix.lower() in {'.yaml', '.yml'}
-                    
-                    for var_name, value in extracts.items():
-                        try:
-                            env_key = to_env_var_name(var_name)
-                            
-                            if is_yaml:
-                                write_yaml_variable(str(env_path), var_name, value)
-                            else:
-                                write_env_variable(str(env_path), var_name, value)
-                            
-                            if self.log:
-                                self.log.info(
-                                    f"[PERSIST] {var_name} → {env_key} = {value!r} "
-                                    f"(已写入 {self.persist_env_file})"
-                                )
-                        except Exception as e:
-                            if self.log:
-                                self.log.warning(f"[PERSIST] 写入失败 {var_name}: {e}")
-                
-                # Export data to CSV
-                if step.export:
-                    if "csv" in step.export:
-                        csv_config = step.export["csv"]
-                        
-                        # 渲染配置中的模板变量（支持 ${now()} 等）
-                        rendered_config = self._render(csv_config, variables, funcs, envmap)
-                        
-                        # 提取数据
-                        data_expr = rendered_config.get("data")
-                        if not data_expr:
-                            raise ValueError("export.csv.data 字段是必填的")
-                        
-                        array_data = self._eval_extract(data_expr, resp_obj)
-                        
-                        # 导出到 CSV
-                        from pathlib import Path
-                        from drun.utils.data_exporter import export_to_csv
-                        
-                        try:
-                            # 获取项目根目录（与 CSV 参数化保持一致）
-                            from drun.loader.hooks import find_hooks
-                            hooks_file = find_hooks(Path.cwd())
-                            base_dir = hooks_file.parent if hooks_file else Path.cwd()
-                            
-                            row_count = export_to_csv(
-                                data=array_data,
-                                file_path=rendered_config["file"],
-                                columns=rendered_config.get("columns"),
-                                encoding=rendered_config.get("encoding", "utf-8"),
-                                mode=rendered_config.get("mode", "overwrite"),
-                                delimiter=rendered_config.get("delimiter", ","),
-                                base_dir=base_dir,
-                            )
-                            
-                            if self.log:
-                                self.log.info(
-                                    f"[EXPORT CSV] {row_count} rows → {rendered_config['file']}"
-                                )
-                        except Exception as e:
-                            if self.log:
-                                self.log.error(f"[EXPORT CSV] 导出失败: {e}")
-                            raise
-                
-                # Update variables after extraction so validate can use them
-                variables = ctx.get_merged(global_vars)
-
-                saved_body_to: Optional[str] = None
-                save_error: Optional[str] = None
-                if step.response and step.response.save_body_to:
-                    try:
-                        saved_body_to = self._save_response_body(
-                            target=step.response.save_body_to,
-                            resp=resp_obj,
-                            variables=variables,
-                            funcs=funcs,
-                            envmap=envmap,
-                        )
-                        resp_obj["saved_body_to"] = saved_body_to
-                        if self.log:
-                            self.log.info(f"[RESPONSE] body saved to {saved_body_to}")
-                    except Exception as e:
-                        save_error = f"Save response body failed: {e}"
-                        resp_obj["save_error"] = save_error
-                        if self.log:
-                            self.log.error(f"[RESPONSE] {save_error}")
-
-                # assertions
-                assertions, step_failed = evaluate_validators(
-                    runner=self,
-                    validators=step.validators,
-                    variables=variables,
-                    funcs=funcs,
-                    envmap=envmap,
-                    resp_obj=resp_obj,
-                )
-                if save_error:
-                    step_failed = True
-
-                # Built-in SQL validation has been removed; any SQL checks should run via hooks.
-
-                # teardown hooks
-                try:
-                    teardown_meta = {
-                        "step_name": step.name,
-                        "case_name": case.config.name or name,
-                        "step_response": resp_obj,
-                        "step_request": req_rendered,
-                        "step_variables": variables,
-                        "session_variables": ctx.get_merged(global_vars),
-                        "session_env": envmap or {},
-                    }
-                    new_vars_td = self._run_teardown_hooks(
-                        step.teardown_hooks,
-                        funcs=funcs,
-                        resp=resp_obj,
-                        variables=variables,
-                        envmap=envmap,
-                        meta=teardown_meta,
-                    )
-                    for k, v in (new_vars_td or {}).items():
-                        ctx.set_base(k, v)
-                        if self.log:
-                            self.log.info(f"[HOOK] set var: {k} = {v!r}")
-                    variables = ctx.get_merged(global_vars)
-                except Exception as e:
-                    step_failed = True
-                    if self.log:
-                        self.log.error(f"[HOOK] teardown error: {e}")
-
-                # build result
-                body_masked = resp_obj.get("body")
-                if not self.reveal:
-                    body_masked = mask_body(body_masked)
-
-                # Build response dict - include streaming fields if present
-                response_dict = {
-                    "status_code": resp_obj.get("status_code"),
-                }
-
-                # Check if streaming response
-                if resp_obj.get("is_stream"):
-                    response_dict["is_stream"] = True
-                    response_dict["stream_events"] = resp_obj.get("stream_events", [])
-                    response_dict["stream_summary"] = resp_obj.get("stream_summary", {})
-                    response_dict["stream_raw_chunks"] = resp_obj.get("stream_raw_chunks", [])
-                    # Optionally mask streaming data if needed
-                    if not self.reveal:
-                        # Mask sensitive data in stream events
-                        masked_events = []
-                        for event in response_dict["stream_events"]:
-                            masked_event = event.copy()
-                            if isinstance(masked_event.get("data"), (dict, list)):
-                                masked_event["data"] = mask_body(masked_event["data"])
-                            masked_events.append(masked_event)
-                        response_dict["stream_events"] = masked_events
-                else:
-                    # Regular response body
-                    if isinstance(body_masked, (dict, list)):
-                        response_dict["body"] = body_masked
-                    elif body_masked is None:
-                        response_dict["body"] = None
-                    elif isinstance(body_masked, (str, bytes)):
-                        if isinstance(body_masked, bytes):
-                            text = body_masked.decode("utf-8", errors="replace")
-                        else:
-                            text = body_masked
-                        response_dict["body"] = text if len(text) <= 2048 else text[:2048] + "..."
-                    elif isinstance(body_masked, (bool, int, float)):
-                        response_dict["body"] = body_masked
-                    else:
-                        text = str(body_masked)
-                        response_dict["body"] = text if len(text) <= 2048 else text[:2048] + "..."
-                    if resp_obj.get("content_type") is not None:
-                        response_dict["content_type"] = resp_obj.get("content_type")
-                    if resp_obj.get("body_size") is not None:
-                        response_dict["body_size"] = resp_obj.get("body_size")
-                    if resp_obj.get("body_bytes_b64") is not None:
-                        response_dict["body_bytes_b64"] = resp_obj.get("body_bytes_b64")
-                    if resp_obj.get("saved_body_to") is not None:
-                        response_dict["saved_body_to"] = resp_obj.get("saved_body_to")
-                    if resp_obj.get("save_error") is not None:
-                        response_dict["save_error"] = resp_obj.get("save_error")
-
-                # Build curl command for the step (always available in report)
-                url_rendered = resp_obj.get("url") or req_rendered.get("path")
-                curl_headers = req_rendered.get("headers") or {}
-                if not self.reveal and isinstance(curl_headers, dict):
-                    curl_headers = mask_headers(curl_headers)
-                curl_data = req_rendered.get("body") if req_rendered.get("body") is not None else req_rendered.get("data")
-                if not self.reveal and isinstance(curl_data, (dict, list)):
-                    curl_data = mask_body(curl_data)
-                curl = to_curl(
-                    req_rendered.get("method", "GET"),
-                    url_rendered,
-                    headers=curl_headers if isinstance(curl_headers, dict) else {},
-                    data=curl_data,
-                )
-                if self.log_debug:
-                    self.log.debug("cURL: %s", curl)
-
-                sr = StepResult(
-                    name=rendered_step_name,
-                    status="failed" if step_failed else "passed",
-                    request={
-                        k: to_report_safe(v)
-                        for k, v in req_rendered.items()
-                        if k in ("method", "path", "url", "params", "headers", "body", "data", "files")
-                    },
-                    response=response_dict,
-                    curl=curl,
-                    asserts=assertions,
-                    extracts=extracts,
-                    duration_ms=resp_obj.get("elapsed_ms") or 0.0,
-                    error=save_error,
-                )
-                steps_results.append(sr)
-                if step_failed:
-                    status = "failed"
-                    if self.log:
-                        self.log.error(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | FAILED")
-                else:
-                    if self.log:
-                        self.log.info(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | PASSED")
-
-                # httpstat 输出已移除
-
-                if step_failed and self.failfast:
-                    ctx.pop()
-                    break
                 ctx.pop()
+                if stop_current_step:
+                    break
 
         finally:
             # Suite + Case teardown hooks (best-effort)
