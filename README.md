@@ -82,7 +82,7 @@ uv pip install --upgrade drun
 
 ```bash
 drun init myproject
-drun init myproject --ci    # Include GitHub Actions workflow
+drun init myproject -ci    # Include GitHub Actions workflow
 cd myproject
 ```
 
@@ -720,7 +720,7 @@ YAML writing details for run targets are in the sections above, especially `conf
 - `-snippet off`: Disable code snippet generation (temporary single-file runs are already disabled by default)
 - `-snippet-output DIR`: Custom output directory for snippets
 - `-snippet MODE`: Snippet mode: off|all|curl|python
-- `--help`: Keep double-hyphen for help (`drun run --help`)
+- `--help`: Help entry is unified at root (`drun --help`)
 
 ### Quick Request Debug (`drun q`)
 
@@ -756,24 +756,29 @@ drun q https://httpbin.org/get \
 
 # Save full response body
 drun q https://httpbin.org/json \
-  -output artifacts/httpbin.json
+  -o artifacts/httpbin.json
 
 # Save as YAML testcase template
 drun q https://httpbin.org/post \
   -X POST \
-  -data '{"hello":"world"}' \
+  -d '{"hello":"world"}' \
   -save-yaml testcases/from_q.yaml \
   -secrets mask
+
+# Read request body from file
+drun q https://httpbin.org/post \
+  -X POST \
+  -d @body.json
 ```
 
 Key options:
-- `-X/-method`: HTTP method
-- `-H/-header`: request header, repeatable
-- `-p/-param`: query param, repeatable
-- `-d/-data` / `-data-file`: request body input
+- `-X`: HTTP method
+- `-H`: request header, repeatable
+- `-p`: query param, repeatable
+- `-d`: request body; supports `@file` syntax
 - `-validate`: assertion expression (repeatable)
 - `-extract`: variable extraction (`name=$expr`)
-- `-o/-output`: write full response body
+- `-o`: write full response body
 - `-save-yaml`: convert current request to YAML testcase
 - `-secrets plain|mask`: output secret mode
 
@@ -781,33 +786,32 @@ Key options:
 
 ```bash
 # cURL to YAML
-drun convert sample.curl --outfile testcases/from_curl.yaml
+drun convert sample.curl -outfile testcases/from_curl.yaml
 
 # With redaction and placeholders
 drun convert sample.curl \
-  --outfile testcases/from_curl.yaml \
-  --redact Authorization,Cookie \
-  --placeholders
+  -outfile testcases/from_curl.yaml \
+  -redact Authorization,Cookie \
+  -placeholders on
 
 # Postman Collection to YAML (with split output)
 drun convert collection.json \
-  --split-output \
-  --suite-out testsuites/from_postman.yaml \
-  --postman-env environment.json \
-  --placeholders
+  -output-mode split \
+  -suite-out testsuites/from_postman.yaml \
+  -postman-env environment.json \
+  -placeholders on
 
 # HAR to YAML
 drun convert recording.har \
-  --outfile testcases/from_har.yaml \
-  --exclude-static \
-  --only-2xx
+  -outfile testcases/from_har.yaml \
+  -redact Authorization
 
 # OpenAPI to YAML
 drun convert-openapi openapi.json \
-  --outfile testcases/from_openapi.yaml \
-  --tags users,orders \
-  --split-output \
-  --placeholders
+  -outfile testcases/from_openapi.yaml \
+  -tags users,orders \
+  -output-mode split \
+  -placeholders on
 ```
 
 ### Export to cURL
@@ -818,13 +822,13 @@ drun export curl testcases/test_api.yaml
 
 # Advanced options
 drun export curl testcases/test_api.yaml \
-  --case-name "User API Test" \
-  --steps 1,3-5 \
-  --multiline \
-  --shell sh \
-  --redact Authorization \
-  --with-comments \
-  --outfile export.curl
+  -case-name "User API Test" \
+  -steps 1,3-5 \
+  -layout multiline \
+  -shell sh \
+  -redact Authorization \
+  -comments on \
+  -outfile export.curl
 ```
 
 ### Other Commands
@@ -838,13 +842,13 @@ drun check testcases/
 
 # Auto-fix YAML formatting
 drun fix testcases/
-drun fix testcases/ --only-spacing
-drun fix testcases/ --only-hooks
+drun fix testcases/ -mode spacing
+drun fix testcases/ -mode hooks
 
 # Initialize new project
 drun init myproject
-drun init myproject --ci       # With CI workflow
-drun init myproject --force    # Overwrite existing
+drun init myproject -ci       # With CI workflow
+drun init myproject -force    # Overwrite existing
 
 # Version info
 drun --version
@@ -1361,8 +1365,7 @@ pip install -e ".[dev]"
 
 # Validation commands for the current P0 baseline
 drun --version
-drun run --help
-drun server --help
+drun --help
 python -m pytest -q
 python -m build
 python -m drun.cli --version
