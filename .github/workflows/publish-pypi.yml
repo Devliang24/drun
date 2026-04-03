@@ -31,9 +31,10 @@ jobs:
 
       - name: Check CLI help
         run: |
-          drun --help
-          drun run --help
-          drun server --help
+          drun --help | tee /tmp/drun-help.txt
+          grep -q "Expanded Help (All Commands)" /tmp/drun-help.txt
+          grep -q "drun run PATH" /tmp/drun-help.txt
+          grep -q "drun server" /tmp/drun-help.txt
 
       - name: Build distribution packages
         run: |
