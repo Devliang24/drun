@@ -466,6 +466,58 @@ class Runner:
             "repeat_no": repeat_index + 1,
         }
 
+    def _coerce_skip_bool(self, value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        if isinstance(value, (int, float)):
+            return value != 0
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"", "false", "0", "no", "off", "none", "null"}:
+                return False
+            if lowered in {"true", "1", "yes", "on"}:
+                return True
+            return True
+        return bool(value)
+
+    def _resolve_skip_decision(
+        self,
+        step: Step,
+        variables: Dict[str, Any],
+        funcs: Dict[str, Any] | None,
+        envmap: Dict[str, Any] | None,
+    ) -> tuple[bool, str | None]:
+        raw_skip = step.skip
+        if raw_skip is None:
+            return False, None
+        if isinstance(raw_skip, bool):
+            return raw_skip, "true" if raw_skip else None
+        if isinstance(raw_skip, str):
+            skip_text = raw_skip.strip()
+            if not skip_text:
+                return False, None
+            if skip_text.startswith("${") and skip_text.endswith("}"):
+                literal_expr = skip_text[2:-1].strip().lower()
+                if literal_expr in {"false", "none", "null"}:
+                    return False, None
+                if literal_expr == "true":
+                    return True, f"{skip_text} => True"
+                try:
+                    rendered_skip = self._render(skip_text, variables, funcs, envmap, strict=True)
+                except Exception as exc:
+                    raise ValueError(
+                        f"Invalid skip expression for step '{step.name}': {exc}"
+                    ) from exc
+                should_skip = self._coerce_skip_bool(rendered_skip)
+                if not should_skip:
+                    return False, None
+                return True, f"{skip_text} => {rendered_skip!r}"
+            return True, skip_text
+        should_skip = bool(raw_skip)
+        return should_skip, str(raw_skip) if should_skip else None
+
     def _resolve_repeat_count(
         self,
         step: Step,
@@ -575,12 +627,6 @@ class Runner:
                 raise
 
             for step_idx, step in enumerate(case.steps, 1):
-                if step.skip:
-                    if self.log:
-                        self.log.info(f"[STEP] Step {step_idx} Skip: {step.name} | reason={step.skip}")
-                    steps_results.append(StepResult(name=step.name, status="skipped", origin_step_name=step.name))
-                    continue
-
                 base_variables = ctx.get_merged(global_vars)
                 rendered_locals = self._render(step.variables, base_variables, funcs, envmap)
                 ctx.push(rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {}))
@@ -639,6 +685,49 @@ class Runner:
                             iteration_step_name, repeat_index, repeat_total
                         )
 
+                        try:
+                            should_skip, skip_reason = self._resolve_skip_decision(
+                                step, iteration_vars, funcs, envmap
+                            )
+                        except Exception as e:
+                            status = "failed"
+                            if self.log:
+                                self.log.error(f"[STEP] Step {step_idx} Skip error: {e}")
+                            steps_results.append(
+                                StepResult(
+                                    name=rendered_step_name,
+                                    origin_step_name=iteration_step_name,
+                                    repeat_index=repeat_index,
+                                    repeat_no=repeat_index + 1,
+                                    repeat_total=repeat_total,
+                                    status="failed",
+                                    error=f"skip error: {e}",
+                                )
+                            )
+                            if self.failfast:
+                                stop_current_step = True
+                                break
+                            continue
+
+                        if should_skip:
+                            skip_reason_text = skip_reason or "skip=true"
+                            if self.log:
+                                self.log.info(
+                                    f"[STEP] Step {step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
+                                )
+                            steps_results.append(
+                                StepResult(
+                                    name=rendered_step_name,
+                                    origin_step_name=iteration_step_name,
+                                    repeat_index=repeat_index,
+                                    repeat_no=repeat_index + 1,
+                                    repeat_total=repeat_total,
+                                    status="skipped",
+                                    error=skip_reason_text,
+                                )
+                            )
+                            continue
+
                         invoke_results = self._run_invoke_step(
                             step=step,
                             step_idx=step_idx,
@@ -679,6 +768,49 @@ class Runner:
                     rendered_step_name = self._format_repeat_step_name(
                         iteration_step_name, repeat_index, repeat_total
                     )
+
+                    try:
+                        should_skip, skip_reason = self._resolve_skip_decision(
+                            step, variables, funcs, envmap
+                        )
+                    except Exception as e:
+                        status = "failed"
+                        if self.log:
+                            self.log.error(f"[STEP] Step {step_idx} Skip error: {e}")
+                        steps_results.append(
+                            StepResult(
+                                name=rendered_step_name,
+                                origin_step_name=iteration_step_name,
+                                repeat_index=repeat_index,
+                                repeat_no=repeat_index + 1,
+                                repeat_total=repeat_total,
+                                status="failed",
+                                error=f"skip error: {e}",
+                            )
+                        )
+                        if self.failfast:
+                            stop_current_step = True
+                            break
+                        continue
+
+                    if should_skip:
+                        skip_reason_text = skip_reason or "skip=true"
+                        if self.log:
+                            self.log.info(
+                                f"[STEP] Step {step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
+                            )
+                        steps_results.append(
+                            StepResult(
+                                name=rendered_step_name,
+                                origin_step_name=iteration_step_name,
+                                repeat_index=repeat_index,
+                                repeat_no=repeat_index + 1,
+                                repeat_total=repeat_total,
+                                status="skipped",
+                                error=skip_reason_text,
+                            )
+                        )
+                        continue
 
                     req_rendered = self._render(req_dict, variables, funcs, envmap, strict=True)
                     session_vars_for_hook = variables

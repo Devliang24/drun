@@ -1,6 +1,6 @@
 # Drun — Modern HTTP API Testing Framework
 
-[![Version](https://img.shields.io/badge/version-7.1.3-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.2.7-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -26,7 +26,7 @@
 - **Streaming Support**: SSE (Server-Sent Events) with per-event assertions
 - **File Uploads**: Multipart/form-data support
 - **Smart File Discovery**: Run tests without `.yaml` extension
-- **Test Case Invoke**: Nested test case calls with variable passing (NEW in v6.2)
+- **Test Case Invoke**: Nested test case calls with variable passing
 
 ### Variable Management
 - **Auto-Persist**: Extracted variables automatically saved to `.env`
@@ -39,7 +39,7 @@
 - **Test Suites**: Ordered execution with variable chaining and caseflow
 - **Authentication**: Basic/Bearer auth with auto-injection
 - **Tag Filtering**: Boolean expressions like `smoke and not slow`
-- **Database Assertions**: MySQL integration for data validation
+- **Database Validation via Hooks**: Integrate DB checks through custom hook functions
 
 ### Reports & Integrations
 - **HTML Reports**: Single-file, shareable test reports
@@ -159,6 +159,10 @@ steps:
 drun run testcases/test_user_api.yaml -env dev
 drun run test_user_api -env dev
 
+# Run specific case(s) from a file
+drun run "test_channel_token_flow:获取渠道 token" -env dev
+drun run "test_channel_token_flow:获取渠道 token,刷新渠道 token" -env dev
+
 # Run with HTML report
 drun run test_user_api -env dev -html reports/report.html
 
@@ -169,7 +173,54 @@ drun run testcases -env dev -k "smoke and not slow"
 drun run testsuite_e2e -env dev
 ```
 
+By default:
+- Temporary single-file run (outside scaffold) writes only one log file in current directory
+- Scaffold project run keeps default outputs in `logs/`, `reports/`, `snippets/`
+
 ## Core Concepts
+
+### YAML Case Authoring Quick Reference
+
+Use one of these two file shapes:
+
+**1) Single case file (`config + steps`)**
+
+```yaml
+config:
+  name: Login API
+  base_url: ${ENV(BASE_URL)}
+
+steps:
+  - name: Login
+    request:
+      method: POST
+      path: /login
+      body:
+        username: admin
+        password: pass123
+    extract:
+      token: $.data.token
+    validate:
+      - eq: [status_code, 200]
+```
+
+**2) Suite file (`config + caseflow`)**
+
+```yaml
+config:
+  name: Smoke Suite
+
+caseflow:
+  - name: Login
+    invoke: test_login
+  - name: User Profile
+    invoke: test_profile
+```
+
+Use this with CLI:
+- `drun run testcases/test_login.yaml -env dev`
+- `drun run testsuites/testsuite_smoke.yaml -env dev`
+- `drun run "test_channel_token_flow:获取渠道 token" -env dev`
 
 ### Test Case Structure
 
@@ -211,6 +262,24 @@ steps:
       - ${cleanup_function()}
 ```
 
+### Step Syntax Matrix (Writing + Constraints)
+
+| Field | Example | Notes |
+| --- | --- | --- |
+| `request.method` / `request.path` | `method: POST` / `path: /users` | Required for request steps |
+| `request.headers` / `request.params` | `headers: {Authorization: Bearer $token}` | Key-value maps |
+| `request.body` | `body: {name: alice}` | JSON-style request body |
+| `request.data` | `data: {model: sensevoice}` | Form fields, commonly with multipart |
+| `request.files` | `files: {file: "data/a.wav"}` or `files: {file: ["data/a.wav", "audio/x-wav"]}` | Supported upload forms; prefer `data + files` for multipart |
+| `request.stream` / `request.stream_timeout` | `stream: true` / `stream_timeout: 30` | For SSE/streaming APIs |
+| `extract` | `extract: {token: $.data.token}` | Extract variables for later steps/cases |
+| `validate` | `- eq: [status_code, 200]` | Assertions on status/body/variables |
+| `setup_hooks` / `teardown_hooks` | `setup_hooks: [${sign($request)}]` | Run Python hooks before/after step |
+| `response.save_body_to` | `response: {save_body_to: artifacts/out.mp3}` | Save binary/non-JSON response to file |
+| `skip` | `skip: true` / `skip: "maintenance"` / `skip: ${remain_quota <= 0}` | Supports bool, reason string, or expression (evaluated per iteration with `repeat`) |
+| `repeat` | `repeat: 3` or `repeat: ${retry_count}` | Must resolve to integer `>= 0`; `0` means skipped |
+| `invoke_case_name` / `invoke_case_names` | `invoke_case_name: 获取渠道 token` | Caseflow-only filter by exact `config.name`; two fields are mutually exclusive |
+
 ### Variable Extraction & Auto-Persist
 
 **Extraction automatically persists to environment:**
@@ -245,7 +314,7 @@ steps:
         user_id: ${ENV(USER_ID)}            # Uses extracted userId
 ```
 
-### Test Suites & Caseflow (NEW in v6.2)
+### Test Suites & Caseflow
 
 **Modern caseflow syntax with invoke:**
 
@@ -274,29 +343,78 @@ caseflow:
     variables:
       order_id: $orderId
     invoke: test_verify
+
+  - name: Invoke specific cases in file
+    invoke: test_channel_token_flow
+    invoke_case_names:
+      - 获取渠道 token
+      - 刷新渠道 token
+
+  - name: Repeat invoke step
+    invoke: test_channel_token_flow
+    invoke_case_name: 获取渠道 token
+    repeat: 2
 ```
 
 > **Note**: In caseflow, `variables` comes before `invoke`. Extracted variables are automatically exported to subsequent steps - no explicit `export` needed.
-
-**Legacy testcases syntax (still supported):**
-
-```yaml
-config:
-  name: E2E Test Flow
-  base_url: ${ENV(BASE_URL)}
-
-testcases:
-  - testcases/test_login.yaml
-  - testcases/test_create_order.yaml
-  - testcases/test_payment.yaml
-  - testcases/test_verify.yaml
-```
+> `invoke_case_name` and `invoke_case_names` are mutually exclusive. Matching is exact by `config.name`.
+> `invoke_case_name` selects one case; `invoke_case_names` selects multiple cases. Matched cases run in invoked-file order.
 
 **Execution characteristics:**
 - Strict sequential order (top to bottom)
 - Variables shared via memory (no file I/O between tests)
 - `.env` file read once at startup
 - Variables extracted during run are persisted to `.env`
+
+### Step Repeat (repeat)
+
+Run the same step multiple times:
+
+```yaml
+steps:
+  - name: Upload Audio
+    repeat: 3
+    request:
+      method: POST
+      path: /asr/upload
+      files:
+        file: data/audio.wav
+```
+
+`repeat` also supports expressions:
+
+```yaml
+steps:
+  - name: Health Check
+    repeat: ${retry_count}
+    request:
+      method: GET
+      path: /health
+```
+
+Behavior:
+- `repeat` must resolve to an integer `>= 0`
+- `repeat: 0` marks the step as skipped (no request sent)
+- Logs and reports show iteration suffix like `[repeat=2/5]`
+
+### Conditional Repeat (with skip)
+
+Use `skip` with `repeat` when each iteration should decide dynamically whether to run:
+
+```yaml
+steps:
+  - name: Retry until quota exhausted
+    repeat: 10
+    skip: ${remain_quota <= 0}
+    request:
+      method: POST
+      path: /quota/check
+```
+
+Rules:
+- `skip` supports `true/false`, reason strings, and `${...}` expressions
+- With `repeat`, `skip` is evaluated per iteration (after `$repeat_index/$repeat_no` are injected)
+- If a `skip` expression fails to evaluate, the iteration is marked as failed with `skip error`
 
 ### Template System
 
@@ -509,6 +627,16 @@ steps:
 
 ## CLI Reference
 
+CLI commands are entry points. YAML authoring syntax is documented in:
+- [YAML Case Authoring Quick Reference](#yaml-case-authoring-quick-reference)
+- [Step Syntax Matrix (Writing + Constraints)](#step-syntax-matrix-writing--constraints)
+- [Test Suites & Caseflow](#test-suites--caseflow)
+- [Step Repeat (repeat)](#step-repeat-repeat)
+- [Conditional Repeat (with skip)](#conditional-repeat-with-skip)
+- [File Upload Testing](#file-upload-testing)
+- [Binary Response Save](#binary-response-save)
+- [Quick Request Debug (`drun q`)](#quick-request-debug-drun-q)
+
 ### Web Report Server
 
 ```bash
@@ -517,6 +645,9 @@ drun server
 
 # Custom port and options
 drun server -port 8080 -headless
+
+# Bind host and custom reports directory
+drun server -host 127.0.0.1 -reports-dir reports
 
 # Development mode with auto-reload
 drun server -reload
@@ -537,6 +668,9 @@ drun server -reload
 # Basic execution
 drun run PATH -env <env_name>
 
+# PATH supports case selector: <path>:<case[,case]>
+drun run "test_channel_token_flow:获取渠道 token" -env dev
+
 # Smart file discovery - extension optional
 drun run test_api_health -env dev              # Finds test_api_health.yaml or .yml
 drun run testcases/test_user -env dev          # Supports paths without extension
@@ -545,6 +679,10 @@ drun run test_api_health.yaml -env dev         # Traditional format still works
 # Temporary single-file run outside scaffold
 # Default output: only one log file in current directory
 drun run ./test_api_health.yaml -env-file ./demo.env
+
+# Scaffold project run keeps default outputs:
+# logs/run-<ts>.log, reports/report-<ts>.html, snippets/<ts>/
+drun run testcases/test_api_health.yaml -env dev
 
 # With more options
 drun run testcases/ \
@@ -558,14 +696,18 @@ drun run testcases/ \
   -failfast
 ```
 
+YAML writing details for run targets are in the sections above, especially `config + steps`, `config + caseflow`, `repeat`, and invoke case selection.
+
 **Options:**
 - `-env NAME`: Optional named environment; prefers `.env.<name>` and merges named env config if present
 - `-env-file FILE`: Explicit environment file path; higher priority than `-env` and default `.env`
+- `-persist-env FILE`: Persist extracted variables to specific env file
 - `-k TAG_EXPR`: Filter by tags (e.g., `smoke and not slow`)
 - `-vars k=v`: Override variables from CLI
 - `-html FILE`: Generate HTML report (temporary single-file runs do not generate one by default)
 - `-report FILE`: Generate JSON report
 - `-allure-results DIR`: Generate Allure results
+- `-httpx-logs`: Enable internal httpx request logging
 - `-secrets mask`: Mask sensitive data in logs/reports
 - `-secrets plain`: Show sensitive data (default for local runs)
 - `-response-headers`: Log response headers
@@ -573,10 +715,67 @@ drun run testcases/ \
 - `-log-level LEVEL`: Set log level (DEBUG, INFO, WARNING, ERROR)
 - `-log-file FILE`: Write logs to file (temporary single-file runs otherwise default to `./<yaml>-<ts>.log`)
 - `-notify CHANNELS`: Enable notifications (feishu, dingtalk, email)
-- `-notify-only POLICY`: Notification policy (always, failed, passed)
+- `-notify-only POLICY`: Notification policy (`failed` or `always`)
+- `-notify-attach-html`: Attach HTML report in email notifications (when email is enabled)
 - `-snippet off`: Disable code snippet generation (temporary single-file runs are already disabled by default)
 - `-snippet-output DIR`: Custom output directory for snippets
 - `-snippet MODE`: Snippet mode: off|all|curl|python
+- `--help`: Keep double-hyphen for help (`drun run --help`)
+
+### Quick Request Debug (`drun q`)
+
+`drun q` is the direct-request mode (curl/httpie-like) for quick API debugging without YAML.
+
+Migration note:
+- `drun quick` has been removed.
+- Use `drun q ...` instead.
+
+```bash
+# Basic GET
+drun q https://httpbin.org/get
+
+# POST JSON
+drun q https://httpbin.org/post \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -data '{"name":"alice","role":"admin"}'
+
+# With query params + headers
+drun q https://httpbin.org/anything \
+  -p page=1 \
+  -p size=20 \
+  -H "X-Trace-Id: demo-001"
+
+# Validate response
+drun q https://httpbin.org/status/200 \
+  -validate status_code=200
+
+# Extract values
+drun q https://httpbin.org/get \
+  -extract origin=$.body.origin
+
+# Save full response body
+drun q https://httpbin.org/json \
+  -output artifacts/httpbin.json
+
+# Save as YAML testcase template
+drun q https://httpbin.org/post \
+  -X POST \
+  -data '{"hello":"world"}' \
+  -save-yaml testcases/from_q.yaml \
+  -secrets mask
+```
+
+Key options:
+- `-X/-method`: HTTP method
+- `-H/-header`: request header, repeatable
+- `-p/-param`: query param, repeatable
+- `-d/-data` / `-data-file`: request body input
+- `-validate`: assertion expression (repeatable)
+- `-extract`: variable extraction (`name=$expr`)
+- `-o/-output`: write full response body
+- `-save-yaml`: convert current request to YAML testcase
+- `-secrets plain|mask`: output secret mode
 
 ### Format Conversion
 
@@ -975,7 +1174,7 @@ jobs:
 
 ## Advanced Topics
 
-### Test Case Invoke (NEW in v6.2)
+### Test Case Invoke
 
 Call other test cases from within a test case, enabling modular test design:
 
@@ -1091,7 +1290,10 @@ steps:
       - gt: [$event_count, 0]
 ```
 
-### Database Assertions
+### Database Validation via Hooks
+
+Drun does not provide built-in SQL validators in step fields.  
+Use hook functions to query databases and assert against extracted values.
 
 **Dhook.py:**
 ```python
@@ -1111,10 +1313,6 @@ def setup_hook_assert_sql(hook_ctx, user_id):
     conn.close()
     
     return {'db_status': result[0] if result else None}
-
-def expected_sql_value(user_id):
-    """Get expected value from previous query"""
-    return hook_ctx.get('db_status')
 ```
 
 **Usage:**
@@ -1128,7 +1326,7 @@ steps:
       path: /users/$user_id
     validate:
       - eq: [status_code, 200]
-      - eq: [$.data.status, ${expected_sql_value($user_id)}]
+      - eq: [$.data.status, $db_status]
 ```
 
 ### Performance Testing
@@ -1175,7 +1373,7 @@ python -m drun.cli --version
 - **Language**: Python 3.10+
 - **Lines of Code**: ~11,300
 - **Modules**: ~66 Python files
-- **Automated Tests**: No maintained in-repo test suite during P0; unified tests are planned for P1
+- **Automated Tests**: In-repo unittest suite is actively maintained (`python -m unittest discover -s tests -p 'test_*.py'`)
 - **Code Style**: PEP 8, type hints, Pydantic models
 
 ## Version History

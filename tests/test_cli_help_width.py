@@ -35,6 +35,14 @@ class CliHelpWidthTests(unittest.TestCase):
         self.assertIn("max_content_width", cli.app.info.context_settings)
         self.assertEqual(cli.app.info.context_settings, cli.export_app.info.context_settings)
 
+    def test_root_help_lists_q_not_quick(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli.app, ["--help"])
+        self.assertEqual(result.exit_code, 0)
+        out = result.stdout
+        self.assertIn("\n  q", out)
+        self.assertNotIn("quick", out)
+
     def test_run_help_uses_single_dash_long_options(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli.app, ["run", "--help"])
@@ -53,9 +61,9 @@ class CliHelpWidthTests(unittest.TestCase):
         self.assertNotIn("--env", out)
         self.assertNotIn("--report", out)
 
-    def test_quick_help_uses_single_dash_long_options(self) -> None:
+    def test_q_help_uses_single_dash_long_options(self) -> None:
         runner = CliRunner()
-        result = runner.invoke(cli.app, ["quick", "--help"])
+        result = runner.invoke(cli.app, ["q", "--help"])
         self.assertEqual(result.exit_code, 0)
         out = result.stdout
         self.assertIn("-method", out)
@@ -65,6 +73,12 @@ class CliHelpWidthTests(unittest.TestCase):
         self.assertNotIn("-mask-secrets", out)
         self.assertNotIn("--method", out)
         self.assertNotIn("--data-file", out)
+
+    def test_quick_command_is_removed(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli.app, ["quick", "--help"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("No such command 'quick'", result.output)
 
     def test_server_help_uses_single_dash_long_options(self) -> None:
         runner = CliRunner()

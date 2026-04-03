@@ -1326,8 +1326,7 @@ def _quick_truncate(text: str, max_chars: int) -> tuple[str, bool]:
     return text[:max_chars], True
 
 
-@app.command("quick")
-@app.command("q", hidden=True)
+@app.command("q")
 def quick(
     url: str = typer.Argument(..., help="请求 URL（必须以 http:// 或 https:// 开头）"),
     method: str = typer.Option("GET", "-X", "-method", help="HTTP 方法"),
