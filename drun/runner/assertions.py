@@ -13,6 +13,15 @@ def _len(x: Any) -> int:
         return 0
 
 
+def _normalize_expect_for_compat(comparator: str, expect: Any) -> Any:
+    """Backwards-compat normalization for legacy validator syntax."""
+    cmp_key = (comparator or "").strip().lower()
+    if cmp_key in {"eq", "ne", "neq"} and isinstance(expect, str):
+        if expect.strip().lower() in {"none", "null"}:
+            return None
+    return expect
+
+
 def op_eq(a: Any, b: Any) -> bool: return a == b
 def op_ne(a: Any, b: Any) -> bool: return a != b
 def op_contains(a: Any, b: Any) -> bool: return b in a if a is not None else False
@@ -51,6 +60,7 @@ def op_exists(a: Any, b: Any) -> bool:
 _DEFAULT_ASSERTIONS: Dict[str, Callable[[Any, Any], bool]] = {
     "eq": op_eq,
     "ne": op_ne,
+    "neq": op_ne,
     "contains": op_contains,
     "not_contains": op_not_contains,
     "regex": op_regex,
@@ -77,10 +87,12 @@ OPS = assertion_registry()
 
 
 def compare(comparator: str, actual: Any, expect: Any) -> Tuple[bool, str | None]:
-    fn = OPS.get(comparator)
+    cmp_key = (comparator or "").strip()
+    fn = OPS.get(cmp_key)
     if not fn:
         return False, f"Unknown comparator: {comparator}"
     try:
+        expect = _normalize_expect_for_compat(cmp_key, expect)
         res = fn(actual, expect)
         return bool(res), None
     except Exception as e:

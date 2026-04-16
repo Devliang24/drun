@@ -28,6 +28,52 @@ class SnippetGenerator:
             return __version__
         except Exception:
             return "4.2.0"
+
+    def _template_variables(
+        self,
+        case: Case,
+        envmap: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        merged = dict(case.config.variables or {})
+        if envmap:
+            for key, value in envmap.items():
+                key_str = str(key)
+                # Keep ENV(NAME) behavior stable: avoid shadowing ENV arg names
+                # such as ENV(API_KEY) with uppercase context variables.
+                if key_str.isupper():
+                    continue
+                merged[key_str] = value
+        return merged
+
+    def _contains_template_syntax(self, value: Any) -> bool:
+        if isinstance(value, str):
+            return "${" in value or "{{" in value
+        if isinstance(value, dict):
+            return any(self._contains_template_syntax(v) for v in value.values())
+        if isinstance(value, (list, tuple)):
+            return any(self._contains_template_syntax(v) for v in value)
+        return False
+
+    def _render_request_value(
+        self,
+        value: Any,
+        case: Case,
+        envmap: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        if value is None or not self._contains_template_syntax(value):
+            return value
+
+        from drun.templating.engine import TemplateEngine
+
+        templater = TemplateEngine()
+        try:
+            return templater.render_value(
+                value,
+                self._template_variables(case, envmap),
+                envmap=envmap,
+            )
+        except Exception:
+            return value
     
     def generate_shell_script_for_step(
         self,
@@ -85,6 +131,11 @@ class SnippetGenerator:
         """为单个 Step 生成可执行的 Python 脚本（Postman 格式）"""
         step = case.steps[step_idx]
         req = step.request
+
+        rendered_body = self._render_request_value(req.body, case, envmap)
+        rendered_data = self._render_request_value(req.data, case, envmap)
+        rendered_headers = self._render_request_value(req.headers or {}, case, envmap) or {}
+        rendered_params = self._render_request_value(req.params, case, envmap)
         
         lines = [
             "import requests",
@@ -98,19 +149,18 @@ class SnippetGenerator:
         lines.append("")
         
         # Payload (body)
-        if req.body:
-            body_str = json.dumps(req.body, indent=2, ensure_ascii=False)
+        if rendered_body:
+            body_str = json.dumps(rendered_body, indent=2, ensure_ascii=False)
             lines.append(f"payload = json.dumps({body_str})")
-        elif req.data:
-            data_str = json.dumps(req.data, indent=2, ensure_ascii=False)
+        elif rendered_data:
+            data_str = json.dumps(rendered_data, indent=2, ensure_ascii=False)
             lines.append(f"payload = {data_str}")
         else:
             lines.append('payload = ""')
         
         # Headers
-        headers = req.headers or {}
-        if headers:
-            headers_str = json.dumps(headers, indent=2, ensure_ascii=False)
+        if rendered_headers:
+            headers_str = json.dumps(rendered_headers, indent=2, ensure_ascii=False)
             lines.append(f"headers = {headers_str}")
         else:
             lines.append("headers = {}")
@@ -119,12 +169,12 @@ class SnippetGenerator:
         
         # Request
         method = (req.method or 'GET').upper()
-        if req.body:
+        if rendered_body:
             lines.append(f'response = requests.request("{method}", url, headers=headers, data=payload)')
-        elif req.data:
+        elif rendered_data:
             lines.append(f'response = requests.request("{method}", url, headers=headers, data=payload)')
-        elif req.params:
-            params_str = json.dumps(req.params, ensure_ascii=False)
+        elif rendered_params:
+            params_str = json.dumps(rendered_params, ensure_ascii=False)
             lines.append(f'response = requests.request("{method}", url, headers=headers, params={params_str})')
         else:
             lines.append(f'response = requests.request("{method}", url, headers=headers)')
@@ -214,7 +264,7 @@ class SnippetGenerator:
         # 渲染 path
         resolved_path = templater.render_value(
             path,
-            case.config.variables or {},
+            self._template_variables(case, envmap),
             envmap=envmap
         )
         
@@ -224,7 +274,11 @@ class SnippetGenerator:
         # 拼接 base_url
         base = case.config.base_url or ''
         if base:
-            base = templater.render_value(base, case.config.variables or {}, envmap=envmap)
+            base = templater.render_value(
+                base,
+                self._template_variables(case, envmap),
+                envmap=envmap,
+            )
             base_str = str(base).rstrip('/')
             path_str = str(resolved_path).lstrip('/')
             return f"{base_str}/{path_str}"

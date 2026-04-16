@@ -12,13 +12,57 @@ from drun.templating.engine import TemplateEngine
 _TEMPLATER = TemplateEngine()
 
 
+def _template_variables(case: Case, envmap: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    vars_ctx: Dict[str, Any] = dict(case.config.variables or {})
+    if envmap:
+        for key, value in envmap.items():
+            key_str = str(key)
+            # Keep ENV(NAME) behavior stable: avoid shadowing ENV arg names
+            # such as ENV(API_KEY) with uppercase context variables.
+            if key_str.isupper():
+                continue
+            vars_ctx[key_str] = value
+    return vars_ctx
+
+
+def _contains_template_syntax(value: Any) -> bool:
+    if isinstance(value, str):
+        return "${" in value or "{{" in value
+    if isinstance(value, dict):
+        return any(_contains_template_syntax(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_template_syntax(v) for v in value)
+    return False
+
+
+def _render_any_with_env(
+    value: Any,
+    case: Case,
+    envmap: Optional[Mapping[str, Any]],
+) -> Any:
+    if value is None or not _contains_template_syntax(value):
+        return value
+    try:
+        return _TEMPLATER.render_value(
+            value,
+            _template_variables(case, envmap),
+            envmap=dict(envmap) if envmap is not None else None,
+        )
+    except Exception:
+        return value
+
+
 def _render_with_env(text: str, case: Case, envmap: Optional[Mapping[str, Any]]) -> str:
     if not isinstance(text, str):
         return text
     if "${" not in text and "{{" not in text:
         return text
     try:
-        rendered = _TEMPLATER.render_value(text, case.config.variables or {}, envmap=envmap)
+        rendered = _TEMPLATER.render_value(
+            text,
+            _template_variables(case, envmap),
+            envmap=dict(envmap) if envmap is not None else None,
+        )
     except Exception:
         return text
     if rendered is None:
@@ -76,26 +120,38 @@ def _build_parts(
     # headers
     redact_set = set(h.lower() for h in (redact or []))
     for k, v in (req.headers or {}).items():
-        vv = v
+        vv = _render_any_with_env(v, case, envmap)
         if k.lower() in redact_set:
             vv = "***"
         parts += ["-H", f"{k}: {vv}"]
     # params -> query
     url = _full_url(case, req.path or "/", envmap=envmap)
     if req.params:
-        qs = urlencode(req.params, doseq=True)
+        rendered_params = _render_any_with_env(req.params, case, envmap)
+        qs = urlencode(rendered_params, doseq=True)
         sep = '&' if ('?' in url) else '?'
         url = f"{url}{sep}{qs}"
 
     # body / data
     if req.body is not None:
+        rendered_body = _render_any_with_env(req.body, case, envmap)
         try:
-            s = json.dumps(req.body, ensure_ascii=False, separators=(",", ":"))
+            s = json.dumps(rendered_body, ensure_ascii=False, separators=(",", ":"))
         except Exception:
-            s = str(req.body)
+            s = str(rendered_body)
         parts += ["--data-raw", s]
     elif req.data is not None:
-        parts += ["--data-raw", str(req.data)]
+        rendered_data = _render_any_with_env(req.data, case, envmap)
+        if isinstance(rendered_data, (dict, list)):
+            try:
+                data_string = json.dumps(
+                    rendered_data, ensure_ascii=False, separators=(",", ":")
+                )
+            except Exception:
+                data_string = str(rendered_data)
+        else:
+            data_string = str(rendered_data)
+        parts += ["--data-raw", data_string]
 
     parts.append(url)
     return parts

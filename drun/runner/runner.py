@@ -306,6 +306,15 @@ class Runner:
         e = expr.strip()
         if not e.startswith("$"):
             return None
+        # Backwards compatibility: treat "$.path.length" as len($.path)
+        # instead of object field access.
+        if e.endswith(".length") and len(e) > len("$.length"):
+            base_expr = e[:-len(".length")]
+            base_val = self._eval_extract(base_expr, resp)
+            try:
+                return len(base_val)  # type: ignore[arg-type]
+            except Exception:
+                return None
         # Disallow order-agnostic JMESPath functions (sort/sort_by)
         body_expr = e[1:].strip()
         try:
