@@ -2,7 +2,7 @@
 
 [English](README.en.md) | [中文](README.md)
 
-[![Version](https://img.shields.io/badge/version-7.2.15-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.2.16-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -216,8 +216,8 @@ drun fix testcases
 
 ```bash
 drun convert sample.curl -outfile out.yaml
-drun convert-openapi spec/openapi/ecommerce_api.json -outdir converted
-drun export curl testcases/test_user_api.yaml -outfile request.sh
+drun convert-openapi spec/openapi/ecommerce_api.json -output-mode split -outfile converted/ecommerce.yaml
+drun export curl testcases/test_user_api.yaml -outfile request.curl
 ```
 
 ### Report Server
@@ -251,7 +251,6 @@ git clone https://github.com/Devliang24/drun.git
 cd drun
 pip install -e ".[dev]"
 python -m pytest -q
-python -m build
 python -m drun.cli --version
 ```
 
@@ -261,7 +260,68 @@ Repository overview:
 - `tests/`: regression tests.
 - `spec/`: sample OpenAPI specs.
 - `CHANGELOG.md`: version history.
+- `drun-deep-usage/`: local deep-usage skill for AI coding assistants, covering `drun` YAML, CLI usage, conversion, and troubleshooting.
 - `AGENTS.md`: contributor rules and local development notes.
+
+## AI Assistant Collaboration
+
+This repository includes a local skill at `drun-deep-usage/`. Its purpose is to help AI coding assistants answer `drun` questions using the repository's actual CLI and DSL behavior, and to return runnable YAML, CLI commands, and troubleshooting guidance instead of generic API testing advice.
+
+Typical use cases:
+
+- Generate `drun` YAML cases
+- Explain `invoke`, `invoke_case_name`, `invoke_case_names`, `repeat`, and `sleep`
+- Design `drun run`, `drun q`, `convert`, `convert-openapi`, and `export curl` commands
+- Explain HTML / JSON / Allure / snippet / `server`
+- Troubleshoot `drun` errors
+
+### Claude Code
+
+If you use `Claude Code`, the safest approach is to mention the skill explicitly or ask it to read the skill files before working.
+
+Example prompts:
+
+```text
+Use drun-deep-usage to generate a drun testsuite for login and profile lookup.
+```
+
+```text
+Read drun-deep-usage/SKILL.md first, then convert this curl command into drun YAML and provide the run command.
+```
+
+### Codex
+
+If you use `Codex`, explicitly naming `drun-deep-usage` works well. Natural trigger phrases such as "drun YAML", "drun invoke", or "drun troubleshooting" are also useful. When collaborating in this repository, read `AGENTS.md` first.
+
+Example prompts:
+
+```text
+Use drun-deep-usage to explain the difference between invoke_case_name and invoke_case_names, and give me a runnable example.
+```
+
+```text
+Help me debug this drun error, and consult drun-deep-usage/references/troubleshooting.md if needed.
+```
+
+### OpenCode
+
+If you use `OpenCode` and your workflow does not automatically discover local skills, explicitly ask it to read `drun-deep-usage/SKILL.md` first, then load the matching file under `references/` as needed.
+
+Example prompts:
+
+```text
+Read drun-deep-usage/SKILL.md first, then generate a drun YAML case for file upload and provide the matching run command.
+```
+
+```text
+Read drun-deep-usage/references/debug-convert-export.md and give me a drun convert-openapi command for this spec.
+```
+
+### Usage Tips
+
+- If you want runnable YAML and commands, mention `drun-deep-usage` explicitly
+- If you only need one DSL concept, ask directly, for example: "Explain drun repeat"
+- If you change CLI, DSL, reporting, or troubleshooting behavior, update `drun-deep-usage/` accordingly
 
 ## Use Cases
 
@@ -277,7 +337,6 @@ Before opening a PR, run at least:
 
 ```bash
 python -m pytest -q
-python -m build
 drun --help
 ```
 

@@ -2,7 +2,7 @@
 
 [中文](README.md) | [English](README.en.md)
 
-[![Version](https://img.shields.io/badge/version-7.2.15-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.2.16-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -216,8 +216,8 @@ drun fix testcases
 
 ```bash
 drun convert sample.curl -outfile out.yaml
-drun convert-openapi spec/openapi/ecommerce_api.json -outdir converted
-drun export curl testcases/test_user_api.yaml -outfile request.sh
+drun convert-openapi spec/openapi/ecommerce_api.json -output-mode split -outfile converted/ecommerce.yaml
+drun export curl testcases/test_user_api.yaml -outfile request.curl
 ```
 
 ### 报告服务
@@ -251,7 +251,6 @@ git clone https://github.com/Devliang24/drun.git
 cd drun
 pip install -e ".[dev]"
 python -m pytest -q
-python -m build
 python -m drun.cli --version
 ```
 
@@ -261,7 +260,68 @@ python -m drun.cli --version
 - `tests/`：回归测试。
 - `spec/`：示例 OpenAPI 规范。
 - `CHANGELOG.md`：版本历史。
+- `drun-deep-usage/`：面向 AI 编码助手的本地深度使用 skill，提供 `drun` YAML、CLI、排障与转换说明。
 - `AGENTS.md`：贡献者约定与本地开发说明。
+
+## AI 助手协作
+
+仓库内置了本地 skill `drun-deep-usage/`，用于让 AI 编码助手在处理 `drun` 相关问题时，优先按当前仓库真实能力给出可执行 YAML、CLI 命令和排障建议，而不是泛化地讨论 API 测试理论。
+
+适用场景包括：
+
+- 生成 `drun` YAML 用例
+- 解释 `invoke`、`invoke_case_name`、`invoke_case_names`、`repeat`、`sleep`
+- 设计 `drun run`、`drun q`、`convert`、`convert-openapi`、`export curl`
+- 解释 HTML / JSON / Allure / snippet / `server`
+- 根据报错做 `drun` 排障
+
+### Claude Code
+
+如果你使用 `Claude Code`，建议在仓库根目录直接明确点名这个 skill，或要求它先读该目录下说明再执行。
+
+示例提示词：
+
+```text
+请使用 drun-deep-usage，帮我写一个登录后查询资料的 drun testsuite。
+```
+
+```text
+先阅读 drun-deep-usage/SKILL.md，再帮我把这个 curl 转成 drun YAML，并给出 run 命令。
+```
+
+### Codex
+
+如果你使用 `Codex`，推荐直接提 `drun-deep-usage` 名称，或用自然语言触发词，例如“drun YAML”“drun invoke”“drun 排障”。在本仓库协作时，也建议先阅读 `AGENTS.md`。
+
+示例提示词：
+
+```text
+使用 drun-deep-usage，解释 invoke_case_name 和 invoke_case_names 的区别，并给我可运行示例。
+```
+
+```text
+帮我排查这个 drun 报错，必要时参考 drun-deep-usage/references/troubleshooting.md。
+```
+
+### OpenCode
+
+如果你使用 `OpenCode`，且当前工作流不会自动发现本地 skill，最稳妥的方式是显式要求它先读取 `drun-deep-usage/SKILL.md`，再按需要读取 `references/` 下对应文件。
+
+示例提示词：
+
+```text
+Read drun-deep-usage/SKILL.md first, then generate a drun YAML case for file upload and provide the matching run command.
+```
+
+```text
+Read drun-deep-usage/references/debug-convert-export.md and give me a drun convert-openapi command for this spec.
+```
+
+### 使用建议
+
+- 需要“直接产出可运行 YAML 和命令”时，优先显式提 `drun-deep-usage`
+- 只问单个 DSL 点时，可以直接说“解释 drun repeat”或“解释 drun export curl”
+- 如果改动了 `drun` 的 CLI、DSL、报告输出或排障行为，记得同步更新 `drun-deep-usage/`
 
 ## 适用场景
 
@@ -277,7 +337,6 @@ python -m drun.cli --version
 
 ```bash
 python -m pytest -q
-python -m build
 drun --help
 ```
 

@@ -37,6 +37,15 @@ python -m drun.cli --version
 ## 测试规范
 任何行为变更都应补充或更新对应的 `tests/test_*.py`。当前测试主要基于 `unittest.TestCase`，通常通过 `pytest` 执行；CLI 场景常使用 `typer.testing.CliRunner`，隔离依赖优先使用 `unittest.mock`。避免真实网络请求，优先使用 mock、临时目录和最小化输入样例。虽然仓库没有覆盖率门槛，但新参数、YAML 解析、报告输出等改动应带回归测试。
 
+## Skill 文档维护
+仓库内的 `drun-deep-usage/` 是面向 `drun` 深度使用场景的本地 skill。涉及用户可见能力变更时，除了代码和测试，还要评估是否需要同步补充或修正该 skill 说明。重点包括：
+
+- CLI 命令、参数、默认行为或输出目录变化，如 `run`、`q`、`convert`、`convert-openapi`、`export curl`、`server`
+- YAML DSL、模板渲染、环境加载、参数化、`caseflow` / `invoke` / `repeat` / `sleep` / `request.files` 的行为或约束变化
+- 报告、snippet、导入导出、排障提示等会直接影响用户使用方式的变更
+
+维护时遵循现有结构：`SKILL.md` 保持精简，具体说明优先落到 `references/` 下对应文件；纯内部重构且不影响使用方式时，可以不更新该 skill。
+
 ## 提交与 Pull Request 规范
 近期提交采用 Conventional Commits 风格，例如 `feat:`、`fix:`、`refactor:`、`ci:`、`chore:`。提交标题使用祈使句并直接说明变更，例如 `feat: support invoke case selection`。PR 需要说明用户可见影响、是否同步更新文档或 CLI 帮助，并列出已执行的验证命令。只有在修改 HTML 报告或 FastAPI 报告页面时才需要附截图。
 
