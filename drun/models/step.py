@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, Field, model_validator
 from pydantic.config import ConfigDict
@@ -17,6 +18,7 @@ class Step(BaseModel):
     name: str
     variables: Dict[str, Any] = Field(default_factory=dict)
     request: Optional[StepRequest] = None
+    sleep: Optional[Union[int, float, str]] = None
     response: Optional[StepResponseConfig] = None
     invoke: Optional[str] = None
     invoke_case_name: Optional[str] = None
@@ -33,17 +35,30 @@ class Step(BaseModel):
 
     @model_validator(mode="after")
     def check_request_or_invoke(self) -> "Step":
-        """Ensure step has either request or invoke, not both."""
-        if self.request is not None and self.invoke is not None:
-            raise ValueError("Step cannot have both 'request' and 'invoke'. Use one or the other.")
-        if self.request is None and self.invoke is None:
-            raise ValueError("Step must have either 'request' or 'invoke'.")
+        """Ensure step has exactly one executable target."""
+        active_targets = [
+            name
+            for name, enabled in (
+                ("request", self.request is not None),
+                ("invoke", self.invoke is not None),
+                ("sleep", self.sleep is not None),
+            )
+            if enabled
+        ]
+        if len(active_targets) > 1:
+            raise ValueError(
+                "Step cannot combine 'request', 'invoke', and 'sleep'. Use exactly one."
+            )
+        if not active_targets:
+            raise ValueError("Step must have one of 'request', 'invoke', or 'sleep'.")
 
         has_single_case_selector = self.invoke_case_name is not None
         has_multi_case_selector = bool(self.invoke_case_names)
 
         if self.request is not None and (has_single_case_selector or has_multi_case_selector):
             raise ValueError("Step with 'request' cannot use 'invoke_case_name' or 'invoke_case_names'.")
+        if self.sleep is not None and (has_single_case_selector or has_multi_case_selector):
+            raise ValueError("Step with 'sleep' cannot use 'invoke_case_name' or 'invoke_case_names'.")
         if has_single_case_selector and has_multi_case_selector:
             raise ValueError("Use either 'invoke_case_name' or 'invoke_case_names', not both.")
         if has_single_case_selector:
@@ -63,6 +78,37 @@ class Step(BaseModel):
                 seen.add(cleaned_name)
                 deduped_names.append(cleaned_name)
             self.invoke_case_names = deduped_names
+
+        if self.sleep is not None:
+            if isinstance(self.sleep, bool):
+                raise ValueError("'sleep' must be a number or expression string, not boolean.")
+            if isinstance(self.sleep, (int, float)):
+                if not math.isfinite(float(self.sleep)):
+                    raise ValueError("'sleep' must be a finite number.")
+                if float(self.sleep) < 0:
+                    raise ValueError("'sleep' must be >= 0.")
+            elif isinstance(self.sleep, str):
+                cleaned_sleep = self.sleep.strip()
+                if not cleaned_sleep:
+                    raise ValueError("'sleep' must be a non-empty number or expression string.")
+                self.sleep = cleaned_sleep
+            else:
+                raise ValueError("'sleep' must be a number or expression string.")
+
+            incompatible_fields: List[str] = []
+            if self.response is not None:
+                incompatible_fields.append("response")
+            if self.extract:
+                incompatible_fields.append("extract")
+            if self.export is not None:
+                incompatible_fields.append("export")
+            if self.validators:
+                incompatible_fields.append("validate")
+            if self.retry:
+                incompatible_fields.append("retry")
+            if incompatible_fields:
+                joined = ", ".join(f"'{field}'" for field in incompatible_fields)
+                raise ValueError(f"Step with 'sleep' cannot use {joined}.")
 
         if self.repeat is None:
             self.repeat = 1

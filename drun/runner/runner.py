@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import time
 from pathlib import Path
@@ -566,6 +567,42 @@ class Runner:
             raise ValueError(f"Step '{step.name}' repeat must be >= 0.")
         return repeat_count
 
+    def _resolve_sleep_seconds(
+        self,
+        step: Step,
+        variables: Dict[str, Any],
+        funcs: Dict[str, Any] | None,
+        envmap: Dict[str, Any] | None,
+    ) -> float:
+        raw_sleep = step.sleep
+        if raw_sleep is None:
+            raise ValueError(f"Step '{step.name}' does not define 'sleep'.")
+
+        rendered_sleep: Any = raw_sleep
+        if isinstance(raw_sleep, str):
+            try:
+                rendered_sleep = self._render(raw_sleep, variables, funcs, envmap, strict=True)
+            except Exception as exc:
+                raise ValueError(
+                    f"Invalid sleep expression for step '{step.name}': {exc}"
+                ) from exc
+
+        if isinstance(rendered_sleep, bool):
+            raise ValueError(f"Step '{step.name}' sleep must be a number, got boolean.")
+
+        try:
+            sleep_seconds = float(rendered_sleep)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Step '{step.name}' sleep must resolve to a number, got {rendered_sleep!r}."
+            ) from exc
+
+        if not math.isfinite(sleep_seconds):
+            raise ValueError(f"Step '{step.name}' sleep must be a finite number.")
+        if sleep_seconds < 0:
+            raise ValueError(f"Step '{step.name}' sleep must be >= 0.")
+        return sleep_seconds
+
     def run_case(self, case: Case, global_vars: Dict[str, Any], params: Dict[str, Any], *, funcs: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None, source: str | None = None) -> CaseInstanceResult:
         name = case.config.name or "Unnamed Case"
         t0 = time.perf_counter()
@@ -758,6 +795,239 @@ class Runner:
                             if self.failfast:
                                 stop_current_step = True
                                 break
+
+                    ctx.pop()
+                    if stop_current_step:
+                        break
+                    continue
+
+                if step.sleep is not None:
+                    step_locals_for_hook = rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {})
+
+                    for repeat_index in range(repeat_total):
+                        iteration_base_vars = ctx.get_merged(global_vars)
+                        variables = self._build_repeat_variables(iteration_base_vars, repeat_index)
+
+                        iteration_step_name = self._render(step.name, variables, funcs, envmap)
+                        if not isinstance(iteration_step_name, str):
+                            iteration_step_name = str(step.name)
+                        rendered_step_name = self._format_repeat_step_name(
+                            iteration_step_name, repeat_index, repeat_total
+                        )
+
+                        try:
+                            should_skip, skip_reason = self._resolve_skip_decision(
+                                step, variables, funcs, envmap
+                            )
+                        except Exception as e:
+                            status = "failed"
+                            if self.log:
+                                self.log.error(f"[STEP] Step {step_idx} Skip error: {e}")
+                            steps_results.append(
+                                StepResult(
+                                    name=rendered_step_name,
+                                    origin_step_name=iteration_step_name,
+                                    repeat_index=repeat_index,
+                                    repeat_no=repeat_index + 1,
+                                    repeat_total=repeat_total,
+                                    status="failed",
+                                    error=f"skip error: {e}",
+                                )
+                            )
+                            if self.failfast:
+                                stop_current_step = True
+                                break
+                            continue
+
+                        if should_skip:
+                            skip_reason_text = skip_reason or "skip=true"
+                            if self.log:
+                                self.log.info(
+                                    f"[STEP] Step {step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
+                                )
+                            steps_results.append(
+                                StepResult(
+                                    name=rendered_step_name,
+                                    origin_step_name=iteration_step_name,
+                                    repeat_index=repeat_index,
+                                    repeat_no=repeat_index + 1,
+                                    repeat_total=repeat_total,
+                                    status="skipped",
+                                    error=skip_reason_text,
+                                )
+                            )
+                            continue
+
+                        try:
+                            sleep_seconds = self._resolve_sleep_seconds(
+                                step, variables, funcs, envmap
+                            )
+                        except Exception as e:
+                            status = "failed"
+                            if self.log:
+                                self.log.error(f"[STEP] Step {step_idx} Sleep error: {e}")
+                            steps_results.append(
+                                StepResult(
+                                    name=rendered_step_name,
+                                    origin_step_name=iteration_step_name,
+                                    repeat_index=repeat_index,
+                                    repeat_no=repeat_index + 1,
+                                    repeat_total=repeat_total,
+                                    status="failed",
+                                    error=f"sleep error: {e}",
+                                )
+                            )
+                            if self.failfast:
+                                stop_current_step = True
+                                break
+                            continue
+
+                        sleep_request = {"sleep": sleep_seconds}
+                        setup_meta = {
+                            "step_name": step.name,
+                            "case_name": case.config.name or name,
+                            "step_request": sleep_request,
+                            "step_variables": step_locals_for_hook,
+                            "session_variables": variables,
+                            "session_env": envmap or {},
+                            "step_sleep": sleep_seconds,
+                        }
+                        try:
+                            new_vars = self._run_setup_hooks(
+                                step.setup_hooks,
+                                funcs=funcs,
+                                req=sleep_request,
+                                variables=variables,
+                                envmap=envmap,
+                                meta=setup_meta,
+                            )
+                            for k, v in (new_vars or {}).items():
+                                ctx.set_base(k, v)
+                                if self.log:
+                                    self.log.info(f"[HOOK] set var: {k} = {v!r}")
+                            variables = self._build_repeat_variables(ctx.get_merged(global_vars), repeat_index)
+                        except Exception as e:
+                            status = "failed"
+                            if self.log:
+                                self.log.error(f"[HOOK] setup error: {e}")
+                            steps_results.append(
+                                StepResult(
+                                    name=rendered_step_name,
+                                    origin_step_name=iteration_step_name,
+                                    repeat_index=repeat_index,
+                                    repeat_no=repeat_index + 1,
+                                    repeat_total=repeat_total,
+                                    status="failed",
+                                    error=f"setup hook error: {e}",
+                                )
+                            )
+                            if self.failfast:
+                                stop_current_step = True
+                                break
+                            continue
+
+                        if self.log:
+                            self.log.info(f"[STEP] Step {step_idx} Start: {rendered_step_name}")
+                            step_vars = step.variables or {}
+                            if step_vars:
+                                vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
+                                self.log.info(vars_str)
+                            self.log.info(f"[SLEEP] {sleep_seconds:g}s")
+
+                        sleep_started = time.perf_counter()
+                        try:
+                            time.sleep(sleep_seconds)
+                            elapsed_ms = (time.perf_counter() - sleep_started) * 1000.0
+                        except Exception as e:
+                            status = "failed"
+                            if self.log:
+                                self.log.error(f"[STEP] Sleep execution error: {e}")
+                            steps_results.append(
+                                StepResult(
+                                    name=rendered_step_name,
+                                    origin_step_name=iteration_step_name,
+                                    repeat_index=repeat_index,
+                                    repeat_no=repeat_index + 1,
+                                    repeat_total=repeat_total,
+                                    status="failed",
+                                    request={"sleep": sleep_seconds},
+                                    error=f"sleep error: {e}",
+                                )
+                            )
+                            if self.failfast:
+                                stop_current_step = True
+                                break
+                            continue
+
+                        resp_obj = {
+                            "sleep_seconds": sleep_seconds,
+                            "elapsed_ms": elapsed_ms,
+                        }
+                        last_resp_obj = resp_obj
+                        step_failed = False
+                        teardown_error: Optional[str] = None
+
+                        try:
+                            teardown_meta = {
+                                "step_name": step.name,
+                                "case_name": case.config.name or name,
+                                "step_response": resp_obj,
+                                "step_request": sleep_request,
+                                "step_variables": variables,
+                                "session_variables": ctx.get_merged(global_vars),
+                                "session_env": envmap or {},
+                                "step_sleep": sleep_seconds,
+                            }
+                            new_vars_td = self._run_teardown_hooks(
+                                step.teardown_hooks,
+                                funcs=funcs,
+                                resp=resp_obj,
+                                variables=variables,
+                                envmap=envmap,
+                                meta=teardown_meta,
+                            )
+                            for k, v in (new_vars_td or {}).items():
+                                ctx.set_base(k, v)
+                                if self.log:
+                                    self.log.info(f"[HOOK] set var: {k} = {v!r}")
+                            variables = self._build_repeat_variables(ctx.get_merged(global_vars), repeat_index)
+                        except Exception as e:
+                            step_failed = True
+                            teardown_error = f"teardown hook error: {e}"
+                            if self.log:
+                                self.log.error(f"[HOOK] teardown error: {e}")
+
+                        steps_results.append(
+                            StepResult(
+                                name=rendered_step_name,
+                                origin_step_name=iteration_step_name,
+                                repeat_index=repeat_index,
+                                repeat_no=repeat_index + 1,
+                                repeat_total=repeat_total,
+                                status="failed" if step_failed else "passed",
+                                request={"sleep": sleep_seconds},
+                                response={
+                                    "sleep_seconds": sleep_seconds,
+                                    "elapsed_ms": elapsed_ms,
+                                },
+                                duration_ms=elapsed_ms,
+                                error=teardown_error,
+                            )
+                        )
+
+                        if step_failed:
+                            status = "failed"
+                            if self.log:
+                                self.log.error(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | FAILED")
+                        else:
+                            if self.log:
+                                self.log.info(
+                                    f"[STEP] Step {step_idx} Completed: {rendered_step_name} | PASSED"
+                                )
+
+                        if step_failed and self.failfast:
+                            stop_current_step = True
+                            break
 
                     ctx.pop()
                     if stop_current_step:
