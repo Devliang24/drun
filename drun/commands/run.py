@@ -380,6 +380,9 @@ def _save_code_snippets(
         for step_idx, step in enumerate(case.steps):
             if step.invoke is not None:
                 continue
+            if step.sleep is not None:
+                log.info("[SNIPPET] Skip sleep step: %s", step.name)
+                continue
 
             step_num = step_idx + 1
             safe_step_name = _sanitize_name(step.name)

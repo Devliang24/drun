@@ -2,7 +2,7 @@
 
 [中文](README.md) | [English](README.en.md)
 
-[![Version](https://img.shields.io/badge/version-7.2.14-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.2.15-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
