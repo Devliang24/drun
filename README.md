@@ -260,12 +260,12 @@ python -m drun.cli --version
 - `tests/`：回归测试。
 - `spec/`：示例 OpenAPI 规范。
 - `CHANGELOG.md`：版本历史。
-- `drun-deep-usage/`：面向 AI 编码助手的本地深度使用 skill，提供 `drun` YAML、CLI、排障与转换说明。
+- `drun-usage/`：面向 AI 编码助手的本地深度使用 skill，提供 `drun` YAML、CLI、排障与转换说明。
 - `AGENTS.md`：贡献者约定与本地开发说明。
 
 ## AI 助手协作
 
-仓库内置了本地 skill `drun-deep-usage/`，用于让 AI 编码助手在处理 `drun` 相关问题时，优先按当前仓库真实能力给出可执行 YAML、CLI 命令和排障建议，而不是泛化地讨论 API 测试理论。
+仓库内置了本地 skill `drun-usage/`，用于让 AI 编码助手在处理 `drun` 相关问题时，优先按当前仓库真实能力给出可执行 YAML、CLI 命令和排障建议，而不是泛化地讨论 API 测试理论。
 
 适用场景包括：
 
@@ -282,46 +282,46 @@ python -m drun.cli --version
 示例提示词：
 
 ```text
-请使用 drun-deep-usage，帮我写一个登录后查询资料的 drun testsuite。
+请使用 drun-usage，帮我写一个登录后查询资料的 drun testsuite。
 ```
 
 ```text
-先阅读 drun-deep-usage/SKILL.md，再帮我把这个 curl 转成 drun YAML，并给出 run 命令。
+先阅读 drun-usage/SKILL.md，再帮我把这个 curl 转成 drun YAML，并给出 run 命令。
 ```
 
 ### Codex
 
-如果你使用 `Codex`，推荐直接提 `drun-deep-usage` 名称，或用自然语言触发词，例如“drun YAML”“drun invoke”“drun 排障”。在本仓库协作时，也建议先阅读 `AGENTS.md`。
+如果你使用 `Codex`，推荐直接提 `drun-usage` 名称，或用自然语言触发词，例如“drun YAML”“drun invoke”“drun 排障”。在本仓库协作时，也建议先阅读 `AGENTS.md`。
 
 示例提示词：
 
 ```text
-使用 drun-deep-usage，解释 invoke_case_name 和 invoke_case_names 的区别，并给我可运行示例。
+使用 drun-usage，解释 invoke_case_name 和 invoke_case_names 的区别，并给我可运行示例。
 ```
 
 ```text
-帮我排查这个 drun 报错，必要时参考 drun-deep-usage/references/troubleshooting.md。
+帮我排查这个 drun 报错，必要时参考 drun-usage/references/troubleshooting.md。
 ```
 
 ### OpenCode
 
-如果你使用 `OpenCode`，且当前工作流不会自动发现本地 skill，最稳妥的方式是显式要求它先读取 `drun-deep-usage/SKILL.md`，再按需要读取 `references/` 下对应文件。
+如果你使用 `OpenCode`，且当前工作流不会自动发现本地 skill，最稳妥的方式是显式要求它先读取 `drun-usage/SKILL.md`，再按需要读取 `references/` 下对应文件。
 
 示例提示词：
 
 ```text
-Read drun-deep-usage/SKILL.md first, then generate a drun YAML case for file upload and provide the matching run command.
+Read drun-usage/SKILL.md first, then generate a drun YAML case for file upload and provide the matching run command.
 ```
 
 ```text
-Read drun-deep-usage/references/debug-convert-export.md and give me a drun convert-openapi command for this spec.
+Read drun-usage/references/debug-convert-export.md and give me a drun convert-openapi command for this spec.
 ```
 
 ### 使用建议
 
-- 需要“直接产出可运行 YAML 和命令”时，优先显式提 `drun-deep-usage`
+- 需要“直接产出可运行 YAML 和命令”时，优先显式提 `drun-usage`
 - 只问单个 DSL 点时，可以直接说“解释 drun repeat”或“解释 drun export curl”
-- 如果改动了 `drun` 的 CLI、DSL、报告输出或排障行为，记得同步更新 `drun-deep-usage/`
+- 如果改动了 `drun` 的 CLI、DSL、报告输出或排障行为，记得同步更新 `drun-usage/`
 
 ## 适用场景
 

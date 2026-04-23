@@ -38,7 +38,7 @@ python -m drun.cli --version
 任何行为变更都应补充或更新对应的 `tests/test_*.py`。当前测试主要基于 `unittest.TestCase`，通常通过 `pytest` 执行；CLI 场景常使用 `typer.testing.CliRunner`，隔离依赖优先使用 `unittest.mock`。避免真实网络请求，优先使用 mock、临时目录和最小化输入样例。虽然仓库没有覆盖率门槛，但新参数、YAML 解析、报告输出等改动应带回归测试。
 
 ## Skill 文档维护
-仓库内的 `drun-deep-usage/` 是面向 `drun` 深度使用场景的本地 skill。涉及用户可见能力变更时，除了代码和测试，还要评估是否需要同步补充或修正该 skill 说明。重点包括：
+仓库内的 `drun-usage/` 是面向 `drun` 深度使用场景的本地 skill。涉及用户可见能力变更时，除了代码和测试，还要评估是否需要同步补充或修正该 skill 说明。重点包括：
 
 - CLI 命令、参数、默认行为或输出目录变化，如 `run`、`q`、`convert`、`convert-openapi`、`export curl`、`server`
 - YAML DSL、模板渲染、环境加载、参数化、`caseflow` / `invoke` / `repeat` / `sleep` / `request.files` 的行为或约束变化

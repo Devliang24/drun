@@ -260,12 +260,12 @@ Repository overview:
 - `tests/`: regression tests.
 - `spec/`: sample OpenAPI specs.
 - `CHANGELOG.md`: version history.
-- `drun-deep-usage/`: local deep-usage skill for AI coding assistants, covering `drun` YAML, CLI usage, conversion, and troubleshooting.
+- `drun-usage/`: local deep-usage skill for AI coding assistants, covering `drun` YAML, CLI usage, conversion, and troubleshooting.
 - `AGENTS.md`: contributor rules and local development notes.
 
 ## AI Assistant Collaboration
 
-This repository includes a local skill at `drun-deep-usage/`. Its purpose is to help AI coding assistants answer `drun` questions using the repository's actual CLI and DSL behavior, and to return runnable YAML, CLI commands, and troubleshooting guidance instead of generic API testing advice.
+This repository includes a local skill at `drun-usage/`. Its purpose is to help AI coding assistants answer `drun` questions using the repository's actual CLI and DSL behavior, and to return runnable YAML, CLI commands, and troubleshooting guidance instead of generic API testing advice.
 
 Typical use cases:
 
@@ -282,46 +282,46 @@ If you use `Claude Code`, the safest approach is to mention the skill explicitly
 Example prompts:
 
 ```text
-Use drun-deep-usage to generate a drun testsuite for login and profile lookup.
+Use drun-usage to generate a drun testsuite for login and profile lookup.
 ```
 
 ```text
-Read drun-deep-usage/SKILL.md first, then convert this curl command into drun YAML and provide the run command.
+Read drun-usage/SKILL.md first, then convert this curl command into drun YAML and provide the run command.
 ```
 
 ### Codex
 
-If you use `Codex`, explicitly naming `drun-deep-usage` works well. Natural trigger phrases such as "drun YAML", "drun invoke", or "drun troubleshooting" are also useful. When collaborating in this repository, read `AGENTS.md` first.
+If you use `Codex`, explicitly naming `drun-usage` works well. Natural trigger phrases such as "drun YAML", "drun invoke", or "drun troubleshooting" are also useful. When collaborating in this repository, read `AGENTS.md` first.
 
 Example prompts:
 
 ```text
-Use drun-deep-usage to explain the difference between invoke_case_name and invoke_case_names, and give me a runnable example.
+Use drun-usage to explain the difference between invoke_case_name and invoke_case_names, and give me a runnable example.
 ```
 
 ```text
-Help me debug this drun error, and consult drun-deep-usage/references/troubleshooting.md if needed.
+Help me debug this drun error, and consult drun-usage/references/troubleshooting.md if needed.
 ```
 
 ### OpenCode
 
-If you use `OpenCode` and your workflow does not automatically discover local skills, explicitly ask it to read `drun-deep-usage/SKILL.md` first, then load the matching file under `references/` as needed.
+If you use `OpenCode` and your workflow does not automatically discover local skills, explicitly ask it to read `drun-usage/SKILL.md` first, then load the matching file under `references/` as needed.
 
 Example prompts:
 
 ```text
-Read drun-deep-usage/SKILL.md first, then generate a drun YAML case for file upload and provide the matching run command.
+Read drun-usage/SKILL.md first, then generate a drun YAML case for file upload and provide the matching run command.
 ```
 
 ```text
-Read drun-deep-usage/references/debug-convert-export.md and give me a drun convert-openapi command for this spec.
+Read drun-usage/references/debug-convert-export.md and give me a drun convert-openapi command for this spec.
 ```
 
 ### Usage Tips
 
-- If you want runnable YAML and commands, mention `drun-deep-usage` explicitly
+- If you want runnable YAML and commands, mention `drun-usage` explicitly
 - If you only need one DSL concept, ask directly, for example: "Explain drun repeat"
-- If you change CLI, DSL, reporting, or troubleshooting behavior, update `drun-deep-usage/` accordingly
+- If you change CLI, DSL, reporting, or troubleshooting behavior, update `drun-usage/` accordingly
 
 ## Use Cases
 

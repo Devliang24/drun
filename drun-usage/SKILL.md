@@ -1,5 +1,5 @@
 ---
-name: drun-deep-usage
+name: drun-usage
 description: 面向 drun 深度使用与实战生成的本地 skill。当用户提到 drun 用例、drun 深度使用、drun YAML、drun run 命令、drun invoke、drun convert、drun export curl、drun 报告、drun 排障，或要求编写/解释/调试 drun YAML 与命令时触发。默认中文，优先给可运行 YAML、CLI 命令和修正建议。
 ---
 
