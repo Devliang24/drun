@@ -2,7 +2,7 @@
 
 [中文](README.md) | [English](README.en.md)
 
-[![Version](https://img.shields.io/badge/version-7.2.13-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.2.14-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -14,7 +14,7 @@
 - 模板系统：支持 `$var`、`${ENV(KEY)}`、`${uuid()}` 等动态表达式。
 - 丰富断言：内置 `eq`、`contains`、`regex`、`len_eq`、`gt` 等校验。
 - 测试编排：支持测试套件、`invoke` 调用、步骤 `repeat`、标签过滤。
-- 延时步骤：支持 `sleep: 2` 这类显式等待 DSL。
+- 延时步骤：支持 `sleep: 2000` 这类显式等待 DSL，单位为毫秒。
 - 结果输出：支持 HTML、JSON、Allure 报告，以及日志、代码片段导出。
 - 调试友好：支持 `drun q` 快速发请求，支持从 cURL、Postman、HAR、OpenAPI 转换用例。
 
@@ -193,10 +193,10 @@ steps:
 ```yaml
 steps:
   - name: 等待服务稳定
-    sleep: 2
+    sleep: 2000
 
   - name: 按变量等待
-    sleep: ${wait_seconds}
+    sleep: ${wait_ms}
 ```
 
 ## 常用命令

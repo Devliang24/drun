@@ -10,12 +10,11 @@
 /Users/liang/ai-work/.venv/bin/pip install -e ".[dev]"
 /Users/liang/ai-work/.venv/bin/python -m pytest -q
 /Users/liang/ai-work/.venv/bin/python -m unittest discover -s tests -p 'test_*.py'
-/Users/liang/ai-work/.venv/bin/python -m build
 /Users/liang/ai-work/.venv/bin/python -m drun.cli --help
 make clean
 ```
 
-`pytest` 适合做快速回归；`unittest discover` 与仓库现有测试组织方式一致；`python -m build` 用于发布前检查打包结果。清理产物可使用 `make clean`、`make clean-build`、`make clean-test` 或 `make clean-reports`。
+`pytest` 适合做快速回归；`unittest discover` 与仓库现有测试组织方式一致。清理产物可使用 `make clean`、`make clean-build`、`make clean-test` 或 `make clean-reports`。
 
 ## 本地开发与调试
 本地开发目录统一位于 `/Users/liang/ai-work`，当前仓库路径为 `/Users/liang/ai-work/drun`。调试、运行脚本、执行测试时默认使用 `/Users/liang/ai-work/.venv`，例如：
@@ -28,6 +27,9 @@ python -m drun.cli --version
 ```
 
 如果脚本中需要写死解释器路径，也应使用 `/Users/liang/ai-work/.venv/bin/python`，保证本地开发和自动化执行环境一致。
+
+## 发布约定
+版本发布严格只走 GitHub Action，不做本地打包校验。需要发版时，只修改版本号、提交、创建版本 tag 并推送到远端，由 `.github/workflows/publish-pypi.yml` 负责构建、校验和发布。默认不要在本地执行 `python -m build`、`twine check` 或其他发布前打包检查，除非用户明确要求。
 
 ## 代码风格与命名约定
 遵循现有 Python 风格：4 空格缩进、PEP 8 布局、公共逻辑补充类型标注。新增模块优先使用 `from __future__ import annotations`。模块、函数、辅助方法使用 `snake_case`，类名使用 `PascalCase`，常量使用 `UPPER_SNAKE_CASE`。测试类通常以 `Tests` 结尾。仓库未强制配置格式化工具，因此请保持与周边文件一致的导入顺序、注释风格和代码排版。

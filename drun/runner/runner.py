@@ -567,7 +567,7 @@ class Runner:
             raise ValueError(f"Step '{step.name}' repeat must be >= 0.")
         return repeat_count
 
-    def _resolve_sleep_seconds(
+    def _resolve_sleep_milliseconds(
         self,
         step: Step,
         variables: Dict[str, Any],
@@ -591,17 +591,17 @@ class Runner:
             raise ValueError(f"Step '{step.name}' sleep must be a number, got boolean.")
 
         try:
-            sleep_seconds = float(rendered_sleep)
+            sleep_ms = float(rendered_sleep)
         except (TypeError, ValueError) as exc:
             raise ValueError(
                 f"Step '{step.name}' sleep must resolve to a number, got {rendered_sleep!r}."
             ) from exc
 
-        if not math.isfinite(sleep_seconds):
+        if not math.isfinite(sleep_ms):
             raise ValueError(f"Step '{step.name}' sleep must be a finite number.")
-        if sleep_seconds < 0:
+        if sleep_ms < 0:
             raise ValueError(f"Step '{step.name}' sleep must be >= 0.")
-        return sleep_seconds
+        return sleep_ms
 
     def run_case(self, case: Case, global_vars: Dict[str, Any], params: Dict[str, Any], *, funcs: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None, source: str | None = None) -> CaseInstanceResult:
         name = case.config.name or "Unnamed Case"
@@ -859,7 +859,7 @@ class Runner:
                             continue
 
                         try:
-                            sleep_seconds = self._resolve_sleep_seconds(
+                            sleep_ms = self._resolve_sleep_milliseconds(
                                 step, variables, funcs, envmap
                             )
                         except Exception as e:
@@ -882,7 +882,7 @@ class Runner:
                                 break
                             continue
 
-                        sleep_request = {"sleep": sleep_seconds}
+                        sleep_request = {"sleep": sleep_ms}
                         setup_meta = {
                             "step_name": step.name,
                             "case_name": case.config.name or name,
@@ -890,7 +890,8 @@ class Runner:
                             "step_variables": step_locals_for_hook,
                             "session_variables": variables,
                             "session_env": envmap or {},
-                            "step_sleep": sleep_seconds,
+                            "step_sleep": sleep_ms,
+                            "step_sleep_ms": sleep_ms,
                         }
                         try:
                             new_vars = self._run_setup_hooks(
@@ -932,11 +933,11 @@ class Runner:
                             if step_vars:
                                 vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
                                 self.log.info(vars_str)
-                            self.log.info(f"[SLEEP] {sleep_seconds:g}s")
+                            self.log.info(f"[SLEEP] {sleep_ms:g}ms")
 
                         sleep_started = time.perf_counter()
                         try:
-                            time.sleep(sleep_seconds)
+                            time.sleep(sleep_ms / 1000.0)
                             elapsed_ms = (time.perf_counter() - sleep_started) * 1000.0
                         except Exception as e:
                             status = "failed"
@@ -950,7 +951,7 @@ class Runner:
                                     repeat_no=repeat_index + 1,
                                     repeat_total=repeat_total,
                                     status="failed",
-                                    request={"sleep": sleep_seconds},
+                                    request={"sleep": sleep_ms},
                                     error=f"sleep error: {e}",
                                 )
                             )
@@ -960,7 +961,7 @@ class Runner:
                             continue
 
                         resp_obj = {
-                            "sleep_seconds": sleep_seconds,
+                            "sleep_ms": sleep_ms,
                             "elapsed_ms": elapsed_ms,
                         }
                         last_resp_obj = resp_obj
@@ -976,7 +977,8 @@ class Runner:
                                 "step_variables": variables,
                                 "session_variables": ctx.get_merged(global_vars),
                                 "session_env": envmap or {},
-                                "step_sleep": sleep_seconds,
+                                "step_sleep": sleep_ms,
+                                "step_sleep_ms": sleep_ms,
                             }
                             new_vars_td = self._run_teardown_hooks(
                                 step.teardown_hooks,
@@ -1005,9 +1007,9 @@ class Runner:
                                 repeat_no=repeat_index + 1,
                                 repeat_total=repeat_total,
                                 status="failed" if step_failed else "passed",
-                                request={"sleep": sleep_seconds},
+                                request={"sleep": sleep_ms},
                                 response={
-                                    "sleep_seconds": sleep_seconds,
+                                    "sleep_ms": sleep_ms,
                                     "elapsed_ms": elapsed_ms,
                                 },
                                 duration_ms=elapsed_ms,

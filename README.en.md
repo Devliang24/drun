@@ -2,7 +2,7 @@
 
 [English](README.en.md) | [中文](README.md)
 
-[![Version](https://img.shields.io/badge/version-7.2.13-blue.svg)](https://github.com/Devliang24/drun)
+[![Version](https://img.shields.io/badge/version-7.2.14-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -14,7 +14,7 @@
 - Template system: supports `$var`, `${ENV(KEY)}`, `${uuid()}`, and other dynamic expressions.
 - Rich assertions: built-in checks such as `eq`, `contains`, `regex`, `len_eq`, and `gt`.
 - Test orchestration: supports suites, `invoke`, step `repeat`, and tag filtering.
-- Sleep steps: supports explicit wait DSL such as `sleep: 2`.
+- Sleep steps: supports explicit wait DSL such as `sleep: 2000`, using milliseconds.
 - Outputs: HTML, JSON, Allure reports, logs, and generated code snippets.
 - Debug-friendly: `drun q` for quick requests, plus converters from cURL, Postman, HAR, and OpenAPI.
 
@@ -193,10 +193,10 @@ steps:
 ```yaml
 steps:
   - name: Wait for stabilization
-    sleep: 2
+    sleep: 2000
 
   - name: Wait from variable
-    sleep: ${wait_seconds}
+    sleep: ${wait_ms}
 ```
 
 ## Common Commands
