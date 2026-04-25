@@ -235,16 +235,16 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
     left_meta_html = " ".join(meta_snippets)
 
     step_prefix = f"步骤 {step_idx}: " if step_idx is not None else "步骤: "
-    head_left = f"<div><b>{step_prefix}</b>{_escape_html(step.name)}"
+    head_left = f"<div class='st-head-main'><div><b>{step_prefix}</b>{_escape_html(step.name)}"
     if left_meta_html:
         head_left += f" {left_meta_html}"
-    head_left += "</div>"
+    head_left += "</div></div>"
 
     head_right = (
-        "<div>"
-        f"<span class='pill {step.status}'>{step.status}</span>"
-        f"<span class='muted' style='margin-left:8px;'>{step.duration_ms:.1f} ms</span>"
-        f"<span class='muted' style='margin-left:8px;'>断言: {pass_cnt} ✓ / {fail_cnt} ✗</span>"
+        "<div class='st-head-side'>"
+        f"<span class='pill {step.status} st-head-status'>{step.status}</span>"
+        f"<span class='st-head-duration muted'>{step.duration_ms:.1f} ms</span>"
+        f"<span class='st-head-asserts muted'>断言: {pass_cnt} ✓ / {fail_cnt} ✗</span>"
         "</div>"
     )
 
@@ -448,8 +448,12 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
   .pill.skipped { border-color: var(--skip); }
   .body { padding: 10px 12px; }
   .step { border: 1px solid var(--border); border-radius: 8px; margin: 10px 0; overflow:hidden; }
-  .step .st-head { padding: 8px 10px; display:flex; justify-content: space-between; align-items:center; background: var(--step-head-bg); cursor: pointer; }
+  .step .st-head { padding: 8px 10px; display:flex; justify-content: space-between; align-items:flex-start; gap:12px; background: var(--step-head-bg); cursor: pointer; }
+  .step .st-head-main { min-width:0; flex:1 1 auto; }
+  .step .st-head-main > div { min-width:0; overflow-wrap:anywhere; }
   .step .st-head .st-meta { font-size: 12px; font-weight: 500; margin-left: 8px; color: var(--muted); }
+  .step .st-head-side { display:inline-flex; align-items:center; justify-content:flex-end; gap:8px; flex:0 0 auto; flex-wrap:nowrap; white-space:nowrap; text-align:right; }
+  .step .st-head-duration, .step .st-head-asserts { white-space:nowrap; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
   .panel { border:1px solid var(--border); border-radius:8px; overflow:hidden; }
   .panel .p-head { padding:6px 8px; background:var(--panel-head-bg); color:var(--muted); font-size:12px; display:flex; justify-content:space-between; align-items:center; }
