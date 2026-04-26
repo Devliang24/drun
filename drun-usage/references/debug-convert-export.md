@@ -13,6 +13,7 @@ drun q https://api.example.com/api/login \
   -d '{"username":"alice","password":"secret"}' \
   -validate 'status_code=200' \
   -extract 'token=$.data.token' \
+  -max-body 4096 \
   -save-yaml testcases/test_login_from_q.yaml \
   -secrets mask
 ```
@@ -26,6 +27,7 @@ drun q https://api.example.com/api/login \
 - `-validate '$.data.count>0'`
 - `-validate 'len_ge:$.items=1'`
 - `-extract 'token=$.data.token'`
+- `-max-body 4096`
 - `-o body.json`
 - `-save-yaml testcases/test_xxx.yaml`
 - `-v`
@@ -34,6 +36,7 @@ drun q https://api.example.com/api/login \
 
 - `q` 适合快速试请求，不适合多步链路编排
 - `-save-yaml` 生成的是单 case 骨架，复杂复用还要再手工整理
+- 退出码：`0` 表示请求和断言通过，`1` 表示断言失败，`2` 表示参数或请求错误
 
 ## `drun convert`：从 cURL / HAR / Postman 迁移
 
@@ -87,7 +90,9 @@ drun convert-openapi spec/openapi/ecommerce_api.json \
 drun export curl testcases/test_login.yaml \
   -steps 1 \
   -layout multiline \
+  -shell sh \
   -comments on \
+  -redact Authorization,Cookie \
   -outfile converts/login_step1.curl
 ```
 
@@ -95,12 +100,15 @@ drun export curl testcases/test_login.yaml \
 
 ```bash
 drun export curl testcases/test_upload.yaml -layout oneline
+drun export curl testcases/test_login.yaml -shell ps
 drun export curl testcases -case-name 登录 -steps 1,3-4
 ```
 
 边界：
 
 - `-steps` 从 1 开始，可写区间
+- `-shell` 支持续行符风格 `sh` / `ps`
+- `-redact Authorization,Cookie` 会在导出 curl 时脱敏对应请求头
 - `-outfile` 必须以 `.curl` 结尾
 - 更适合导出普通 request step；`invoke` / `sleep` 不是理想导出源
 - 若 YAML 里还有无法解析的模板变量，导出的 curl 里可能保留占位符

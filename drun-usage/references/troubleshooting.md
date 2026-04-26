@@ -138,6 +138,51 @@ sleep error: Step '等待异步' sleep must resolve to a number
 - `sleep` 最终必须是数值，单位毫秒
 - 如果写成 `${retry_count}`、`${wait_ms}`，确认变量不是空字符串、布尔值或对象
 
+## CSV 参数化不能按行过滤
+
+症状：
+
+```text
+用户要求只运行 CSV 第 3 行，或在 YAML 中写 rows/where 之类字段
+```
+
+修正：
+
+- 当前 CSV 参数化会展开全部数据行
+- 不要生成 `rows`、`where`、`filter` 这类未实现字段
+- 临时只跑少量数据时，建议复制目标行到单独 CSV，或用普通数组参数化写最小样例
+
+## `export.csv` 数据格式错误
+
+症状：
+
+```text
+export.csv.data 必须返回数组
+export.csv.data 数组元素必须是对象
+export.csv.columns 指定的列不存在
+```
+
+修正：
+
+- `data` 应指向响应里的数组，例如 `$.data.items`
+- 如果接口返回对象，先改提取路径指向对象内的列表字段
+- `columns` 只写数组元素对象里真实存在的字段
+
+## 保存二进制响应失败
+
+症状：
+
+```text
+response.save_body_to requires a response body
+response.save_body_to requires raw response bytes
+```
+
+修正：
+
+- `response.save_body_to` 主要用于音频、图片、文件下载等二进制响应
+- JSON 响应一般直接用报告或 `-report` 保存，不需要 `save_body_to`
+- 如果路径里用了变量，确认变量已在前置步骤或环境中存在
+
 ## YAML 字段写成旧格式
 
 症状：

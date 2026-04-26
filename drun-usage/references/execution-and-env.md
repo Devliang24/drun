@@ -1,6 +1,6 @@
 # Execution And Env
 
-适用于设计 `drun run` 命令、解释运行目标写法、环境加载优先级、`-vars`、`-failfast`、`-persist-env`。
+适用于设计 `drun run` 命令、解释运行目标写法、环境加载优先级、`-vars`、`-failfast`、`-persist-env`、日志和排障参数。
 
 ## 运行目标写法
 
@@ -12,14 +12,17 @@ drun run test_login -env dev
 drun run testcases/test_login.yaml -env dev
 drun run testsuites/testsuite_login_flow.yaml -env dev
 drun run testcases:登录,查询资料 -env dev
+drun run testcases -env dev -k "smoke and not slow"
 ```
 
 说明：
 
 - `test_login` 这类无扩展名写法会优先在 `testcases/`、`testsuites/` 里搜索
 - `:case1,case2` 按 case 名精确匹配
+- case 选择器只负责过滤；实际执行顺序仍按文件发现顺序和源文件内 case 顺序，不按 `:case2,case1` 的书写顺序重排
 - 选择器未命中时，错误信息会回显 `requested=[...] available=[...]`
 - 如果命中了重复 case 名，当前实现会全部执行并给 warning
+- `-k` 按 tags 表达式过滤，适合 smoke / regression / slow 这类分组
 
 ## 环境文件选择与合并
 
@@ -65,6 +68,8 @@ drun run testcases/test_login.yaml -env-file .env.local
 drun run testcases/test_login.yaml -env dev -vars tenant=blue
 drun run testcases/test_login.yaml -env dev -failfast
 drun run testcases/test_login.yaml -env dev -persist-env .env.runtime
+drun run testcases/test_login.yaml -env dev -secrets mask -response-headers
+drun run testcases/test_login.yaml -env dev -log-level DEBUG -httpx-logs -log-file logs/debug.log
 ```
 
 ## `-vars`、`-failfast`、`-persist-env`
@@ -76,9 +81,18 @@ drun run testcases/test_login.yaml -env dev -persist-env .env.runtime
   - 目标是 `.yaml` / `.yml` 时写进 `variables:` 段
   - 变量名会自动转成大写下划线，例如 `refreshToken -> REFRESH_TOKEN`
 
+## 日志、敏感信息和排障参数
+
+- `-secrets plain|mask` 控制日志和报告里是否展示敏感值；给用户示例时默认建议 `-secrets mask`
+- `-response-headers` 会额外记录响应头，适合排查鉴权、网关、trace id
+- `-httpx-logs` 打开 httpx 内部日志，适合排查连接、重定向、TLS 等问题
+- `-log-file logs/run.log` 指定日志文件；项目模式下不传也会默认写入 `logs/`
+- `-log-level DEBUG` 适合短时间排障，不建议作为 CI 默认配置
+
 ## 实战建议
 
 - 单接口调试时优先 `testcases/test_xxx.yaml`
 - 多文件链路优先 `testsuites/testsuite_xxx.yaml`
 - 如果只是补一个 `base_url`，可以直接 `-vars base_url=https://api.example.com`
 - 如果 `.env` 缺失，但你明确想走 YAML 环境或 OS 环境，仍然可以使用 `-env dev`
+- 需要排查 token 是否过期时，优先用 `-secrets mask -response-headers`，避免把真实 token 写进日志

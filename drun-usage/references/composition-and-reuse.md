@@ -200,8 +200,38 @@ config:
         path: data/upload_cases.csv
 ```
 
+CSV 配置支持：
+
+- `path` / `file`：CSV 文件路径
+- `delimiter`：分隔符，必须是单字符，默认 `,`
+- `encoding`：编码，默认 `utf-8`
+- `header`：是否使用首行作为表头，默认 `true`
+- `columns`：手工指定列名；`header: false` 时必须提供
+- `strip`：是否去掉单元格首尾空白，默认 `false`
+- `auto_type`：是否把短数字、浮点和 true/false 自动转类型，默认 `true`
+
+```yaml
+config:
+  name: CSV 无表头参数化
+  base_url: ${ENV(BASE_URL)}
+  parameters:
+    - csv:
+        path: data/upload_cases.csv
+        header: false
+        columns: [username, file_path, expected_status]
+        strip: true
+        auto_type: true
+```
+
+实现边界：
+
+- CSV 会展开所有数据行，当前不支持按行号或 `where` 条件过滤
+- 相对路径优先按向上查找到的 `Dhook.py` 所在目录解析；找不到时按当前运行目录解析
+- CSV 行列数不匹配、空列名、重复列名都会在加载阶段报错
+
 ## 常见坑
 
 - 不要再写旧的 `cases:` 内联套件；现在用 `caseflow`
 - 不要写 `loop` / `foreach`，现在统一用 `repeat`
 - 需要导出 invoke 结果时，优先用 `extract` + `export`
+- 如果用户要求“只跑 CSV 第 N 行”，当前不要生成不存在的 DSL；建议拆小 CSV 或临时复制目标行到单独文件

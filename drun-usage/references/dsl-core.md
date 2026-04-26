@@ -1,6 +1,6 @@
 # DSL Core
 
-适用于编写或解释 `config`、`steps`、`request`、`extract`、`validate`、模板表达式、严格渲染和 `request.files`。
+适用于编写或解释 `config`、`steps`、`request`、`extract`、`validate`、模板表达式、严格渲染、`request.files`、流式请求和响应保存。
 
 ## 能力说明
 
@@ -8,6 +8,7 @@
 - `config` 常用字段：`name`、`base_url`、`variables`、`headers`、`timeout`、`verify`、`tags`
 - 每个 step 只能拥有一个执行目标：`request`、`invoke` 或 `sleep`
 - 请求体字段在 YAML 中写 `body`，不要写 `json`
+- request 常用控制字段：`auth`、`timeout`、`verify`、`allow_redirects`、`stream`、`stream_timeout`
 - 提取与断言对响应体统一使用 `$...` 表达式；元数据用 `status_code` 或 `headers.<name>`
 
 ## 最小可运行 YAML
@@ -68,6 +69,67 @@ steps:
 
 如果 `${TEST_EMAIL}`、`${ENV(TEST_EMAIL)}` 或 `${missing_var}` 无法解析，运行会直接报未解析变量错误。
 
+## 请求控制字段
+
+除了直接写 `headers.Authorization`，也可以用 `request.auth` 表达 basic / bearer 鉴权。
+
+```yaml
+steps:
+  - name: bearer 鉴权请求
+    request:
+      method: GET
+      path: /api/profile
+      auth:
+        type: bearer
+        token: ${ENV(API_TOKEN)}
+      timeout: 10
+      verify: true
+      allow_redirects: false
+    validate:
+      - eq: [status_code, 200]
+
+  - name: basic 鉴权请求
+    request:
+      method: GET
+      path: /api/admin
+      auth:
+        type: basic
+        username: ${ENV(BASIC_USER)}
+        password: ${ENV(BASIC_PASS)}
+```
+
+流式响应适合 SSE / 大模型接口调试；响应里会记录 `stream_events`、`stream_summary` 和原始 chunk。
+
+```yaml
+steps:
+  - name: 调用流式接口
+    request:
+      method: POST
+      path: /v1/chat/completions
+      headers:
+        Authorization: Bearer ${ENV(API_TOKEN)}
+      body:
+        model: demo-model
+        stream: true
+        messages:
+          - role: user
+            content: hello
+      stream: true
+      stream_timeout: 60
+    extract:
+      first_chunk_ms: $stream_summary.first_chunk_ms
+      events: $stream_events
+    validate:
+      - eq: [status_code, 200]
+```
+
+流式相关可提取字段：
+
+- `$stream_events`
+- `$stream_summary`
+- `$stream_summary.first_chunk_ms`
+- `$stream_raw_chunks`
+
 ## 文件上传
 
 `request.files` 适合 multipart 上传；表单字段放在 `request.data`，不要放在 `request.body`。
@@ -104,7 +166,39 @@ drun run testcases/test_upload_avatar.yaml -env dev
 
 - `avatar: ./data/avatar.png`
 - `avatar: ["./data/avatar.png", "image/png"]`
-- `avatar: ("avatar.png", <bytes>, "image/png")`
+- `files: [[avatar, "./data/avatar.png"]]` 这种列表形态用于动态生成时保留字段名
+- `files: [[attachment, ["./data/readme.txt", "text/plain"]]]`
+
+`("filename", <bytes>, "content/type")` 是 Python/httpx 内部形态，不建议作为手写 YAML 示例。
+
+## 二进制响应与保存
+
+当响应不是 JSON / 文本时，报告里会保留二进制元数据，可用 `response.save_body_to` 保存原始响应体。
+
+```yaml
+config:
+  name: 下载音频
+  base_url: ${ENV(BASE_URL)}
+
+steps:
+  - name: 下载 TTS 音频
+    request:
+      method: GET
+      path: /api/tts?id=${audio_id}
+    response:
+      save_body_to: artifacts/tts_${audio_id}.mp3
+    validate:
+      - eq: [status_code, 200]
+      - eq: [$content_type, audio/mpeg]
+      - gt: [$body_size, 0]
+```
+
+二进制响应常用元数据：
+
+- `$content_type`
+- `$body_size`
+- `$body_bytes_b64`
+- `$raw_bytes`
 
 ## 常见坑
 
@@ -113,3 +207,4 @@ drun run testcases/test_upload_avatar.yaml -env dev
 - `extract` 和 `validate` 中不要写 `body.id`，统一写 `$.id` 或 `$.data.id`
 - `request.files` 不能和 `request.body` 同时出现
 - 上传路径相对当前运行目录解析，不是相对 YAML 文件解析；习惯上从项目根目录执行
+- `response.save_body_to` 需要响应里存在原始 body bytes；普通 JSON 响应通常没必要使用
