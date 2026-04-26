@@ -53,6 +53,13 @@ class HtmlReporterLayoutTests(unittest.TestCase):
         self.assertIn("class='st-head-duration muted'>150.9 ms</span>", html)
         self.assertIn("class='st-head-asserts muted'>断言: 3 ✓ / 0 ✗</span>", html)
 
+    def test_build_step_uses_icon_only_copy_button(self) -> None:
+        html = _build_step(self._build_step_result(), step_idx=2)
+
+        self.assertIn("class='icon-btn copy-btn'", html)
+        self.assertIn("aria-label='复制'", html)
+        self.assertNotIn(">复制</button>", html)
+
     def test_write_html_includes_nowrap_step_header_styles(self) -> None:
         report = RunReport(
             summary={
@@ -92,6 +99,10 @@ class HtmlReporterLayoutTests(unittest.TestCase):
         self.assertRegex(
             html,
             r"\.step \.st-head-main \{[^}]*min-width:0;[^}]*flex:1 1 auto;[^}]*\}",
+        )
+        self.assertRegex(
+            html,
+            r"\.panel \.p-head button\.copy-btn \{[^}]*border:none;[^}]*background:transparent;[^}]*\}",
         )
 
 

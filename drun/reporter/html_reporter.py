@@ -45,6 +45,31 @@ def _escape_html(text: str) -> str:
     )
 
 
+def _copy_button() -> str:
+    return (
+        "<button type='button' class='icon-btn copy-btn' title='复制' aria-label='复制' "
+        "data-default-title='复制' data-success-title='已复制' "
+        "data-failed-title='复制失败' data-manual-title='已选中，按 Ctrl/Cmd+C' "
+        "onclick=\"window.copyPanel && window.copyPanel(this)\">"
+        "<svg class='icon-copy' viewBox='0 0 16 16' fill='none' stroke='currentColor' "
+        "stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>"
+        "<rect x='5.25' y='4.25' width='7.5' height='9.5' rx='1.25'></rect>"
+        "<path d='M3.25 10.75V3.5c0-.69.56-1.25 1.25-1.25H10'></path>"
+        "</svg>"
+        "<svg class='icon-check' viewBox='0 0 16 16' fill='none' stroke='currentColor' "
+        "stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>"
+        "<path d='M3.5 8.5 6.5 11.5 12.5 5.5'></path>"
+        "</svg>"
+        "<svg class='icon-alert' viewBox='0 0 16 16' fill='none' stroke='currentColor' "
+        "stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>"
+        "<circle cx='8' cy='8' r='5.75'></circle>"
+        "<path d='M8 5.25v3.5'></path>"
+        "<circle cx='8' cy='11.25' r='0.75' fill='currentColor' stroke='none'></circle>"
+        "</svg>"
+        "</button>"
+    )
+
+
 def _format_assert_value(value: Any) -> str:
     """Format assertion value: strings without quotes, others with JSON"""
     if value is None:
@@ -144,7 +169,7 @@ def _build_stream_response_panel(response_map: Dict[str, Any]) -> str:
         f"<span>响应体 (流式)</span>"
         f"{stats_html}"
         f"<span class='actions'>"
-        f"<button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button>"
+        f"{_copy_button()}"
         f"</span>"
         f"</div>"
         # Tab bar
@@ -257,7 +282,7 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
     panels = []
     request_panel = (
         "<div class='panel' data-section='request-body'>"
-        f"<div class='p-head'><span>{req_title}</span><span class='actions'><button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button></span></div>"
+        f"<div class='p-head'><span>{req_title}</span><span class='actions'>{_copy_button()}</span></div>"
         f"<pre data-raw=\"{_escape_html(req_body_json)}\"><code>{_escape_html(req_body_display)}</code></pre>"
         "</div>"
     )
@@ -272,7 +297,7 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
         # Use regular response panel
         response_panel = (
             "<div class='panel' data-section='response-body'>"
-            f"<div class='p-head'><span>{resp_title}</span><span class='actions'><button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button></span></div>"
+            f"<div class='p-head'><span>{resp_title}</span><span class='actions'>{_copy_button()}</span></div>"
             f"<pre data-raw=\"{_escape_html(resp_body_json)}\"><code>{_escape_html(resp_body_display)}</code></pre>"
             "</div>"
         )
@@ -280,7 +305,7 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
     if headers_payload:
         panels.append(
             "<div class='panel' data-section='request-headers' style='margin-top:8px;'>"
-            "<div class='p-head'><span>请求头</span><span class='actions'><button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button></span></div>"
+            f"<div class='p-head'><span>请求头</span><span class='actions'>{_copy_button()}</span></div>"
             f"<pre data-raw=\"{_escape_html(req_headers_json)}\"><code>{_escape_html(req_headers_display)}</code></pre>"
             "</div>"
         )
@@ -297,7 +322,7 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
         err_text = _escape_html(step.error)
         panels.append(
             "<div class='panel' data-section='error' style='margin-top:8px;'>"
-            "<div class='p-head'><span>错误</span><span class='actions'><button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button></span></div>"
+            f"<div class='p-head'><span>错误</span><span class='actions'>{_copy_button()}</span></div>"
             f"<pre data-raw=\"{err_text}\"><code>{err_text}</code></pre>"
             "</div>"
         )
@@ -305,7 +330,7 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
     if ext_json and ext_json != "{}":
         panels.append(
             "<div class='panel' data-section='extracts' style='margin-top:8px;'>"
-            "<div class='p-head'><span>提取变量</span><span class='actions'><button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button></span></div>"
+            f"<div class='p-head'><span>提取变量</span><span class='actions'>{_copy_button()}</span></div>"
             f"<pre data-raw=\"{_escape_html(ext_json)}\"><code>{_escape_html(ext_json)}</code></pre>"
             "</div>"
         )
@@ -322,7 +347,7 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
     if curl:
         panels.append(
             "<div class='panel' data-section='curl' style='margin-top:8px;'>"
-            "<div class='p-head'><span>cURL</span><span class='actions'><button onclick=\"window.copyPanel && window.copyPanel(this)\">复制</button></span></div>"
+            f"<div class='p-head'><span>cURL</span><span class='actions'>{_copy_button()}</span></div>"
             f"<pre data-raw=\"{_escape_html(curl)}\"><code>{_escape_html(curl)}</code></pre>"
             "</div>"
         )
@@ -457,7 +482,7 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
   .panel { border:1px solid var(--border); border-radius:8px; overflow:hidden; }
   .panel .p-head { padding:6px 8px; background:var(--panel-head-bg); color:var(--muted); font-size:12px; display:flex; justify-content:space-between; align-items:center; }
-  .panel .p-head .actions { display:flex; gap:6px; }
+  .panel .p-head .actions { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
   .panel pre, .panel table { margin:0; padding:10px; overflow:auto; max-height: 360px; }
   .panel[data-section='curl'] pre { white-space: pre; overflow-x: auto; word-break: normal; }
   /* Fixed height for request and response body panels */
@@ -486,10 +511,18 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
   .toolbar button:hover { border-color:var(--accent); }
   .toolbar .chip { background:var(--chip-bg); border:1px solid var(--border); padding:4px 8px; border-radius:999px; display:inline-flex; align-items:center; gap:6px; }
   .toolbar input[type='radio']{ accent-color: var(--accent); }
-  .panel .p-head button { padding:4px 8px; font-size:11px; border-radius:4px; border:1px solid var(--border); background:var(--btn-bg); color:var(--fg); cursor:pointer; transition: all 0.2s ease; }
-  .panel .p-head button:hover { border-color:var(--accent); }
-  .panel .p-head button.copied { border-color:var(--ok); background:#dafbe1; color:var(--ok); font-weight:500; }
-  .panel .p-head button.copy-failed { border-color:var(--fail); background:#ffebe9; color:var(--fail); font-weight:500; }
+  .panel .p-head button.copy-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; padding:0; border:none; border-radius:6px; background:transparent; color:var(--muted); cursor:pointer; appearance:none; box-shadow:none; transition: background-color 0.2s ease, color 0.2s ease; }
+  .panel .p-head button.copy-btn:hover { background:#eaeef2; color:var(--accent); }
+  .panel .p-head button.copy-btn:focus-visible { outline:2px solid rgba(9, 105, 218, 0.35); outline-offset:2px; }
+  .panel .p-head button.copy-btn svg { width:16px; height:16px; flex:0 0 auto; pointer-events:none; }
+  .panel .p-head button.copy-btn .icon-check,
+  .panel .p-head button.copy-btn .icon-alert { display:none; }
+  .panel .p-head button.copy-btn.copied { background:#dafbe1; color:var(--ok); }
+  .panel .p-head button.copy-btn.copy-failed { background:#ffebe9; color:var(--fail); }
+  .panel .p-head button.copy-btn.copied .icon-copy,
+  .panel .p-head button.copy-btn.copy-failed .icon-copy { display:none; }
+  .panel .p-head button.copy-btn.copied .icon-check,
+  .panel .p-head button.copy-btn.copy-failed .icon-alert { display:block; }
   .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; padding: 12px 0; background: #ffffff; border-top: 1px solid #d0d7de; color: var(--muted); font-size: 12px; }
   .collapsed .body { display: none; }
   /* Streaming response styles */
@@ -544,30 +577,38 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
       range.selectNodeContents(preEl);
       var sel=window.getSelection ? window.getSelection() : null;
       if(sel){ sel.removeAllRanges(); sel.addRange(range); }
-      if(btn){ btn.innerText='已选中，按 Ctrl/Cmd+C'; btn.classList.add('copy-failed'); }
+      if(btn){ setCopyButtonState(btn, 'copy-failed', 'manualTitle', '已选中，按 Ctrl/Cmd+C'); }
     }catch(_){ /* ignore */ }
   }
-  function showCopied(btn){
+  function setCopyButtonLabel(btn, key, fallback){
     if(!btn) return;
-    var old=btn.innerText;
-    btn.innerText='已复制';
+    var text = fallback;
+    if(btn.dataset && btn.dataset[key]){ text = btn.dataset[key]; }
+    btn.title = text;
+    btn.setAttribute('aria-label', text);
+  }
+  function setCopyButtonState(btn, stateClass, titleKey, fallback){
+    if(!btn) return;
+    if(btn.__copyStateTimer){
+      clearTimeout(btn.__copyStateTimer);
+      btn.__copyStateTimer = null;
+    }
+    btn.classList.remove('copied');
     btn.classList.remove('copy-failed');
-    btn.classList.add('copied');
-    setTimeout(function(){
-      btn.innerText=old;
+    if(stateClass){ btn.classList.add(stateClass); }
+    setCopyButtonLabel(btn, titleKey, fallback);
+    btn.__copyStateTimer = setTimeout(function(){
       btn.classList.remove('copied');
+      btn.classList.remove('copy-failed');
+      setCopyButtonLabel(btn, 'defaultTitle', '复制');
+      btn.__copyStateTimer = null;
     }, 1500);
   }
+  function showCopied(btn){
+    setCopyButtonState(btn, 'copied', 'successTitle', '已复制');
+  }
   function showCopyFailed(btn){
-    if(!btn) return;
-    var old=btn.innerText;
-    btn.innerText='复制失败';
-    btn.classList.remove('copied');
-    btn.classList.add('copy-failed');
-    setTimeout(function(){
-      btn.innerText=old;
-      btn.classList.remove('copy-failed');
-    }, 1500);
+    setCopyButtonState(btn, 'copy-failed', 'failedTitle', '复制失败');
   }
   window.toggleStepBody = function(headEl){ var step=headEl && headEl.closest ? headEl.closest('.step') : null; if(!step) return; step.classList.toggle('collapsed'); };
   // Switch view in streaming response panel
