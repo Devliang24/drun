@@ -4,12 +4,137 @@ All notable changes to this project will be documented in this file.
 
 > Historical note: entries mentioning the scoring system are retained for release history only. The current CLI does not expose a `drun score` command.
 
+## [7.2.19] - 2026-04-26
+
+### Fixed
+- HTML 报告面板的复制按钮改为无边框图标按钮，并保留复制成功、失败和手动复制状态反馈。
+
+### Changed
+- 版本号提升至 7.2.19。
+
+## [7.2.18] - 2026-04-25
+
+### Fixed
+- HTML 报告步骤头部的状态、耗时和断言信息保持单行对齐，避免在宽屏报告中换行错位。
+
+## [7.2.17] - 2026-04-23
+
+### Removed
+- 移除仓库内置的 OpenAPI 示例规格文件，避免把本地示例数据作为发布内容维护。
+
+### Changed
+- 版本号提升至 7.2.17。
+
+## [7.2.16] - 2026-04-23
+
+### Docs
+- 新增面向 `drun` 深度使用场景的本地 skill，并补充 Claude Code、Codex、OpenCode 的调用示例。
+- 将本地 skill 名称从 `drun-deep-usage` 缩短为 `drun-usage`，便于调用。
+- `AGENTS.md` 补充 skill 文档维护要求，提醒 CLI、DSL、报告、导入导出等用户可见行为变更时同步评估 `drun-usage/`。
+
+## [7.2.15] - 2026-04-23
+
+### Fixed
+- snippet 导出跳过 `sleep` step，只为 request step 生成代码片段，避免非请求步骤触发导出异常。
+
+## [7.2.14] - 2026-04-23
+
+### Changed
+- `sleep` step 的等待单位调整为毫秒，并同步 README 和测试说明。
+
+## [7.2.13] - 2026-04-23
+
+### Added
+- 新增 `sleep` step DSL，用于在 caseflow 或 steps 中显式等待。
+- README 与仓库协作说明刷新，补充 `sleep`、输出目录、AI assistant 使用等说明。
+
+## [7.2.12] - 2026-04-17
+
+### Changed
+- 版本号提升至 7.2.12。
+
+## [7.2.11] - 2026-04-17
+
+### Added
+- snippet / curl 导出支持运行时 token 渲染，提升导出请求的可复现性。
+- 断言兼容旧 validator 语法，降低历史用例迁移成本。
+
+## [7.2.10] - 2026-04-04
+
+### Changed
+- 版本号提升至 7.2.10。
+
+## [7.2.9] - 2026-04-03
+
+### CI
+- 发布工作流避免执行子命令 `--help` 检查，降低发布阶段对运行环境的耦合。
+
+## [7.2.8] - 2026-04-03
+
+### Changed
+- CLI 选项和帮助文档统一为单短横线写法，并补充 help 宽度相关回归测试。
+
+## [7.2.7] - 2026-04-03
+
+### Added
+- `repeat` 支持结合 `skip` 做运行时求值。
+- `q` 快速调试命令补充 quick-only 使用路径。
+
+## [7.2.6] - 2026-04-03
+
+### Added
+- 新增 `repeat` step 执行与报告输出支持，并覆盖 `invoke` 场景下的重复执行。
+
+## [7.2.5] - 2026-04-02
+
+### Changed
+- 版本号提升至 7.2.5。
+
+## [7.2.4] - 2026-04-02
+
+### Added
+- `drun run` 支持 `<path>:<case[,case]>` 形式的用例选择器。
+- `invoke` 支持 `invoke_case_name` 和 `invoke_case_names`，可选择性执行被调用文件中的 case。
+
+### Changed
+- 精简 `run`、`quick`、`server` 相关 CLI 参数，并统一 secrets mode 表达。
+
 ## [7.2.3] - 2026-03-31
 
 ### Changed
 - 统一使用 `Dhook.py` 作为 hooks 脚手架命名。
 - 开发依赖 `.[dev]` 现在包含 `pytest`，可直接执行 `python -m pytest -q`。
 - 开发安装文档同步补充了 `pytest` 校验命令。
+
+## [7.2.2] - 2026-03-29
+
+### Fixed
+- 收紧严格模板渲染，缺变量或表达式错误会更早失败，避免运行时静默吞掉模板问题。
+
+## [7.2.1] - 2026-03-29
+
+### Added
+- 模板引擎错误处理增强，输出更明确的渲染失败原因。
+
+## [7.2.0] - 2026-03-28
+
+### Changed
+- 统一错误消息为英文，提升 CLI 输出和自动化日志的一致性。
+
+## [7.1.6] - 2026-03-28
+
+### Fixed
+- 优化失败 case 日志缩进，提升控制台失败详情可读性。
+
+## [7.1.5] - 2026-03-28
+
+### Added
+- 运行结束摘要和失败 case 日志进一步细化，便于快速定位失败用例。
+
+## [7.1.4] - 2026-03-28
+
+### Added
+- 新增运行结束摘要日志，集中展示执行结果。
 
 ## [7.1.3] - 2026-03-27
 
