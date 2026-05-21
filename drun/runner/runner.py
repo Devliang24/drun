@@ -19,6 +19,7 @@ from drun.runner.extractors import extract_from_body
 from drun.runner.asserting import evaluate_validators
 from drun.runner.hooks import run_setup_hooks, run_teardown_hooks
 from drun.runner.invoke import execute_invoke_step
+from drun.runner.step_lifecycle import StepLifecycle, StepLifecycleContext
 from drun.utils.curl import to_curl
 from drun.utils.mask import mask_body, mask_headers
 
@@ -623,6 +624,7 @@ class Runner:
             # else: keep the value from global_vars
         ctx = VarContext(rendered_base)
         client = self._build_client(case)
+        step_lifecycle = StepLifecycle(self)
 
         try:
             # Suite + Case setup hooks
@@ -677,6 +679,32 @@ class Runner:
                 rendered_locals = self._render(step.variables, base_variables, funcs, envmap)
                 ctx.push(rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {}))
                 variables = ctx.get_merged(global_vars)
+
+                if step.sleep is not None:
+                    lifecycle_results = step_lifecycle.execute(
+                        StepLifecycleContext(
+                            step=step,
+                            step_idx=step_idx,
+                            case_name=case.config.name or name,
+                            ctx=ctx,
+                            global_vars=global_vars,
+                            rendered_locals=rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {}),
+                            funcs=funcs,
+                            envmap=envmap,
+                        )
+                    )
+                    steps_results.extend(lifecycle_results)
+                    for result in reversed(lifecycle_results):
+                        if result.response:
+                            last_resp_obj = dict(result.response)
+                            break
+                    if any(result.status == "failed" for result in lifecycle_results):
+                        status = "failed"
+                        if self.failfast:
+                            ctx.pop()
+                            break
+                    ctx.pop()
+                    continue
 
                 rendered_base_step_name = self._render(step.name, variables, funcs, envmap)
                 if not isinstance(rendered_base_step_name, str):
@@ -795,241 +823,6 @@ class Runner:
                             if self.failfast:
                                 stop_current_step = True
                                 break
-
-                    ctx.pop()
-                    if stop_current_step:
-                        break
-                    continue
-
-                if step.sleep is not None:
-                    step_locals_for_hook = rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {})
-
-                    for repeat_index in range(repeat_total):
-                        iteration_base_vars = ctx.get_merged(global_vars)
-                        variables = self._build_repeat_variables(iteration_base_vars, repeat_index)
-
-                        iteration_step_name = self._render(step.name, variables, funcs, envmap)
-                        if not isinstance(iteration_step_name, str):
-                            iteration_step_name = str(step.name)
-                        rendered_step_name = self._format_repeat_step_name(
-                            iteration_step_name, repeat_index, repeat_total
-                        )
-
-                        try:
-                            should_skip, skip_reason = self._resolve_skip_decision(
-                                step, variables, funcs, envmap
-                            )
-                        except Exception as e:
-                            status = "failed"
-                            if self.log:
-                                self.log.error(f"[STEP] Step {step_idx} Skip error: {e}")
-                            steps_results.append(
-                                StepResult(
-                                    name=rendered_step_name,
-                                    origin_step_name=iteration_step_name,
-                                    repeat_index=repeat_index,
-                                    repeat_no=repeat_index + 1,
-                                    repeat_total=repeat_total,
-                                    status="failed",
-                                    error=f"skip error: {e}",
-                                )
-                            )
-                            if self.failfast:
-                                stop_current_step = True
-                                break
-                            continue
-
-                        if should_skip:
-                            skip_reason_text = skip_reason or "skip=true"
-                            if self.log:
-                                self.log.info(
-                                    f"[STEP] Step {step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
-                                )
-                            steps_results.append(
-                                StepResult(
-                                    name=rendered_step_name,
-                                    origin_step_name=iteration_step_name,
-                                    repeat_index=repeat_index,
-                                    repeat_no=repeat_index + 1,
-                                    repeat_total=repeat_total,
-                                    status="skipped",
-                                    error=skip_reason_text,
-                                )
-                            )
-                            continue
-
-                        try:
-                            sleep_ms = self._resolve_sleep_milliseconds(
-                                step, variables, funcs, envmap
-                            )
-                        except Exception as e:
-                            status = "failed"
-                            if self.log:
-                                self.log.error(f"[STEP] Step {step_idx} Sleep error: {e}")
-                            steps_results.append(
-                                StepResult(
-                                    name=rendered_step_name,
-                                    origin_step_name=iteration_step_name,
-                                    repeat_index=repeat_index,
-                                    repeat_no=repeat_index + 1,
-                                    repeat_total=repeat_total,
-                                    status="failed",
-                                    error=f"sleep error: {e}",
-                                )
-                            )
-                            if self.failfast:
-                                stop_current_step = True
-                                break
-                            continue
-
-                        sleep_request = {"sleep": sleep_ms}
-                        setup_meta = {
-                            "step_name": step.name,
-                            "case_name": case.config.name or name,
-                            "step_request": sleep_request,
-                            "step_variables": step_locals_for_hook,
-                            "session_variables": variables,
-                            "session_env": envmap or {},
-                            "step_sleep": sleep_ms,
-                            "step_sleep_ms": sleep_ms,
-                        }
-                        try:
-                            new_vars = self._run_setup_hooks(
-                                step.setup_hooks,
-                                funcs=funcs,
-                                req=sleep_request,
-                                variables=variables,
-                                envmap=envmap,
-                                meta=setup_meta,
-                            )
-                            for k, v in (new_vars or {}).items():
-                                ctx.set_base(k, v)
-                                if self.log:
-                                    self.log.info(f"[HOOK] set var: {k} = {v!r}")
-                            variables = self._build_repeat_variables(ctx.get_merged(global_vars), repeat_index)
-                        except Exception as e:
-                            status = "failed"
-                            if self.log:
-                                self.log.error(f"[HOOK] setup error: {e}")
-                            steps_results.append(
-                                StepResult(
-                                    name=rendered_step_name,
-                                    origin_step_name=iteration_step_name,
-                                    repeat_index=repeat_index,
-                                    repeat_no=repeat_index + 1,
-                                    repeat_total=repeat_total,
-                                    status="failed",
-                                    error=f"setup hook error: {e}",
-                                )
-                            )
-                            if self.failfast:
-                                stop_current_step = True
-                                break
-                            continue
-
-                        if self.log:
-                            self.log.info(f"[STEP] Step {step_idx} Start: {rendered_step_name}")
-                            step_vars = step.variables or {}
-                            if step_vars:
-                                vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
-                                self.log.info(vars_str)
-                            self.log.info(f"[SLEEP] {sleep_ms:g}ms")
-
-                        sleep_started = time.perf_counter()
-                        try:
-                            time.sleep(sleep_ms / 1000.0)
-                            elapsed_ms = (time.perf_counter() - sleep_started) * 1000.0
-                        except Exception as e:
-                            status = "failed"
-                            if self.log:
-                                self.log.error(f"[STEP] Sleep execution error: {e}")
-                            steps_results.append(
-                                StepResult(
-                                    name=rendered_step_name,
-                                    origin_step_name=iteration_step_name,
-                                    repeat_index=repeat_index,
-                                    repeat_no=repeat_index + 1,
-                                    repeat_total=repeat_total,
-                                    status="failed",
-                                    request={"sleep": sleep_ms},
-                                    error=f"sleep error: {e}",
-                                )
-                            )
-                            if self.failfast:
-                                stop_current_step = True
-                                break
-                            continue
-
-                        resp_obj = {
-                            "sleep_ms": sleep_ms,
-                            "elapsed_ms": elapsed_ms,
-                        }
-                        last_resp_obj = resp_obj
-                        step_failed = False
-                        teardown_error: Optional[str] = None
-
-                        try:
-                            teardown_meta = {
-                                "step_name": step.name,
-                                "case_name": case.config.name or name,
-                                "step_response": resp_obj,
-                                "step_request": sleep_request,
-                                "step_variables": variables,
-                                "session_variables": ctx.get_merged(global_vars),
-                                "session_env": envmap or {},
-                                "step_sleep": sleep_ms,
-                                "step_sleep_ms": sleep_ms,
-                            }
-                            new_vars_td = self._run_teardown_hooks(
-                                step.teardown_hooks,
-                                funcs=funcs,
-                                resp=resp_obj,
-                                variables=variables,
-                                envmap=envmap,
-                                meta=teardown_meta,
-                            )
-                            for k, v in (new_vars_td or {}).items():
-                                ctx.set_base(k, v)
-                                if self.log:
-                                    self.log.info(f"[HOOK] set var: {k} = {v!r}")
-                            variables = self._build_repeat_variables(ctx.get_merged(global_vars), repeat_index)
-                        except Exception as e:
-                            step_failed = True
-                            teardown_error = f"teardown hook error: {e}"
-                            if self.log:
-                                self.log.error(f"[HOOK] teardown error: {e}")
-
-                        steps_results.append(
-                            StepResult(
-                                name=rendered_step_name,
-                                origin_step_name=iteration_step_name,
-                                repeat_index=repeat_index,
-                                repeat_no=repeat_index + 1,
-                                repeat_total=repeat_total,
-                                status="failed" if step_failed else "passed",
-                                request={"sleep": sleep_ms},
-                                response={
-                                    "sleep_ms": sleep_ms,
-                                    "elapsed_ms": elapsed_ms,
-                                },
-                                duration_ms=elapsed_ms,
-                                error=teardown_error,
-                            )
-                        )
-
-                        if step_failed:
-                            status = "failed"
-                            if self.log:
-                                self.log.error(f"[STEP] Step {step_idx} Completed: {rendered_step_name} | FAILED")
-                        else:
-                            if self.log:
-                                self.log.info(
-                                    f"[STEP] Step {step_idx} Completed: {rendered_step_name} | PASSED"
-                                )
-
-                        if step_failed and self.failfast:
-                            stop_current_step = True
-                            break
 
                     ctx.pop()
                     if stop_current_step:
