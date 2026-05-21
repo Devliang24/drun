@@ -676,32 +676,7 @@ class Runner:
                 ctx.push(rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {}))
                 variables = ctx.get_merged(global_vars)
 
-                if step.sleep is not None:
-                    lifecycle_result = step_lifecycle.execute(
-                        StepLifecycleContext(
-                            step=step,
-                            step_idx=step_idx,
-                            case_name=case.config.name or name,
-                            ctx=ctx,
-                            global_vars=global_vars,
-                            rendered_locals=rendered_locals if isinstance(rendered_locals, dict) else (step.variables or {}),
-                            funcs=funcs,
-                            envmap=envmap,
-                        )
-                    )
-                    lifecycle_results = lifecycle_result.results
-                    steps_results.extend(lifecycle_results)
-                    if lifecycle_result.last_response is not None:
-                        last_resp_obj = lifecycle_result.last_response
-                    if any(result.status == "failed" for result in lifecycle_results):
-                        status = "failed"
-                        if self.failfast:
-                            ctx.pop()
-                            break
-                    ctx.pop()
-                    continue
-
-                if step.request is not None:
+                if step.sleep is not None or step.request is not None or step.invoke is not None:
                     lifecycle_result = step_lifecycle.execute(
                         StepLifecycleContext(
                             step=step,
@@ -713,6 +688,7 @@ class Runner:
                             funcs=funcs,
                             envmap=envmap,
                             client=client,
+                            params=params,
                         )
                     )
                     lifecycle_results = lifecycle_result.results
@@ -725,129 +701,6 @@ class Runner:
                             ctx.pop()
                             break
                     ctx.pop()
-                    continue
-
-                rendered_base_step_name = self._render(step.name, variables, funcs, envmap)
-                if not isinstance(rendered_base_step_name, str):
-                    rendered_base_step_name = str(step.name)
-
-                try:
-                    repeat_total = self._resolve_repeat_count(step, variables, funcs, envmap)
-                except Exception as e:
-                    status = "failed"
-                    error_msg = f"repeat error: {e}"
-                    if self.log:
-                        self.log.error(f"[STEP] Step {step_idx} Repeat error: {e}")
-                    steps_results.append(
-                        StepResult(
-                            name=rendered_base_step_name,
-                            origin_step_name=rendered_base_step_name,
-                            status="failed",
-                            error=error_msg,
-                        )
-                    )
-                    ctx.pop()
-                    if self.failfast:
-                        break
-                    continue
-
-                if repeat_total == 0:
-                    skipped_name = f"{rendered_base_step_name} [repeat=0]"
-                    if self.log:
-                        self.log.info(f"[STEP] Step {step_idx} Skip: {skipped_name} | reason=repeat=0")
-                    steps_results.append(
-                        StepResult(
-                            name=skipped_name,
-                            origin_step_name=rendered_base_step_name,
-                            status="skipped",
-                            repeat_total=0,
-                        )
-                    )
-                    ctx.pop()
-                    continue
-
-                stop_current_step = False
-
-                if step.invoke:
-                    for repeat_index in range(repeat_total):
-                        iteration_base_vars = ctx.get_merged(global_vars)
-                        iteration_vars = self._build_repeat_variables(iteration_base_vars, repeat_index)
-
-                        iteration_step_name = self._render(step.name, iteration_vars, funcs, envmap)
-                        if not isinstance(iteration_step_name, str):
-                            iteration_step_name = str(step.name)
-                        rendered_step_name = self._format_repeat_step_name(
-                            iteration_step_name, repeat_index, repeat_total
-                        )
-
-                        try:
-                            should_skip, skip_reason = self._resolve_skip_decision(
-                                step, iteration_vars, funcs, envmap
-                            )
-                        except Exception as e:
-                            status = "failed"
-                            if self.log:
-                                self.log.error(f"[STEP] Step {step_idx} Skip error: {e}")
-                            steps_results.append(
-                                StepResult(
-                                    name=rendered_step_name,
-                                    origin_step_name=iteration_step_name,
-                                    repeat_index=repeat_index,
-                                    repeat_no=repeat_index + 1,
-                                    repeat_total=repeat_total,
-                                    status="failed",
-                                    error=f"skip error: {e}",
-                                )
-                            )
-                            if self.failfast:
-                                stop_current_step = True
-                                break
-                            continue
-
-                        if should_skip:
-                            skip_reason_text = skip_reason or "skip=true"
-                            if self.log:
-                                self.log.info(
-                                    f"[STEP] Step {step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
-                                )
-                            steps_results.append(
-                                StepResult(
-                                    name=rendered_step_name,
-                                    origin_step_name=iteration_step_name,
-                                    repeat_index=repeat_index,
-                                    repeat_no=repeat_index + 1,
-                                    repeat_total=repeat_total,
-                                    status="skipped",
-                                    error=skip_reason_text,
-                                )
-                            )
-                            continue
-
-                        invoke_results = self._run_invoke_step(
-                            step=step,
-                            step_idx=step_idx,
-                            rendered_step_name=rendered_step_name,
-                            variables=iteration_vars,
-                            global_vars=global_vars,
-                            funcs=funcs,
-                            envmap=envmap,
-                            ctx=ctx,
-                            params=params,
-                            invoke_result_prefix=rendered_step_name if repeat_total > 1 else None,
-                            repeat_index=repeat_index,
-                            repeat_no=repeat_index + 1,
-                            repeat_total=repeat_total,
-                        )
-                        steps_results.extend(invoke_results)
-                        if any(r.status == "failed" for r in invoke_results):
-                            status = "failed"
-                            if self.failfast:
-                                stop_current_step = True
-                                break
-
-                    ctx.pop()
-                    if stop_current_step:
-                        break
                     continue
 
                 ctx.pop()

@@ -29,6 +29,7 @@ class StepLifecycleContext:
     funcs: Dict[str, Any] | None = None
     envmap: Dict[str, Any] | None = None
     client: Any | None = None
+    params: Dict[str, Any] | None = None
 
 
 @dataclass
@@ -46,7 +47,9 @@ class StepLifecycle:
             return self._execute_sleep_step(context)
         if context.step.request is not None:
             return self._execute_request_step(context)
-        raise NotImplementedError("StepLifecycle currently supports sleep and request steps only.")
+        if context.step.invoke is not None:
+            return self._execute_invoke_step(context)
+        raise NotImplementedError("StepLifecycle currently supports sleep, request, and invoke steps only.")
 
     def _execute_sleep_step(self, context: StepLifecycleContext) -> StepLifecycleResult:
         step = context.step
@@ -330,6 +333,126 @@ class StepLifecycle:
                 break
 
         return StepLifecycleResult(results=results, last_response=last_response)
+
+    def _execute_invoke_step(self, context: StepLifecycleContext) -> StepLifecycleResult:
+        step = context.step
+        runner = self.runner
+        results: List[StepResult] = []
+
+        rendered_base_step_name = self._render_step_name(
+            step,
+            context.ctx.get_merged(context.global_vars),
+            context,
+        )
+
+        try:
+            repeat_total = runner._resolve_repeat_count(
+                step,
+                context.ctx.get_merged(context.global_vars),
+                context.funcs,
+                context.envmap,
+            )
+        except Exception as e:
+            if runner.log:
+                runner.log.error(f"[STEP] Step {context.step_idx} Repeat error: {e}")
+            return StepLifecycleResult(
+                results=[
+                    StepResult(
+                        name=rendered_base_step_name,
+                        origin_step_name=rendered_base_step_name,
+                        status="failed",
+                        error=f"repeat error: {e}",
+                    )
+                ]
+            )
+
+        if repeat_total == 0:
+            skipped_name = f"{rendered_base_step_name} [repeat=0]"
+            if runner.log:
+                runner.log.info(
+                    f"[STEP] Step {context.step_idx} Skip: {skipped_name} | reason=repeat=0"
+                )
+            return StepLifecycleResult(
+                results=[
+                    StepResult(
+                        name=skipped_name,
+                        origin_step_name=rendered_base_step_name,
+                        status="skipped",
+                        repeat_total=0,
+                    )
+                ]
+            )
+
+        for repeat_index in range(repeat_total):
+            iteration_base_vars = context.ctx.get_merged(context.global_vars)
+            iteration_vars = runner._build_repeat_variables(iteration_base_vars, repeat_index)
+
+            iteration_step_name = self._render_step_name(step, iteration_vars, context)
+            rendered_step_name = runner._format_repeat_step_name(
+                iteration_step_name, repeat_index, repeat_total
+            )
+
+            try:
+                should_skip, skip_reason = runner._resolve_skip_decision(
+                    step, iteration_vars, context.funcs, context.envmap
+                )
+            except Exception as e:
+                if runner.log:
+                    runner.log.error(f"[STEP] Step {context.step_idx} Skip error: {e}")
+                results.append(
+                    StepResult(
+                        name=rendered_step_name,
+                        origin_step_name=iteration_step_name,
+                        repeat_index=repeat_index,
+                        repeat_no=repeat_index + 1,
+                        repeat_total=repeat_total,
+                        status="failed",
+                        error=f"skip error: {e}",
+                    )
+                )
+                if runner.failfast:
+                    break
+                continue
+
+            if should_skip:
+                skip_reason_text = skip_reason or "skip=true"
+                if runner.log:
+                    runner.log.info(
+                        f"[STEP] Step {context.step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
+                    )
+                results.append(
+                    StepResult(
+                        name=rendered_step_name,
+                        origin_step_name=iteration_step_name,
+                        repeat_index=repeat_index,
+                        repeat_no=repeat_index + 1,
+                        repeat_total=repeat_total,
+                        status="skipped",
+                        error=skip_reason_text,
+                    )
+                )
+                continue
+
+            invoke_results = runner._run_invoke_step(
+                step=step,
+                step_idx=context.step_idx,
+                rendered_step_name=rendered_step_name,
+                variables=iteration_vars,
+                global_vars=context.global_vars,
+                funcs=context.funcs,
+                envmap=context.envmap,
+                ctx=context.ctx,
+                params=context.params,
+                invoke_result_prefix=rendered_step_name if repeat_total > 1 else None,
+                repeat_index=repeat_index,
+                repeat_no=repeat_index + 1,
+                repeat_total=repeat_total,
+            )
+            results.extend(invoke_results)
+            if any(r.status == "failed" for r in invoke_results) and runner.failfast:
+                break
+
+        return StepLifecycleResult(results=results)
 
     def _execute_request_step(self, context: StepLifecycleContext) -> StepLifecycleResult:
         step = context.step

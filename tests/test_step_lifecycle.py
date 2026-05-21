@@ -6,6 +6,7 @@ from unittest.mock import call, patch
 
 from drun.models.case import Case
 from drun.models.config import Config
+from drun.models.report import StepResult
 from drun.models.request import StepRequest
 from drun.models.step import Step
 from drun.models.validators import normalize_validators
@@ -186,6 +187,51 @@ class StepLifecycleRequestTests(unittest.TestCase):
         self.assertEqual(seen["raw_bytes"], raw_payload)
         self.assertNotIn("raw_bytes", result.steps[0].response)
         self.assertTrue(fake_client.closed)
+
+
+class StepLifecycleInvokeTests(unittest.TestCase):
+    def test_invoke_step_repeat_uses_step_lifecycle_result_metadata(self) -> None:
+        runner = Runner(log=_FakeLogger(), failfast=False)
+        captured = []
+
+        def _fake_run_invoke_step(**kwargs):
+            captured.append((kwargs["rendered_step_name"], kwargs.get("invoke_result_prefix")))
+            return [
+                StepResult(
+                    name=f"{kwargs['rendered_step_name']} :: child",
+                    status="passed",
+                    repeat_index=kwargs["repeat_index"],
+                    repeat_no=kwargs["repeat_no"],
+                    repeat_total=kwargs["repeat_total"],
+                )
+            ]
+
+        runner._run_invoke_step = _fake_run_invoke_step  # type: ignore[method-assign]
+        lifecycle = StepLifecycle(runner)
+        context = StepLifecycleContext(
+            step=Step(name="Invoke flow", invoke="child_case", repeat=2),
+            step_idx=1,
+            case_name="Parent Case",
+            ctx=VarContext({}),
+            global_vars={},
+            rendered_locals={},
+            funcs={},
+            envmap={},
+            params={},
+        )
+
+        lifecycle_result = lifecycle.execute(context)
+
+        self.assertEqual(
+            captured,
+            [
+                ("Invoke flow [repeat=1/2]", "Invoke flow [repeat=1/2]"),
+                ("Invoke flow [repeat=2/2]", "Invoke flow [repeat=2/2]"),
+            ],
+        )
+        self.assertEqual(len(lifecycle_result.results), 2)
+        self.assertEqual(lifecycle_result.results[0].repeat_index, 0)
+        self.assertEqual(lifecycle_result.results[1].repeat_no, 2)
 
 
 if __name__ == "__main__":
