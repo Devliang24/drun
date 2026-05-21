@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional
 
 from drun.loader.yaml_loader import format_variables_multiline
 from drun.models.report import StepResult
 from drun.models.step import Step
-from drun.runner.asserting import evaluate_validators
 from drun.runner.request_projection import (
     finalize_request_projection,
     render_request_for_setup,
 )
-from drun.runner.response_capture import capture_step_response
+from drun.runner.step_outcome import StepOutcomeContext, process_step_outcome
 from drun.templating.context import VarContext
 from drun.utils.mask import mask_body, mask_headers
 
@@ -677,34 +675,21 @@ class StepLifecycle:
             req_rendered = request_projection.runtime_request
             self._log_response(resp_obj)
 
-            extracts = self._extract_response_values(step, resp_obj, variables, context)
-            self._persist_extracts(extracts, context)
-
-            if step.export:
-                self._export_step_data(step, resp_obj, variables, context)
-
-            variables = runner._build_repeat_variables(
-                context.ctx.get_merged(context.global_vars), repeat_index
-            )
-
-            save_error = self._save_response_body_if_needed(
-                step=step,
-                resp_obj=resp_obj,
-                variables=variables,
-                context=context,
-            )
-
-            assertions, step_failed = evaluate_validators(
+            outcome = process_step_outcome(
                 runner=runner,
-                validators=step.validators,
-                variables=variables,
-                funcs=context.funcs,
-                envmap=context.envmap,
-                resp_obj=resp_obj,
+                context=StepOutcomeContext(
+                    step=step,
+                    resp_obj=resp_obj,
+                    variables=variables,
+                    ctx=context.ctx,
+                    global_vars=context.global_vars,
+                    repeat_index=repeat_index,
+                    funcs=context.funcs,
+                    envmap=context.envmap,
+                ),
             )
-            if save_error:
-                step_failed = True
-            response_capture = capture_step_response(runner=runner, resp_obj=resp_obj)
+            variables = outcome.variables
+            step_failed = outcome.step_failed
 
             try:
                 teardown_meta = {
@@ -744,12 +729,12 @@ class StepLifecycle:
                 repeat_total=repeat_total,
                 status="failed" if step_failed else "passed",
                 request=request_projection.report_request,
-                response=response_capture.report_response,
+                response=outcome.report_response,
                 curl=request_projection.curl,
-                asserts=assertions,
-                extracts=extracts,
+                asserts=outcome.assertions,
+                extracts=outcome.extracts,
                 duration_ms=resp_obj.get("elapsed_ms") or 0.0,
-                error=save_error,
+                error=outcome.error,
             )
             results.append(sr)
             if step_failed:
@@ -907,151 +892,6 @@ class StepLifecycle:
                 resp_obj.get("body_size"),
                 content_type,
             )
-
-    def _extract_response_values(
-        self,
-        step: Step,
-        resp_obj: Dict[str, Any],
-        variables: Dict[str, Any],
-        context: StepLifecycleContext,
-    ) -> Dict[str, Any]:
-        runner = self.runner
-        extracts: Dict[str, Any] = {}
-        for var, expr in (step.extract or {}).items():
-            if isinstance(expr, str) and "${" in expr:
-                import re
-
-                jpath_pattern = r'\$\.[\w\[\]\.]+(?:\[\d+\])*(?:\.[\w\[\]]+)*'
-                jpaths = re.findall(jpath_pattern, expr)
-                temp_vars = dict(variables)
-                temp_expr = expr
-                for idx, jp in enumerate(jpaths):
-                    extracted = runner._eval_extract(jp, resp_obj)
-                    temp_var_name = f"_jpath_{idx}"
-                    temp_vars[temp_var_name] = extracted
-                    temp_expr = temp_expr.replace(jp, temp_var_name)
-                val = runner.templater.render_expression(
-                    temp_expr, temp_vars, context.funcs, context.envmap
-                )
-            else:
-                val = runner._eval_extract(expr, resp_obj)
-            extracts[var] = val
-            context.ctx.set_base(var, val)
-            if runner.log:
-                runner.log.info(f"[EXTRACT] {var} = {val!r} from {expr}")
-        return extracts
-
-    def _persist_extracts(
-        self,
-        extracts: Dict[str, Any],
-        context: StepLifecycleContext,
-    ) -> None:
-        if not extracts:
-            return
-
-        runner = self.runner
-        from drun.utils.env_writer import to_env_var_name
-
-        if context.envmap is not None:
-            for var_name, value in extracts.items():
-                env_key = to_env_var_name(var_name)
-                context.envmap[env_key] = value
-                context.envmap[var_name] = value
-
-        from drun.utils.env_writer import write_env_variable, write_yaml_variable
-
-        env_path = Path(runner.persist_env_file)
-        is_yaml = env_path.suffix.lower() in {".yaml", ".yml"}
-
-        for var_name, value in extracts.items():
-            try:
-                env_key = to_env_var_name(var_name)
-                if is_yaml:
-                    write_yaml_variable(str(env_path), var_name, value)
-                else:
-                    write_env_variable(str(env_path), var_name, value)
-                if runner.log:
-                    runner.log.info(
-                        f"[PERSIST] {var_name} → {env_key} = {value!r} "
-                        f"(已写入 {runner.persist_env_file})"
-                    )
-            except Exception as e:
-                if runner.log:
-                    runner.log.warning(f"[PERSIST] 写入失败 {var_name}: {e}")
-
-    def _export_step_data(
-        self,
-        step: Step,
-        resp_obj: Dict[str, Any],
-        variables: Dict[str, Any],
-        context: StepLifecycleContext,
-    ) -> None:
-        runner = self.runner
-        if not step.export or "csv" not in step.export:
-            return
-
-        csv_config = step.export["csv"]
-        rendered_config = runner._render(csv_config, variables, context.funcs, context.envmap)
-        data_expr = rendered_config.get("data")
-        if not data_expr:
-            raise ValueError("export.csv.data 字段是必填的")
-
-        array_data = runner._eval_extract(data_expr, resp_obj)
-
-        from drun.loader.hooks import find_hooks
-        from drun.utils.data_exporter import export_to_csv
-
-        try:
-            hooks_file = find_hooks(Path.cwd())
-            base_dir = hooks_file.parent if hooks_file else Path.cwd()
-
-            row_count = export_to_csv(
-                data=array_data,
-                file_path=rendered_config["file"],
-                columns=rendered_config.get("columns"),
-                encoding=rendered_config.get("encoding", "utf-8"),
-                mode=rendered_config.get("mode", "overwrite"),
-                delimiter=rendered_config.get("delimiter", ","),
-                base_dir=base_dir,
-            )
-
-            if runner.log:
-                runner.log.info(f"[EXPORT CSV] {row_count} rows → {rendered_config['file']}")
-        except Exception as e:
-            if runner.log:
-                runner.log.error(f"[EXPORT CSV] 导出失败: {e}")
-            raise
-
-    def _save_response_body_if_needed(
-        self,
-        *,
-        step: Step,
-        resp_obj: Dict[str, Any],
-        variables: Dict[str, Any],
-        context: StepLifecycleContext,
-    ) -> Optional[str]:
-        runner = self.runner
-        if not (step.response and step.response.save_body_to):
-            return None
-
-        try:
-            saved_body_to = runner._save_response_body(
-                target=step.response.save_body_to,
-                resp=resp_obj,
-                variables=variables,
-                funcs=context.funcs,
-                envmap=context.envmap,
-            )
-            resp_obj["saved_body_to"] = saved_body_to
-            if runner.log:
-                runner.log.info(f"[RESPONSE] body saved to {saved_body_to}")
-            return None
-        except Exception as e:
-            save_error = f"Save response body failed: {e}"
-            resp_obj["save_error"] = save_error
-            if runner.log:
-                runner.log.error(f"[RESPONSE] {save_error}")
-            return save_error
 
     def _build_request_error_result(
         self,
