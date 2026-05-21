@@ -13,6 +13,7 @@ from drun.runner.request_projection import (
     finalize_request_projection,
     render_request_for_setup,
 )
+from drun.runner.response_capture import capture_step_response
 from drun.templating.context import VarContext
 from drun.utils.mask import mask_body, mask_headers
 
@@ -580,6 +581,7 @@ class StepLifecycle:
             )
             if save_error:
                 step_failed = True
+            response_capture = capture_step_response(runner=runner, resp_obj=resp_obj)
 
             try:
                 teardown_meta = {
@@ -619,7 +621,7 @@ class StepLifecycle:
                 repeat_total=repeat_total,
                 status="failed" if step_failed else "passed",
                 request=request_projection.report_request,
-                response=self._build_response_dict(resp_obj),
+                response=response_capture.report_response,
                 curl=request_projection.curl,
                 asserts=assertions,
                 extracts=extracts,
@@ -927,58 +929,6 @@ class StepLifecycle:
             if runner.log:
                 runner.log.error(f"[RESPONSE] {save_error}")
             return save_error
-
-    def _build_response_dict(self, resp_obj: Dict[str, Any]) -> Dict[str, Any]:
-        runner = self.runner
-        body_masked = resp_obj.get("body")
-        if not runner.reveal:
-            body_masked = mask_body(body_masked)
-
-        response_dict: Dict[str, Any] = {
-            "status_code": resp_obj.get("status_code"),
-        }
-
-        if resp_obj.get("is_stream"):
-            response_dict["is_stream"] = True
-            response_dict["stream_events"] = resp_obj.get("stream_events", [])
-            response_dict["stream_summary"] = resp_obj.get("stream_summary", {})
-            response_dict["stream_raw_chunks"] = resp_obj.get("stream_raw_chunks", [])
-            if not runner.reveal:
-                masked_events = []
-                for event in response_dict["stream_events"]:
-                    masked_event = event.copy()
-                    if isinstance(masked_event.get("data"), (dict, list)):
-                        masked_event["data"] = mask_body(masked_event["data"])
-                    masked_events.append(masked_event)
-                response_dict["stream_events"] = masked_events
-        else:
-            if isinstance(body_masked, (dict, list)):
-                response_dict["body"] = body_masked
-            elif body_masked is None:
-                response_dict["body"] = None
-            elif isinstance(body_masked, (str, bytes)):
-                if isinstance(body_masked, bytes):
-                    text = body_masked.decode("utf-8", errors="replace")
-                else:
-                    text = body_masked
-                response_dict["body"] = text if len(text) <= 2048 else text[:2048] + "..."
-            elif isinstance(body_masked, (bool, int, float)):
-                response_dict["body"] = body_masked
-            else:
-                text = str(body_masked)
-                response_dict["body"] = text if len(text) <= 2048 else text[:2048] + "..."
-            if resp_obj.get("content_type") is not None:
-                response_dict["content_type"] = resp_obj.get("content_type")
-            if resp_obj.get("body_size") is not None:
-                response_dict["body_size"] = resp_obj.get("body_size")
-            if resp_obj.get("body_bytes_b64") is not None:
-                response_dict["body_bytes_b64"] = resp_obj.get("body_bytes_b64")
-            if resp_obj.get("saved_body_to") is not None:
-                response_dict["saved_body_to"] = resp_obj.get("saved_body_to")
-            if resp_obj.get("save_error") is not None:
-                response_dict["save_error"] = resp_obj.get("save_error")
-
-        return response_dict
 
     def _build_request_error_result(
         self,
