@@ -212,6 +212,8 @@ drun check testcases
 drun fix testcases
 ```
 
+`drun check` 会聚合输出 YAML/DSL 作者错误，并带有稳定错误码（如 `DRUN-YAML-003`）、定位、修复建议和最小示例；`drun run` 遇到阻断性 YAML 错误时仍会快速停止。
+
 ### 格式转换
 
 ```bash

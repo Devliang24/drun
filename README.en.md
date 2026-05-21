@@ -212,6 +212,8 @@ drun check testcases
 drun fix testcases
 ```
 
+`drun check` aggregates YAML/DSL authoring diagnostics with stable error codes such as `DRUN-YAML-003`, file locations, fix hints, and minimal examples. `drun run` still stops quickly on blocking YAML errors.
+
 ### Format Conversion
 
 ```bash

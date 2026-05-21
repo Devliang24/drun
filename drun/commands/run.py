@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import os
 import re
 import time
@@ -242,6 +243,23 @@ def _format_failed_cases_block(report: RunReport) -> str:
         if idx < len(failed_cases) - 1:
             lines.append("")
     return "\n".join(lines)
+
+
+def _write_file_log_only(logger, level: int, message: str) -> None:
+    """Write a message to file log handlers without duplicating console output."""
+    root_logger = logging.getLogger()
+    record = logger.makeRecord(
+        logger.name,
+        level,
+        fn="",
+        lno=0,
+        msg=message,
+        args=(),
+        exc_info=None,
+    )
+    for handler in root_logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            handler.handle(record)
 
 
 def _build_run_summary_text(report: RunReport) -> str:
@@ -627,7 +645,12 @@ def run_cases(
         try:
             loaded, meta = load_yaml_file(f)
         except LoadError as exc:
-            log.error(str(exc))
+            diag = getattr(exc, "diagnostic", None)
+            if diag is not None:
+                typer.echo(diag.format())
+                _write_file_log_only(log, logging.ERROR, diag.format())
+            else:
+                log.error(str(exc))
             raise typer.Exit(code=2)
         debug_info.append(f"file={f} cases={len(loaded)}")
         for c in loaded:

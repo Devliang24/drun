@@ -2,6 +2,104 @@
 
 适用于根据报错快速定位 `drun` YAML、环境、上传、编排和转换问题。
 
+## YAML 诊断错误码
+
+`drun check` 会聚合输出 YAML/DSL 作者错误；`drun run` 遇到第一个阻断性 YAML 错误仍会快速停止。诊断使用稳定错误码 `DRUN-YAML-xxx`，并尽量输出文件行号、YAML path、修复建议和最小示例。
+
+| 错误码 | 含义 | 常见处理方向 |
+| --- | --- | --- |
+| `DRUN-YAML-001` | YAML 语法解析失败 | 先修正缩进、冒号、列表和引号等 YAML 基础语法。 |
+| `DRUN-YAML-002` | YAML schema 不符合 DSL | 检查根节点、`config`、`steps`、`validate` 等字段形状。 |
+| `DRUN-YAML-003` | `request` 字段不支持 | 常见是把 `request.path` 写成了 `request.url`。 |
+| `DRUN-YAML-004` | 不支持 `request.json` | JSON 或原始请求体改写到 `request.body`。 |
+| `DRUN-YAML-005` | 字段错误缩进到 `request` 下 | 将 `validate`、`extract`、hooks 等移出 `request`，与其同级。 |
+| `DRUN-YAML-006` | 参数位置错误 | 使用 `config.parameters`，不要使用顶层 `parameters`。 |
+| `DRUN-YAML-007` | 响应 body 路径语法错误 | `validate` / `extract` 中用 `$.data.id`，不要用 `body.id`。 |
+| `DRUN-YAML-008` | `request.files` 声明错误 | 修正 files 结构；multipart 普通字段放 `request.data`。 |
+| `DRUN-YAML-009` | 旧版 DSL 写法 | 将 `cases`、`loop`、`foreach` 迁移到当前 `caseflow` / `repeat` 写法。 |
+| `DRUN-YAML-010` | `caseflow` 写法错误 | `caseflow` 必须是列表，每项至少包含有效 `invoke`。 |
+| `DRUN-YAML-011` | step 执行目标错误 | 每个 step 只保留 `request`、`invoke`、`sleep` 中的一种。 |
+| `DRUN-YAML-012` | `repeat` / `sleep` 值错误 | `repeat` 用非负整数；`sleep` 用非负数值，或可解析表达式。 |
+| `DRUN-YAML-013` | hooks 声明错误 | hooks 放在支持的位置，并写成 `${func(...)}` 表达式列表。 |
+| `DRUN-YAML-014` | step 间距不符合检查规则 | 在多个 step item 之间增加空行。 |
+| `DRUN-YAML-999` | YAML 加载兜底错误 | 查看 hint 中的原始异常；后续可细分为更具体错误码。 |
+
+### `request.url` 写错字段
+
+优化前：
+
+```text
+FAIL: testcases/test_demo.yaml -> Failed to load testcases/test_demo.yaml: 1 validation error for Case
+steps.0.request.url
+  Extra inputs are not permitted
+```
+
+优化后：
+
+```text
+DRUN-YAML-003 Invalid request field: request.url
+File: testcases/test_demo.yaml:8
+Path: steps[0].request.url
+
+Use `request.path` instead of `request.url`.
+
+Example:
+  request:
+    method: GET
+    path: /api/users
+```
+
+修正：YAML 请求字段用 `request.path`，不要写 `request.url`。
+
+### 顶层 `parameters` 位置错误
+
+优化前：
+
+```text
+FAIL: testcases/test_users.yaml -> Invalid top-level 'parameters'. Move case parameters under 'config.parameters'.
+```
+
+优化后：
+
+```text
+DRUN-YAML-006 Invalid parameter location
+File: testcases/test_users.yaml:2
+Path: parameters
+
+Move `parameters` under `config.parameters`.
+
+Example:
+  config:
+    name: User cases
+    parameters:
+      - user_id: [1, 2, 3]
+```
+
+修正：参数化入口是 `config.parameters`，不要使用顶层 `parameters`。
+
+### `drun check` 多文件聚合
+
+优化前：
+
+```text
+FAIL: testcases/test_a.yaml -> Invalid request field 'json' ...
+```
+
+优化后：
+
+```text
+FAIL testcases/test_a.yaml
+  DRUN-YAML-004 request.json is not supported
+  DRUN-YAML-007 Invalid check syntax: body.id
+
+FAIL testcases/test_b.yaml
+  DRUN-YAML-011 Step cannot combine `request`, `invoke`, and `sleep`
+
+Checked 8 file(s): 6 OK, 2 failed, 3 error(s).
+```
+
+修正：先用 `drun check testcases` 批量清理 YAML 作者错误，再执行 `drun run`。
+
 ## 环境未命中
 
 症状：
