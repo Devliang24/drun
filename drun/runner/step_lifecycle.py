@@ -6,11 +6,14 @@ import time
 from typing import Any, Dict, List, Optional
 
 from drun.loader.yaml_loader import format_variables_multiline
-from drun.models.report import StepResult, to_report_safe
+from drun.models.report import StepResult
 from drun.models.step import Step
 from drun.runner.asserting import evaluate_validators
+from drun.runner.request_projection import (
+    finalize_request_projection,
+    render_request_for_setup,
+)
 from drun.templating.context import VarContext
-from drun.utils.curl import to_curl
 from drun.utils.mask import mask_body, mask_headers
 
 
@@ -439,8 +442,12 @@ class StepLifecycle:
                 )
                 continue
 
-            req_rendered = runner._render(
-                req_dict, variables, context.funcs, context.envmap, strict=True
+            req_rendered = render_request_for_setup(
+                runner=runner,
+                step=step,
+                variables=variables,
+                funcs=context.funcs,
+                envmap=context.envmap,
             )
             session_vars_for_hook = variables
             setup_meta = {
@@ -486,26 +493,12 @@ class StepLifecycle:
                     break
                 continue
 
-            if isinstance(req_rendered.get("headers"), dict):
-                headers = dict(req_rendered["headers"])
-                for hk, hv in list(headers.items()):
-                    if hv is None:
-                        headers.pop(hk, None)
-                    elif isinstance(hv, str) and (
-                        hv.strip() == ""
-                        or hv.strip().lower() in {"bearer", "bearer none"}
-                    ):
-                        headers.pop(hk, None)
-                req_rendered["headers"] = headers
-            if not (
-                isinstance(req_rendered.get("headers"), dict)
-                and any(k.lower() == "authorization" for k in req_rendered["headers"])
-            ):
-                tok = variables.get("token") if isinstance(variables, dict) else None
-                if isinstance(tok, str) and tok.strip():
-                    hdrs = dict(req_rendered.get("headers") or {})
-                    hdrs["Authorization"] = f"Bearer {tok}"
-                    req_rendered["headers"] = hdrs
+            request_projection = finalize_request_projection(
+                runner=runner,
+                rendered_request=req_rendered,
+                variables=variables,
+            )
+            req_rendered = request_projection.runtime_request
 
             self._log_request_start(
                 context=context,
@@ -536,7 +529,7 @@ class StepLifecycle:
                     runner.log.error(f"[STEP] Request error: {last_error}")
                 results.append(
                     self._build_request_error_result(
-                        req_rendered=req_rendered,
+                        request_projection=request_projection,
                         rendered_step_name=rendered_step_name,
                         iteration_step_name=iteration_step_name,
                         repeat_index=repeat_index,
@@ -551,6 +544,13 @@ class StepLifecycle:
 
             assert resp_obj is not None
             last_response = resp_obj
+            request_projection = finalize_request_projection(
+                runner=runner,
+                rendered_request=req_rendered,
+                variables=variables,
+                response_url=resp_obj.get("url"),
+            )
+            req_rendered = request_projection.runtime_request
             self._log_response(resp_obj)
 
             extracts = self._extract_response_values(step, resp_obj, variables, context)
@@ -618,13 +618,9 @@ class StepLifecycle:
                 repeat_no=repeat_index + 1,
                 repeat_total=repeat_total,
                 status="failed" if step_failed else "passed",
-                request={
-                    k: to_report_safe(v)
-                    for k, v in req_rendered.items()
-                    if k in ("method", "path", "url", "params", "headers", "body", "data", "files")
-                },
+                request=request_projection.report_request,
                 response=self._build_response_dict(resp_obj),
-                curl=self._build_curl(req_rendered=req_rendered, resp_obj=resp_obj),
+                curl=request_projection.curl,
                 asserts=assertions,
                 extracts=extracts,
                 duration_ms=resp_obj.get("elapsed_ms") or 0.0,
@@ -984,50 +980,16 @@ class StepLifecycle:
 
         return response_dict
 
-    def _build_curl(
-        self,
-        *,
-        req_rendered: Dict[str, Any],
-        resp_obj: Dict[str, Any] | None = None,
-    ) -> str:
-        runner = self.runner
-        url_rendered = (resp_obj or {}).get("url") or req_rendered.get("path")
-        curl_headers = req_rendered.get("headers") or {}
-        if not runner.reveal and isinstance(curl_headers, dict):
-            curl_headers = mask_headers(curl_headers)
-        curl_data = (
-            req_rendered.get("body")
-            if req_rendered.get("body") is not None
-            else req_rendered.get("data")
-        )
-        if not runner.reveal and isinstance(curl_data, (dict, list)):
-            curl_data = mask_body(curl_data)
-        curl = to_curl(
-            req_rendered.get("method", "GET"),
-            url_rendered,
-            headers=curl_headers if isinstance(curl_headers, dict) else {},
-            data=curl_data,
-        )
-        if runner.log_debug:
-            runner.log.debug("cURL: %s", curl)
-        return curl
-
     def _build_request_error_result(
         self,
         *,
-        req_rendered: Dict[str, Any],
+        request_projection: Any,
         rendered_step_name: str,
         iteration_step_name: str,
         repeat_index: int,
         repeat_total: int,
         error: str,
     ) -> StepResult:
-        req_summary = {
-            k: to_report_safe(v)
-            for k, v in (req_rendered or {}).items()
-            if k in ("method", "path", "params", "headers", "body", "data", "files")
-        }
-        curl_cmd = self._build_curl(req_rendered=req_rendered)
         return StepResult(
             name=rendered_step_name,
             origin_step_name=iteration_step_name,
@@ -1035,9 +997,9 @@ class StepLifecycle:
             repeat_no=repeat_index + 1,
             repeat_total=repeat_total,
             status="failed",
-            request=req_summary,
+            request=request_projection.report_request,
             response={"error": f"Request error: {error}"},
-            curl=curl_cmd,
+            curl=request_projection.curl,
             error=f"Request error: {error}",
             duration_ms=0.0,
         )
