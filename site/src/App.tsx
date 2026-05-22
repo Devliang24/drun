@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   BookOpen,
@@ -9,15 +9,31 @@ import {
   X,
 } from 'lucide-react';
 import {
-  cliOutput,
-  diagnostics,
-  docs,
+  docGroups,
+  docPages,
   featureCards,
-  heroYaml,
-  navItems,
-  tutorials,
+  findPage,
+  homeCli,
+  homeYaml,
+  pageById,
+  tutorialCards,
+  tutorialPages,
+  type ArticlePage as ArticlePageType,
+  type ArticleSection,
   type CodeSample,
 } from './content';
+
+function routeFromHash() {
+  const raw = window.location.hash.replace(/^#/, '');
+  if (!raw || raw === '/') {
+    return '/';
+  }
+  return raw.startsWith('/') ? raw : `/${raw}`;
+}
+
+function href(path: string) {
+  return `#${path}`;
+}
 
 function CodeBlock({ sample, compact = false }: { sample: CodeSample; compact?: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -35,7 +51,7 @@ function CodeBlock({ sample, compact = false }: { sample: CodeSample; compact?: 
   return (
     <div className={`code-block ${compact ? 'compact' : ''}`}>
       <div className="code-toolbar">
-        <span>{sample.language}</span>
+        <span>{sample.title ?? sample.language}</span>
         <button type="button" className="icon-button" onClick={copyCode} aria-label="复制代码">
           {copied ? <Check size={16} /> : <Clipboard size={16} />}
         </button>
@@ -47,19 +63,40 @@ function CodeBlock({ sample, compact = false }: { sample: CodeSample; compact?: 
   );
 }
 
-function Header() {
+function Header({ route }: { route: string }) {
   const [open, setOpen] = useState(false);
+  const nav = [
+    { label: '首页', path: '/' },
+    { label: '文档', path: '/docs/getting-started' },
+    { label: '教程', path: '/tutorials/first-case' },
+    { label: '排障', path: '/docs/troubleshooting' },
+  ];
+  const isNavActive = (path: string) => {
+    if (path === '/') {
+      return route === '/';
+    }
+    if (path === '/docs/troubleshooting') {
+      return route === path;
+    }
+    if (path.startsWith('/docs')) {
+      return route.startsWith('/docs') && route !== '/docs/troubleshooting';
+    }
+    if (path.startsWith('/tutorials')) {
+      return route.startsWith('/tutorials');
+    }
+    return route === path;
+  };
 
   return (
     <header className="topbar">
-      <a className="brand" href="#home" aria-label="Drun 首页">
+      <a className="brand" href={href('/')} aria-label="Drun 首页" onClick={() => setOpen(false)}>
         <span className="brand-mark">D</span>
         <span>Drun</span>
       </a>
 
       <nav className="desktop-nav" aria-label="主导航">
-        {navItems.map((item) => (
-          <a key={item.id} href={`#${item.id}`}>
+        {nav.map((item) => (
+          <a key={item.path} className={isNavActive(item.path) ? 'active' : ''} href={href(item.path)}>
             {item.label}
           </a>
         ))}
@@ -74,8 +111,8 @@ function Header() {
 
       {open ? (
         <nav className="mobile-nav" aria-label="移动导航">
-          {navItems.map((item) => (
-            <a key={item.id} href={`#${item.id}`} onClick={() => setOpen(false)}>
+          {nav.map((item) => (
+            <a key={item.path} href={href(item.path)} onClick={() => setOpen(false)}>
               {item.label}
             </a>
           ))}
@@ -88,193 +125,226 @@ function Header() {
   );
 }
 
-function Hero() {
+function HomePage() {
   return (
-    <section className="hero section" id="home">
-      <div className="hero-copy">
-        <p className="eyebrow">YAML 驱动的 HTTP API 测试框架</p>
-        <h1>Drun</h1>
-        <p className="lead">
-          用简洁 YAML 描述请求、变量提取、断言、套件编排和报告输出，把接口验证、调试与 CI/CD 串成一条可维护链路。
-        </p>
-        <div className="hero-actions">
-          <a className="primary-button" href="#docs">
-            <BookOpen size={18} />
-            阅读文档
-          </a>
-          <a className="secondary-button" href="https://github.com/Devliang24/drun" target="_blank" rel="noreferrer">
-            <ExternalLink size={18} />
-            GitHub
-          </a>
+    <main>
+      <section className="home-hero">
+        <div className="hero-copy">
+          <p className="eyebrow">YAML 驱动的 HTTP API 测试框架</p>
+          <h1>Drun 用户教程</h1>
+          <p className="lead">
+            从第一个 Case 到登录后链路、参数化、报告输出和 YAML 排障，按真实使用路径学习 Drun。
+          </p>
+          <div className="hero-actions">
+            <a className="primary-button" href={href('/docs/getting-started')}>
+              <BookOpen size={18} />
+              从快速开始读起
+            </a>
+            <a className="secondary-button" href="https://github.com/Devliang24/drun" target="_blank" rel="noreferrer">
+              <ExternalLink size={18} />
+              GitHub
+            </a>
+          </div>
+          <div className="install-line" aria-label="安装命令">
+            <code>pip install drun</code>
+          </div>
         </div>
-        <div className="install-line" aria-label="安装命令">
-          <code>pip install drun</code>
-        </div>
-      </div>
 
-      <div className="product-stage" aria-label="Drun 产品预览">
-        <div className="preview-column wide">
-          <div className="panel-title">testcases/test_user_api.yaml</div>
-          <CodeBlock sample={{ language: 'yaml', code: heroYaml }} compact />
-        </div>
-        <div className="preview-column">
-          <div className="panel-title">CLI</div>
-          <CodeBlock sample={{ language: 'text', code: cliOutput }} compact />
-          <div className="report-card">
-            <div className="report-header">
-              <span>HTML Report</span>
-              <span className="status-dot">passed</span>
+        <div className="hero-preview" aria-label="Drun 示例预览">
+          <div className="preview-card preview-yaml">
+            <div className="panel-title">testcases/test_user_api.yaml</div>
+            <CodeBlock sample={{ language: 'yaml', code: homeYaml }} compact />
+          </div>
+          <div className="preview-stack">
+            <div className="preview-card">
+              <div className="panel-title">CLI</div>
+              <CodeBlock sample={{ language: 'text', code: homeCli }} compact />
             </div>
-            <div className="report-grid">
-              <span>Cases</span>
-              <strong>6 / 6</strong>
-              <span>Steps</span>
-              <strong>18 / 18</strong>
-              <span>Pass Rate</span>
-              <strong>100%</strong>
+            <div className="report-card">
+              <div className="report-header">
+                <span>HTML Report</span>
+                <span className="status-dot">passed</span>
+              </div>
+              <div className="report-grid">
+                <span>Cases</span>
+                <strong>6 / 6</strong>
+                <span>Steps</span>
+                <strong>18 / 18</strong>
+                <span>Pass Rate</span>
+                <strong>100%</strong>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
-  );
-}
+      </section>
 
-function FeatureGrid() {
-  return (
-    <section className="section feature-section" aria-labelledby="feature-title">
-      <div className="section-heading">
-        <p className="eyebrow">核心能力</p>
-        <h2 id="feature-title">为 API 测试链路设计的工作台</h2>
-      </div>
-      <div className="feature-grid">
-        {featureCards.map((feature) => {
-          const Icon = feature.icon;
-          return (
-            <article className="feature-card" key={feature.title}>
-              <Icon size={22} />
-              <h3>{feature.title}</h3>
-              <p>{feature.text}</p>
-            </article>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function DocsSection() {
-  const [activeId, setActiveId] = useState(docs[0].id);
-  const activeDoc = useMemo(() => docs.find((doc) => doc.id === activeId) ?? docs[0], [activeId]);
-  const Icon = activeDoc.icon;
-
-  return (
-    <section className="section docs-section" id="docs" aria-labelledby="docs-title">
-      <div className="section-heading">
-        <p className="eyebrow">文档</p>
-        <h2 id="docs-title">从快速开始到深度用法</h2>
-      </div>
-      <div className="docs-layout">
-        <div className="doc-tabs" role="tablist" aria-label="文档主题">
-          {docs.map((doc) => {
-            const TabIcon = doc.icon;
+      <section className="home-section">
+        <div className="section-heading">
+          <p className="eyebrow">学习路径</p>
+          <h2>不是单页介绍，而是能跟着写的用户指南</h2>
+        </div>
+        <div className="feature-grid compact-grid">
+          {featureCards.map((feature) => {
+            const Icon = feature.icon;
             return (
-              <button
-                key={doc.id}
-                type="button"
-                className={doc.id === activeId ? 'active' : ''}
-                onClick={() => setActiveId(doc.id)}
-                role="tab"
-                aria-selected={doc.id === activeId}
-              >
-                <TabIcon size={18} />
-                <span>{doc.title}</span>
-              </button>
+              <article className="feature-card" key={feature.title}>
+                <Icon size={22} />
+                <h3>{feature.title}</h3>
+                <p>{feature.text}</p>
+              </article>
             );
           })}
         </div>
-        <article className="doc-detail">
-          <div className="doc-detail-head">
-            <Icon size={28} />
-            <div>
-              <p className="eyebrow">{activeDoc.kicker}</p>
-              <h3>{activeDoc.title}</h3>
-            </div>
-          </div>
-          <p>{activeDoc.summary}</p>
-          <ul>
-            {activeDoc.bullets.map((bullet) => (
-              <li key={bullet}>{bullet}</li>
-            ))}
-          </ul>
-          <CodeBlock sample={activeDoc.sample} />
-        </article>
-      </div>
-    </section>
-  );
-}
+      </section>
 
-function TutorialsSection() {
-  return (
-    <section className="section tutorials-section" id="tutorials" aria-labelledby="tutorials-title">
-      <div className="section-heading">
-        <p className="eyebrow">教程博客</p>
-        <h2 id="tutorials-title">按真实工作流学习 Drun</h2>
-      </div>
-      <div className="tutorial-grid">
-        {tutorials.map((tutorial) => (
-          <article className="tutorial-card" key={tutorial.id}>
-            <h3>{tutorial.title}</h3>
-            <p>{tutorial.summary}</p>
-            <ol>
-              {tutorial.steps.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-            <CodeBlock sample={tutorial.sample} compact />
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TroubleshootingSection() {
-  return (
-    <section className="section troubleshooting-section" id="troubleshooting" aria-labelledby="troubleshooting-title">
-      <div className="section-heading">
-        <p className="eyebrow">排障</p>
-        <h2 id="troubleshooting-title">稳定错误码，直接给修复方向</h2>
-      </div>
-      <div className="diagnostic-layout">
-        <div className="diagnostic-table" role="table" aria-label="Drun YAML 诊断错误码">
-          {diagnostics.map(([code, title, hint]) => (
-            <div className="diagnostic-row" role="row" key={code}>
-              <code>{code}</code>
-              <strong>{title}</strong>
-              <span>{hint}</span>
-            </div>
+      <section className="home-section docs-index">
+        <div className="section-heading">
+          <p className="eyebrow">文档目录</p>
+          <h2>按阶段查用法</h2>
+        </div>
+        <div className="index-grid">
+          {docGroups.map((group) => (
+            <article className="index-panel" key={group.title}>
+              <h3>{group.title}</h3>
+              {group.pages.map((pageId) => {
+                const page = pageById(pageId);
+                if (!page) {
+                  return null;
+                }
+                return (
+                  <a key={page.id} href={href(page.path)}>
+                    <span>{page.title}</span>
+                    <ArrowRight size={16} />
+                  </a>
+                );
+              })}
+            </article>
           ))}
         </div>
-        <div className="diagnostic-example">
-          <CodeBlock
-            sample={{
-              language: 'text',
-              code: `DRUN-YAML-003 Invalid request field: request.url
-File: testcases/test_demo.yaml:8
-Path: steps[0].request.url
+      </section>
 
-Use request.path instead of request.url.
-
-Example:
-  request:
-    method: GET
-    path: /api/users`,
-            }}
-          />
+      <section className="home-section tutorials-index">
+        <div className="section-heading">
+          <p className="eyebrow">教程博客</p>
+          <h2>按真实工作流练习</h2>
         </div>
+        <div className="tutorial-list">
+          {tutorialCards.map((tutorial) => (
+            <a className="tutorial-link-card" href={href(tutorial.path)} key={tutorial.id}>
+              <h3>{tutorial.title}</h3>
+              <p>{tutorial.description}</p>
+              <span>
+                阅读教程 <ArrowRight size={16} />
+              </span>
+            </a>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function Sidebar({ route }: { route: string }) {
+  return (
+    <aside className="doc-sidebar" aria-label="文档目录">
+      {docGroups.map((group) => (
+        <div className="sidebar-group" key={group.title}>
+          <p>{group.title}</p>
+          {group.pages.map((pageId) => {
+            const page = pageById(pageId);
+            if (!page) {
+              return null;
+            }
+            return (
+              <a className={route === page.path ? 'active' : ''} href={href(page.path)} key={page.id}>
+                {page.title}
+              </a>
+            );
+          })}
+        </div>
+      ))}
+      <div className="sidebar-group">
+        <p>教程博客</p>
+        {tutorialPages.map((page) => (
+          <a className={route === page.path ? 'active' : ''} href={href(page.path)} key={page.id}>
+            {page.title}
+          </a>
+        ))}
       </div>
+    </aside>
+  );
+}
+
+function MobileDocMenu({ route }: { route: string }) {
+  return (
+    <details className="mobile-doc-menu">
+      <summary>打开文档目录</summary>
+      <Sidebar route={route} />
+    </details>
+  );
+}
+
+function OnThisPage({ sections }: { sections: ArticleSection[] }) {
+  function jumpTo(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  return (
+    <aside className="toc" aria-label="本页目录">
+      <p>本页目录</p>
+      {sections.map((section) => (
+        <button type="button" key={section.id} onClick={() => jumpTo(section.id)}>
+          {section.title}
+        </button>
+      ))}
+    </aside>
+  );
+}
+
+function ArticleSectionView({ section }: { section: ArticleSection }) {
+  return (
+    <section className={`article-section ${section.kind ? `section-${section.kind}` : ''}`} id={section.id}>
+      <h2>{section.title}</h2>
+      {section.body.map((paragraph) => (
+        <p key={paragraph}>{paragraph}</p>
+      ))}
+      {section.code ? <CodeBlock sample={section.code} /> : null}
     </section>
+  );
+}
+
+function ArticlePage({ page, route }: { page: ArticlePageType; route: string }) {
+  const Icon = page.icon;
+
+  return (
+    <main className="docs-shell">
+      <MobileDocMenu route={route} />
+      <Sidebar route={route} />
+      <article className="article">
+        <div className="article-hero">
+          <Icon size={30} />
+          <p className="eyebrow">{route.startsWith('/tutorials') ? '教程博客' : '用户指南'}</p>
+          <h1>{page.title}</h1>
+          <p>{page.description}</p>
+        </div>
+        {page.sections.map((section) => (
+          <ArticleSectionView section={section} key={section.id} />
+        ))}
+      </article>
+      <OnThisPage sections={page.sections} />
+    </main>
+  );
+}
+
+function NotFound() {
+  return (
+    <main className="not-found">
+      <h1>没有找到这个页面</h1>
+      <p>你可以回到首页，或从快速开始重新进入文档。</p>
+      <a className="primary-button" href={href('/docs/getting-started')}>
+        阅读快速开始
+      </a>
+    </main>
   );
 }
 
@@ -283,7 +353,7 @@ function Footer() {
     <footer className="footer">
       <div>
         <strong>Drun</strong>
-        <p>现代 HTTP API 测试框架。</p>
+        <p>中文用户教程文档站。</p>
       </div>
       <div className="footer-links">
         <a href="https://github.com/Devliang24/drun" target="_blank" rel="noreferrer">
@@ -298,26 +368,27 @@ function Footer() {
 }
 
 export function App() {
+  const [route, setRoute] = useState(routeFromHash());
+  const currentPage = useMemo(() => findPage(route), [route]);
+
+  useEffect(() => {
+    function onHashChange() {
+      setRoute(routeFromHash());
+      window.scrollTo({ top: 0 });
+    }
+
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  useEffect(() => {
+    document.title = currentPage ? `${currentPage.title} | Drun 文档站` : 'Drun 文档站';
+  }, [currentPage]);
+
   return (
     <div className="app-shell">
-      <Header />
-      <main>
-        <Hero />
-        <FeatureGrid />
-        <DocsSection />
-        <TutorialsSection />
-        <TroubleshootingSection />
-        <section className="section cta-band" aria-label="开始使用 Drun">
-          <div>
-            <p className="eyebrow">开始使用</p>
-            <h2>先写一个 Case，再让 drun check 帮你守住 DSL 质量。</h2>
-          </div>
-          <a className="primary-button" href="#docs">
-            进入快速开始
-            <ArrowRight size={18} />
-          </a>
-        </section>
-      </main>
+      <Header route={route} />
+      {route === '/' ? <HomePage /> : currentPage ? <ArticlePage page={currentPage} route={route} /> : <NotFound />}
       <Footer />
     </div>
   );
