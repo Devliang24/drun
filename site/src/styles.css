@@ -266,9 +266,11 @@ button {
   border-radius: 8px;
   padding: 0 16px;
   font-weight: 850;
+  cursor: pointer;
 }
 
 .primary-button {
+  border: 0;
   background: var(--green-dark);
   color: #ffffff;
 }
@@ -725,8 +727,9 @@ code {
 }
 
 .agent-tool-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   align-items: stretch;
+  gap: 18px;
 }
 
 .skill-card,
@@ -761,14 +764,27 @@ code {
 .agent-tool-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
-.agent-tool-card .code-block {
-  margin-top: 2px;
+.agent-tool-header {
+  display: grid;
+  gap: 8px;
 }
 
-.agent-tool-card ul {
+.agent-tool-body {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.88fr) minmax(0, 1.12fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.agent-tool-details {
+  display: grid;
+  gap: 12px;
+}
+
+.agent-tool-details ul {
   margin: 0;
   padding-left: 20px;
   color: #344054;
@@ -778,8 +794,10 @@ code {
 .agent-tool-meta {
   display: grid;
   gap: 5px;
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfa;
+  padding: 12px;
 }
 
 .agent-tool-meta strong {
@@ -787,9 +805,31 @@ code {
   font-size: 13px;
 }
 
-.agent-tool-meta span {
+.agent-tool-meta span,
+.agent-tool-meta dd {
   color: #475467;
   line-height: 1.65;
+}
+
+.agent-tool-meta dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.agent-tool-meta dl div {
+  display: grid;
+  gap: 3px;
+}
+
+.agent-tool-meta dt {
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.agent-tool-meta dd {
+  margin: 0;
 }
 
 .skill-rule-grid {
@@ -1016,7 +1056,6 @@ code {
   .product-pillar-grid,
   .workflow-grid,
   .capability-grid,
-  .agent-tool-grid,
   .skill-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1077,9 +1116,12 @@ code {
   }
 
   .index-grid,
-  .agent-tool-grid,
   .skill-rule-grid,
   .prompt-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-tool-body {
     grid-template-columns: 1fr;
   }
 
@@ -1174,7 +1216,6 @@ code {
   .product-pillar-grid,
   .workflow-grid,
   .capability-grid,
-  .agent-tool-grid,
   .skill-grid,
   .reading-steps {
     grid-template-columns: 1fr;
@@ -1198,7 +1239,8 @@ code {
     padding: 12px;
   }
 
-  .hero-actions a {
+  .hero-actions a,
+  .hero-actions button {
     width: 100%;
   }
 

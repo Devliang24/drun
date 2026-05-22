@@ -50,7 +50,11 @@ export type AgentSkillPrompt = {
 export type AgentSkillTool = {
   title: string;
   summary: string;
-  setup: string;
+  setup: {
+    storagePath: string;
+    keepFiles: string;
+    quickUse: string;
+  };
   trigger: string;
   prompt: string;
   notes: string[];
@@ -115,7 +119,11 @@ export const agentSkillContent: AgentSkillContent = {
     {
       title: 'Codex',
       summary: '适合在 Codex 里让 AI 直接生成、解释、修复 Drun YAML 和运行命令。',
-      setup: '把 drun-usage 作为 Codex 可发现的 skill，或在当前仓库中直接引用 drun-usage/SKILL.md。',
+      setup: {
+        storagePath: '$CODEX_HOME/skills/drun-usage/SKILL.md，或本机 Codex skills 目录下的 drun-usage/SKILL.md。',
+        keepFiles: '保留 drun-usage/references/ 并放在 SKILL.md 同级目录，方便按场景读取 DSL、运行、报告和排障说明。',
+        quickUse: '如果不安装到 skills 目录，直接在仓库内提示“请读取 drun-usage/SKILL.md，并使用 drun-usage skill”。',
+      },
       trigger: '在提示词里显式写“请使用 drun-usage skill”，再补接口、链路、错误日志或转换输入。',
       prompt: `请使用 drun-usage skill，基于下面接口信息生成可运行的 Drun YAML。
 
@@ -129,7 +137,11 @@ export const agentSkillContent: AgentSkillContent = {
     {
       title: 'Claude Code',
       summary: '适合把 drun-usage 作为项目技能或项目上下文，让 Claude Code 按仓库规则工作。',
-      setup: '推荐放到 .claude/skills/drun-usage/SKILL.md；也可以让 Claude Code 先读取 drun-usage/SKILL.md。',
+      setup: {
+        storagePath: '项目内推荐放到 .claude/skills/drun-usage/SKILL.md。',
+        keepFiles: '把 drun-usage/references/ 复制到 .claude/skills/drun-usage/references/，保持 SKILL.md 中的引用路径可用。',
+        quickUse: '不复制时，在 Claude Code 中明确要求“先阅读 drun-usage/SKILL.md，再按其中规则处理”。',
+      },
       trigger: '先要求读取 skill 文件，再要求按其中的输出规则生成 Drun 用例或命令。',
       prompt: `请先阅读 drun-usage/SKILL.md，并按其中规则处理下面的 Drun 需求。
 
@@ -142,7 +154,11 @@ export const agentSkillContent: AgentSkillContent = {
     {
       title: 'opencode',
       summary: '适合用项目规则或自定义命令，把 drun-usage 固化成团队可复用的 Agent 入口。',
-      setup: '推荐在 AGENTS.md 中引用 drun-usage/SKILL.md；也可以创建 .opencode/commands/drun-usage.md 作为 slash command。',
+      setup: {
+        storagePath: '项目根目录 AGENTS.md 写明使用 drun-usage/SKILL.md；可选创建 .opencode/commands/drun-usage.md。',
+        keepFiles: '仓库内保留 drun-usage/SKILL.md 和 drun-usage/references/，自定义 command 只需要指向这套文件。',
+        quickUse: '不建 command 时，直接提示“请读取 drun-usage/SKILL.md，并按 drun-usage 的输出规则处理”。',
+      },
       trigger: '通过项目规则让 opencode 先读 skill，再用命令或提示词提交具体 Drun 任务。',
       prompt: `请读取 drun-usage/SKILL.md，并按 drun-usage 的输出规则处理下面的 Drun 用例需求。
 

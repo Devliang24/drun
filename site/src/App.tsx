@@ -446,6 +446,10 @@ function HomePage() {
 }
 
 function AgentSkillPage() {
+  function scrollToSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   return (
     <main className="agent-skill-shell">
       <section className="agent-skill-hero">
@@ -454,14 +458,10 @@ function AgentSkillPage() {
           <h1>{agentSkillContent.title}</h1>
           <p>{agentSkillContent.description}</p>
           <div className="hero-actions">
-            <a className="secondary-button" href="#agent-tools">
-              <Terminal size={18} />
-              查看 Agent 用法
-            </a>
-            <a className="primary-button" href="#trigger-prompts">
+            <button className="primary-button" type="button" onClick={() => scrollToSection('trigger-prompts')}>
               <Clipboard size={18} />
               复制触发提示词
-            </a>
+            </button>
             <a
               className="secondary-button"
               href="https://github.com/Devliang24/drun/blob/main/drun-usage/SKILL.md"
@@ -505,22 +505,41 @@ function AgentSkillPage() {
         <div className="agent-tool-grid">
           {agentSkillContent.agentTools.map((tool) => (
             <article className="agent-tool-card" key={tool.title}>
-              <h3>{tool.title}</h3>
-              <p>{tool.summary}</p>
-              <div className="agent-tool-meta">
-                <strong>最小配置</strong>
-                <span>{tool.setup}</span>
+              <div className="agent-tool-header">
+                <h3>{tool.title}</h3>
+                <p>{tool.summary}</p>
               </div>
-              <div className="agent-tool-meta">
-                <strong>触发方式</strong>
-                <span>{tool.trigger}</span>
+              <div className="agent-tool-body">
+                <div className="agent-tool-details">
+                  <div className="agent-tool-meta">
+                    <strong>最小配置</strong>
+                    <dl>
+                      <div>
+                        <dt>存放位置</dt>
+                        <dd>{tool.setup.storagePath}</dd>
+                      </div>
+                      <div>
+                        <dt>需要保留</dt>
+                        <dd>{tool.setup.keepFiles}</dd>
+                      </div>
+                      <div>
+                        <dt>轻量用法</dt>
+                        <dd>{tool.setup.quickUse}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <div className="agent-tool-meta">
+                    <strong>触发方式</strong>
+                    <span>{tool.trigger}</span>
+                  </div>
+                  <ul>
+                    {tool.notes.map((note) => (
+                      <li key={note}>{note}</li>
+                    ))}
+                  </ul>
+                </div>
+                <CodeBlock sample={{ title: 'Prompt', language: 'text', code: tool.prompt }} compact wrap />
               </div>
-              <CodeBlock sample={{ title: 'Prompt', language: 'text', code: tool.prompt }} compact wrap />
-              <ul>
-                {tool.notes.map((note) => (
-                  <li key={note}>{note}</li>
-                ))}
-              </ul>
             </article>
           ))}
         </div>
