@@ -41,6 +41,12 @@ htmlcov/
 .cache/
 coverage.xml
 
+# GitHub Pages site
+site/node_modules/
+site/dist/
+site/.vite/
+site/*.tsbuildinfo
+
 # Python envs
 .venv/
 
