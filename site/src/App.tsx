@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  agentSkillContent,
   docGroups,
   docPages,
   findPage,
@@ -91,6 +92,7 @@ function Header({ route }: { route: string }) {
     { label: '首页', path: '/' },
     { label: '文档', path: '/docs/getting-started' },
     { label: '排障', path: '/docs/troubleshooting' },
+    { label: 'Agent Skill', path: '/agent-skill' },
   ];
   const isNavActive = (path: string) => {
     if (path === '/') {
@@ -402,6 +404,19 @@ function HomePage() {
         </div>
       </section>
 
+      <section className="product-section agent-skill-entry">
+        <div className="section-heading split-heading">
+          <div>
+            <p className="eyebrow">AI 协作者</p>
+            <h2>让 Agent 稳定写出 Drun YAML 和命令</h2>
+            <p>使用仓库内的 drun-usage skill，给 Codex / AI Agent 明确的触发提示词，让它按 Drun DSL 产出可执行方案。</p>
+          </div>
+          <a className="text-link" href={href('/agent-skill')}>
+            查看 Agent Skill <ArrowRight size={16} />
+          </a>
+        </div>
+      </section>
+
       <section className="product-section reading-path">
         <div className="section-heading">
           <p className="eyebrow">推荐路径</p>
@@ -424,6 +439,101 @@ function HomePage() {
               </a>
             ) : null,
           )}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function AgentSkillPage() {
+  return (
+    <main className="agent-skill-shell">
+      <section className="agent-skill-hero">
+        <div>
+          <p className="eyebrow">Agent Skill</p>
+          <h1>{agentSkillContent.title}</h1>
+          <p>{agentSkillContent.description}</p>
+          <div className="hero-actions">
+            <a className="primary-button" href="#trigger-prompts">
+              <Clipboard size={18} />
+              复制触发提示词
+            </a>
+            <a
+              className="secondary-button"
+              href="https://github.com/Devliang24/drun/blob/main/drun-usage/SKILL.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLink size={18} />
+              查看 SKILL.md
+            </a>
+          </div>
+        </div>
+        <div className="agent-skill-summary">
+          {agentSkillContent.positioning.map((item) => (
+            <p key={item}>{item}</p>
+          ))}
+        </div>
+      </section>
+
+      <section className="agent-skill-section">
+        <div className="section-heading">
+          <p className="eyebrow">触发场景</p>
+          <h2>什么时候该点名 drun-usage skill</h2>
+        </div>
+        <div className="skill-grid">
+          {agentSkillContent.triggerScenarios.map((scenario) => (
+            <article className="skill-card" key={scenario.title}>
+              <CheckCircle2 size={22} />
+              <h3>{scenario.title}</h3>
+              <p>{scenario.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="agent-skill-section">
+        <div className="section-heading split-heading">
+          <div>
+            <p className="eyebrow">输出规则</p>
+            <h2>让 Agent 少猜，多给可执行结果</h2>
+          </div>
+          <CodeBlock sample={agentSkillContent.sampleOutput} compact />
+        </div>
+        <div className="skill-rule-grid">
+          <article className="skill-rule-panel">
+            <h3>默认输出</h3>
+            <ul>
+              {agentSkillContent.outputRules.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+          </article>
+          <article className="skill-rule-panel">
+            <h3>能力边界</h3>
+            <ul>
+              {agentSkillContent.boundaries.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section className="agent-skill-section" id="trigger-prompts">
+        <div className="section-heading">
+          <p className="eyebrow">触发提示词</p>
+          <h2>复制后直接发给 Codex / AI Agent</h2>
+          <p>提示词里明确写出 drun-usage skill，再补接口、链路、错误日志或转换输入，Agent 就能按 Drun 约束组织答案。</p>
+        </div>
+        <div className="prompt-grid">
+          {agentSkillContent.promptExamples.map((example) => (
+            <article className="prompt-card" key={example.title}>
+              <h3>{example.title}</h3>
+              <p>{example.when}</p>
+              <CodeBlock sample={{ title: 'Prompt', language: 'text', code: example.prompt }} compact />
+            </article>
+          ))}
         </div>
       </section>
     </main>
@@ -537,6 +647,9 @@ function Footer() {
         <a href="https://github.com/Devliang24/drun" target="_blank" rel="noreferrer">
           GitHub <ExternalLink size={14} />
         </a>
+        <a href={href('/agent-skill')}>
+          Agent Skill <ArrowRight size={14} />
+        </a>
         <a href="https://github.com/Devliang24/drun/blob/main/README.en.md" target="_blank" rel="noreferrer">
           English README <ExternalLink size={14} />
         </a>
@@ -548,6 +661,7 @@ function Footer() {
 export function App() {
   const [route, setRoute] = useState(routeFromHash());
   const currentPage = useMemo(() => findPage(route), [route]);
+  const isAgentSkillRoute = route === '/agent-skill';
 
   useEffect(() => {
     const rawRoute = rawRouteFromHash();
@@ -574,13 +688,25 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    document.title = currentPage ? `${currentPage.title} | Drun 文档站` : 'Drun 文档站';
-  }, [currentPage]);
+    document.title = currentPage
+      ? `${currentPage.title} | Drun 文档站`
+      : isAgentSkillRoute
+        ? 'Agent Skill | Drun 文档站'
+        : 'Drun 文档站';
+  }, [currentPage, isAgentSkillRoute]);
 
   return (
     <div className="app-shell">
       <Header route={route} />
-      {route === '/' ? <HomePage /> : currentPage ? <ArticlePage page={currentPage} route={route} /> : <NotFound />}
+      {route === '/' ? (
+        <HomePage />
+      ) : isAgentSkillRoute ? (
+        <AgentSkillPage />
+      ) : currentPage ? (
+        <ArticlePage page={currentPage} route={route} />
+      ) : (
+        <NotFound />
+      )}
       <Footer />
     </div>
   );

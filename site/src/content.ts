@@ -41,6 +41,26 @@ export type DocGroup = {
   pages: string[];
 };
 
+export type AgentSkillPrompt = {
+  title: string;
+  when: string;
+  prompt: string;
+};
+
+export type AgentSkillContent = {
+  title: string;
+  description: string;
+  positioning: string[];
+  triggerScenarios: Array<{
+    title: string;
+    text: string;
+  }>;
+  outputRules: string[];
+  boundaries: string[];
+  promptExamples: AgentSkillPrompt[];
+  sampleOutput: CodeSample;
+};
+
 export const homeYaml = `config:
   name: 用户接口冒烟
   base_url: \${ENV(BASE_URL)}
@@ -64,6 +84,84 @@ $ drun run testcases -env dev
 [RUN] files: 8 | cases: 6
 [CASE] passed: 6 | failed: 0
 [STEP] passed: 18 | failed: 0`;
+
+export const agentSkillContent: AgentSkillContent = {
+  title: 'Drun Agent Skill',
+  description: '给 Codex / AI Agent 使用的 Drun 深度使用技能说明，帮助它稳定产出可运行 YAML、CLI 命令和排障建议。',
+  positioning: [
+    'drun-usage 是仓库内的本地 skill，面向“让 Agent 帮我写、解释、调试 Drun 用例”的场景。',
+    '它不是新的 CLI 功能，也不是普通用户必须安装的插件；它是让 AI 协作者理解 Drun DSL、命令和约束的操作说明。',
+    '使用时可以直接在提示词里点名 drun-usage skill，并给出接口、链路、错误日志或迁移输入。',
+  ],
+  triggerScenarios: [
+    { title: '编写或改写 YAML', text: '单接口 Case、文件上传、登录链路、参数化和 caseflow 编排。' },
+    { title: '解释高级 DSL', text: 'invoke、invoke_case_name(s)、repeat、sleep、hooks、request.files、response.save_body_to。' },
+    { title: '设计运行命令', text: 'drun run、drun q、环境加载、-vars、-persist-env、报告和 snippet 输出。' },
+    { title: '转换与迁移', text: '从 cURL、HAR、Postman、OpenAPI 起步，转换后补 validate、extract 和环境变量。' },
+    { title: '排障与修复', text: '分析 drun check / drun run 输出，定位 YAML path，给出修复后的片段。' },
+    { title: '报告与复现', text: '解释 JSON、HTML、Allure、snippet、server 和响应体保存的使用方式。' },
+  ],
+  outputRules: [
+    '默认中文输出。',
+    '先给可执行 YAML 或 CLI 命令，再补关键字段解释。',
+    '优先围绕单接口调试、登录后链路、文件上传与报告输出给示例。',
+    '如果只问单个点，只回答该点，不输出整本手册。',
+  ],
+  boundaries: [
+    '不虚构未实现 DSL、兼容字段或旧命令。',
+    'step 只能三选一：request、invoke、sleep。',
+    'YAML 请求字段使用 request.path 和 request.body，避免写成 request.url 或 request.json。',
+    '参数化入口是 config.parameters，顶层 parameters 无效。',
+    '旧 cases: 套件不再作为推荐写法；旧 loop / foreach 请改用 repeat。',
+  ],
+  promptExamples: [
+    {
+      title: '写单接口 Drun YAML',
+      when: '已有接口方法、路径、请求体和预期结果时使用。',
+      prompt:
+        '请使用 drun-usage skill，帮我为 POST /login 写一个 Drun YAML，用 ${ENV(BASE_URL)} 和 ${ENV(API_KEY)}，断言 status_code=200，并提取 token。',
+    },
+    {
+      title: '组织登录后链路',
+      when: '需要把多个独立 Case 串成业务流程时使用。',
+      prompt:
+        '请使用 drun-usage skill，帮我把登录、查询用户资料、提交订单组织成 caseflow，用 invoke 调用独立 case，并给出运行命令。',
+    },
+    {
+      title: '排查 check / run 错误',
+      when: '拿到 drun check 或 drun run 报错，需要定位和修复时使用。',
+      prompt: '请使用 drun-usage skill，分析这个 drun check 报错，指出 YAML path、错误原因、修复后的 YAML 片段。',
+    },
+    {
+      title: '从 cURL / OpenAPI 迁移',
+      when: '已有调试请求或接口规范，希望沉淀成 Drun Case 时使用。',
+      prompt: '请使用 drun-usage skill，把下面这段 cURL 转成 Drun YAML，并补充 validate、extract 和 -env dev 运行命令。',
+    },
+    {
+      title: '生成运行与报告命令',
+      when: '需要一次性确定环境变量、报告、snippet 等运行参数时使用。',
+      prompt:
+        '请使用 drun-usage skill，帮我设计一条 drun run 命令：使用 dev 环境、覆盖 tenant=blue、输出 HTML/JSON 报告，并生成 curl snippet。',
+    },
+    {
+      title: '解释已有 YAML 风险',
+      when: '评审已有用例，想确认字段含义和 DSL 约束时使用。',
+      prompt: '请使用 drun-usage skill，解释下面这个 Drun YAML 每个字段的作用，并指出可能违反 DSL 约束的地方。',
+    },
+  ],
+  sampleOutput: {
+    title: 'Agent 输出形态',
+    language: 'text',
+    code: `可执行 YAML / CLI 命令
+→ 关键字段解释
+→ 常见坑与修复建议
+
+示例输出会优先落到：
+- testcases/test_login.yaml
+- drun check testcases/test_login.yaml
+- drun run testcases/test_login.yaml -env dev`,
+  },
+};
 
 const commonOutput = `Checked 1 file(s): 1 OK, 0 failed, 0 error(s).
 
