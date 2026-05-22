@@ -47,6 +47,15 @@ export type AgentSkillPrompt = {
   prompt: string;
 };
 
+export type AgentSkillTool = {
+  title: string;
+  summary: string;
+  setup: string;
+  trigger: string;
+  prompt: string;
+  notes: string[];
+};
+
 export type AgentSkillContent = {
   title: string;
   description: string;
@@ -55,6 +64,7 @@ export type AgentSkillContent = {
     title: string;
     text: string;
   }>;
+  agentTools: AgentSkillTool[];
   outputRules: string[];
   boundaries: string[];
   promptExamples: AgentSkillPrompt[];
@@ -101,6 +111,46 @@ export const agentSkillContent: AgentSkillContent = {
     { title: '排障与修复', text: '分析 drun check / drun run 输出，定位 YAML path，给出修复后的片段。' },
     { title: '报告与复现', text: '解释 JSON、HTML、Allure、snippet、server 和响应体保存的使用方式。' },
   ],
+  agentTools: [
+    {
+      title: 'Codex',
+      summary: '适合在 Codex 里让 AI 直接生成、解释、修复 Drun YAML 和运行命令。',
+      setup: '把 drun-usage 作为 Codex 可发现的 skill，或在当前仓库中直接引用 drun-usage/SKILL.md。',
+      trigger: '在提示词里显式写“请使用 drun-usage skill”，再补接口、链路、错误日志或转换输入。',
+      prompt: `请使用 drun-usage skill，基于下面接口信息生成可运行的 Drun YAML。
+
+请同时输出：
+- drun check 命令
+- drun run 命令
+- 关键字段解释
+- 常见坑和修复建议`,
+      notes: ['适合一次性得到 YAML、CLI 和排障建议。', '如果结果偏泛化，补一句“只使用 Drun 当前支持的 DSL”。'],
+    },
+    {
+      title: 'Claude Code',
+      summary: '适合把 drun-usage 作为项目技能或项目上下文，让 Claude Code 按仓库规则工作。',
+      setup: '推荐放到 .claude/skills/drun-usage/SKILL.md；也可以让 Claude Code 先读取 drun-usage/SKILL.md。',
+      trigger: '先要求读取 skill 文件，再要求按其中的输出规则生成 Drun 用例或命令。',
+      prompt: `请先阅读 drun-usage/SKILL.md，并按其中规则处理下面的 Drun 需求。
+
+输出要求：
+- 先给可执行 YAML 或 CLI
+- 再解释关键字段
+- 最后列出可能违反 DSL 约束的地方`,
+      notes: ['适合项目内长期复用。', '如果使用 .claude/skills，请保持 SKILL.md 和 references 目录结构一致。'],
+    },
+    {
+      title: 'opencode',
+      summary: '适合用项目规则或自定义命令，把 drun-usage 固化成团队可复用的 Agent 入口。',
+      setup: '推荐在 AGENTS.md 中引用 drun-usage/SKILL.md；也可以创建 .opencode/commands/drun-usage.md 作为 slash command。',
+      trigger: '通过项目规则让 opencode 先读 skill，再用命令或提示词提交具体 Drun 任务。',
+      prompt: `请读取 drun-usage/SKILL.md，并按 drun-usage 的输出规则处理下面的 Drun 用例需求。
+
+请不要发散到通用 HTTP 测试理论。
+只使用 Drun 已支持的 YAML DSL、CLI 参数和报告能力。`,
+      notes: ['不把 opencode 包装成原生 skill 机制。', '适合团队把同一套 Drun 规则沉淀到 AGENTS.md 或自定义命令里。'],
+    },
+  ],
   outputRules: [
     '默认中文输出。',
     '先给可执行 YAML 或 CLI 命令，再补关键字段解释。',
@@ -118,35 +168,65 @@ export const agentSkillContent: AgentSkillContent = {
     {
       title: '写单接口 Drun YAML',
       when: '已有接口方法、路径、请求体和预期结果时使用。',
-      prompt:
-        '请使用 drun-usage skill，帮我为 POST /login 写一个 Drun YAML，用 ${ENV(BASE_URL)} 和 ${ENV(API_KEY)}，断言 status_code=200，并提取 token。',
+      prompt: `请使用 drun-usage skill，帮我为 POST /login 写一个 Drun YAML。
+
+要求：
+- 使用 \${ENV(BASE_URL)} 和 \${ENV(API_KEY)}
+- 断言 status_code=200
+- 提取 token`,
     },
     {
       title: '组织登录后链路',
       when: '需要把多个独立 Case 串成业务流程时使用。',
-      prompt:
-        '请使用 drun-usage skill，帮我把登录、查询用户资料、提交订单组织成 caseflow，用 invoke 调用独立 case，并给出运行命令。',
+      prompt: `请使用 drun-usage skill，帮我把登录、查询用户资料、提交订单组织成 caseflow。
+
+要求：
+- 用 invoke 调用独立 case
+- 保留登录后 token 复用
+- 给出 drun check 和 drun run 命令`,
     },
     {
       title: '排查 check / run 错误',
       when: '拿到 drun check 或 drun run 报错，需要定位和修复时使用。',
-      prompt: '请使用 drun-usage skill，分析这个 drun check 报错，指出 YAML path、错误原因、修复后的 YAML 片段。',
+      prompt: `请使用 drun-usage skill，分析下面这个 drun check 报错。
+
+请输出：
+- YAML path
+- 错误原因
+- 修复后的 YAML 片段
+- 后续验证命令`,
     },
     {
       title: '从 cURL / OpenAPI 迁移',
       when: '已有调试请求或接口规范，希望沉淀成 Drun Case 时使用。',
-      prompt: '请使用 drun-usage skill，把下面这段 cURL 转成 Drun YAML，并补充 validate、extract 和 -env dev 运行命令。',
+      prompt: `请使用 drun-usage skill，把下面这段 cURL 转成 Drun YAML。
+
+请补充：
+- validate
+- extract
+- -env dev 运行命令
+- 迁移后需要手动确认的字段`,
     },
     {
       title: '生成运行与报告命令',
       when: '需要一次性确定环境变量、报告、snippet 等运行参数时使用。',
-      prompt:
-        '请使用 drun-usage skill，帮我设计一条 drun run 命令：使用 dev 环境、覆盖 tenant=blue、输出 HTML/JSON 报告，并生成 curl snippet。',
+      prompt: `请使用 drun-usage skill，帮我设计一条 drun run 命令。
+
+要求：
+- 使用 dev 环境
+- 覆盖 tenant=blue
+- 输出 HTML/JSON 报告
+- 生成 curl snippet`,
     },
     {
       title: '解释已有 YAML 风险',
       when: '评审已有用例，想确认字段含义和 DSL 约束时使用。',
-      prompt: '请使用 drun-usage skill，解释下面这个 Drun YAML 每个字段的作用，并指出可能违反 DSL 约束的地方。',
+      prompt: `请使用 drun-usage skill，解释下面这个 Drun YAML。
+
+请说明：
+- 每个字段的作用
+- 是否违反 Drun DSL 约束
+- 如何改成推荐写法`,
     },
   ],
   sampleOutput: {

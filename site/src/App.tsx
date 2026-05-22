@@ -58,7 +58,7 @@ function href(path: string) {
   return `#${path}`;
 }
 
-function CodeBlock({ sample, compact = false }: { sample: CodeSample; compact?: boolean }) {
+function CodeBlock({ sample, compact = false, wrap = false }: { sample: CodeSample; compact?: boolean; wrap?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   async function copyCode() {
@@ -72,7 +72,7 @@ function CodeBlock({ sample, compact = false }: { sample: CodeSample; compact?: 
   }
 
   return (
-    <div className={`code-block ${compact ? 'compact' : ''}`}>
+    <div className={`code-block ${compact ? 'compact' : ''} ${wrap ? 'wrap' : ''}`}>
       <div className="code-toolbar">
         <span>{sample.title ?? sample.language}</span>
         <button type="button" className="icon-button" onClick={copyCode} aria-label="复制代码">
@@ -454,6 +454,10 @@ function AgentSkillPage() {
           <h1>{agentSkillContent.title}</h1>
           <p>{agentSkillContent.description}</p>
           <div className="hero-actions">
+            <a className="secondary-button" href="#agent-tools">
+              <Terminal size={18} />
+              查看 Agent 用法
+            </a>
             <a className="primary-button" href="#trigger-prompts">
               <Clipboard size={18} />
               复制触发提示词
@@ -492,6 +496,36 @@ function AgentSkillPage() {
         </div>
       </section>
 
+      <section className="agent-skill-section" id="agent-tools">
+        <div className="section-heading">
+          <p className="eyebrow">使用方式</p>
+          <h2>在不同 Agent 中使用 drun-usage</h2>
+          <p>不同 Agent 的扩展机制不完全一样，核心都是先让它读取 drun-usage 的规则，再提交具体的 Drun 任务。</p>
+        </div>
+        <div className="agent-tool-grid">
+          {agentSkillContent.agentTools.map((tool) => (
+            <article className="agent-tool-card" key={tool.title}>
+              <h3>{tool.title}</h3>
+              <p>{tool.summary}</p>
+              <div className="agent-tool-meta">
+                <strong>最小配置</strong>
+                <span>{tool.setup}</span>
+              </div>
+              <div className="agent-tool-meta">
+                <strong>触发方式</strong>
+                <span>{tool.trigger}</span>
+              </div>
+              <CodeBlock sample={{ title: 'Prompt', language: 'text', code: tool.prompt }} compact wrap />
+              <ul>
+                {tool.notes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="agent-skill-section">
         <div className="section-heading split-heading">
           <div>
@@ -522,8 +556,8 @@ function AgentSkillPage() {
 
       <section className="agent-skill-section" id="trigger-prompts">
         <div className="section-heading">
-          <p className="eyebrow">触发提示词</p>
-          <h2>复制后直接发给 Codex / AI Agent</h2>
+          <p className="eyebrow">通用触发提示词</p>
+          <h2>复制后直接发给 Agent</h2>
           <p>提示词里明确写出 drun-usage skill，再补接口、链路、错误日志或转换输入，Agent 就能按 Drun 约束组织答案。</p>
         </div>
         <div className="prompt-grid">
@@ -531,7 +565,7 @@ function AgentSkillPage() {
             <article className="prompt-card" key={example.title}>
               <h3>{example.title}</h3>
               <p>{example.when}</p>
-              <CodeBlock sample={{ title: 'Prompt', language: 'text', code: example.prompt }} compact />
+              <CodeBlock sample={{ title: 'Prompt', language: 'text', code: example.prompt }} compact wrap />
             </article>
           ))}
         </div>

@@ -336,6 +336,7 @@ button {
 .workflow-card,
 .capability-card,
 .skill-card,
+.agent-tool-card,
 .skill-rule-panel,
 .prompt-card,
 .agent-skill-summary,
@@ -377,6 +378,17 @@ button {
 
 .code-block.compact pre {
   max-height: 240px;
+}
+
+.code-block.wrap pre {
+  max-height: none;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+}
+
+.code-block.wrap code {
+  overflow-wrap: anywhere;
+  white-space: inherit;
 }
 
 .code-toolbar {
@@ -701,6 +713,7 @@ code {
 }
 
 .skill-grid,
+.agent-tool-grid,
 .skill-rule-grid,
 .prompt-grid {
   display: grid;
@@ -711,7 +724,13 @@ code {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.agent-tool-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
 .skill-card,
+.agent-tool-card,
 .prompt-card {
   min-width: 0;
   padding: 18px;
@@ -722,6 +741,7 @@ code {
 }
 
 .skill-card h3,
+.agent-tool-card h3,
 .skill-rule-panel h3,
 .prompt-card h3 {
   margin: 12px 0 8px;
@@ -731,10 +751,45 @@ code {
 }
 
 .skill-card p,
+.agent-tool-card p,
 .prompt-card p {
   margin: 0;
   color: var(--muted);
   line-height: 1.72;
+}
+
+.agent-tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agent-tool-card .code-block {
+  margin-top: 2px;
+}
+
+.agent-tool-card ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #344054;
+  line-height: 1.72;
+}
+
+.agent-tool-meta {
+  display: grid;
+  gap: 5px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.agent-tool-meta strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.agent-tool-meta span {
+  color: #475467;
+  line-height: 1.65;
 }
 
 .skill-rule-grid {
@@ -766,7 +821,7 @@ code {
 }
 
 .prompt-card .code-block.compact pre {
-  max-height: 180px;
+  max-height: none;
 }
 
 .docs-shell {
@@ -961,6 +1016,7 @@ code {
   .product-pillar-grid,
   .workflow-grid,
   .capability-grid,
+  .agent-tool-grid,
   .skill-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1021,6 +1077,7 @@ code {
   }
 
   .index-grid,
+  .agent-tool-grid,
   .skill-rule-grid,
   .prompt-grid {
     grid-template-columns: 1fr;
@@ -1117,6 +1174,7 @@ code {
   .product-pillar-grid,
   .workflow-grid,
   .capability-grid,
+  .agent-tool-grid,
   .skill-grid,
   .reading-steps {
     grid-template-columns: 1fr;
@@ -1133,6 +1191,7 @@ code {
   .demo-pane,
   .demo-report,
   .skill-card,
+  .agent-tool-card,
   .skill-rule-panel,
   .prompt-card,
   .agent-skill-summary {
@@ -1150,6 +1209,10 @@ code {
   .code-block.compact pre,
   .demo-yaml .code-block.compact pre {
     max-height: 260px;
+  }
+
+  .code-block.wrap.compact pre {
+    max-height: none;
   }
 
   pre {
