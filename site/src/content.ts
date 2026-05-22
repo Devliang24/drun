@@ -44,35 +44,23 @@ export type DocGroup = {
 export const homeYaml = `config:
   name: 用户接口冒烟
   base_url: \${ENV(BASE_URL)}
-  tags: [smoke, user]
 
 steps:
   - name: 创建用户
     request:
       method: POST
       path: /users
-      headers:
-        Authorization: Bearer \${ENV(API_KEY)}
       body:
         username: test_\${uuid()}
-        email: test@example.com
     extract:
       userId: $.data.id
     validate:
-      - eq: [status_code, 201]
-
-  - name: 查询用户
-    request:
-      method: GET
-      path: /users/$userId
-    validate:
-      - eq: [status_code, 200]`;
+      - eq: [status_code, 201]`;
 
 export const homeCli = `$ drun check testcases
-Checked: 8 OK, 0 errors.
+Checked 8 file(s): 8 OK
 
 $ drun run testcases -env dev
-[ENV] dev -> .env.dev
 [RUN] files: 8 | cases: 6
 [CASE] passed: 6 | failed: 0
 [STEP] passed: 18 | failed: 0`;

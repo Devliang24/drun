@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Drun">
+  <rect width="64" height="64" rx="14" fill="#111827"/>
+  <path
+    d="M20 18h12c9.4 0 16 5.8 16 14s-6.6 14-16 14H20V18zm12 21.5c5.2 0 8.8-3 8.8-7.5S37.2 24.5 32 24.5h-4.8v15H32z"
+    fill="#ffffff"
+  />
+</svg>

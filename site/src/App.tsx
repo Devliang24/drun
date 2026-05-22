@@ -3,15 +3,23 @@ import {
   ArrowRight,
   BookOpen,
   Check,
+  CheckCircle2,
   Clipboard,
+  Code2,
   ExternalLink,
+  FileJson2,
+  GitBranch,
   Menu,
+  PlayCircle,
+  Repeat2,
+  ServerCog,
+  Terminal,
+  Wrench,
   X,
 } from 'lucide-react';
 import {
   docGroups,
   docPages,
-  featureCards,
   findPage,
   homeCli,
   homeYaml,
@@ -136,81 +144,242 @@ function Header({ route }: { route: string }) {
 }
 
 function HomePage() {
+  const productPillars = [
+    {
+      icon: Code2,
+      title: '把接口请求写成可维护资产',
+      text: '用 YAML 描述 method、path、headers、body、extract 和 validate，测试内容不再散落在临时脚本和调试记录里。',
+    },
+    {
+      icon: GitBranch,
+      title: '把真实业务链路串起来',
+      text: '用 invoke、caseflow、repeat、sleep 组合登录后链路、异步轮询和跨 Case 复用，适合团队沉淀冒烟与回归场景。',
+    },
+    {
+      icon: CheckCircle2,
+      title: '先发现作者错误再执行请求',
+      text: 'drun check 聚合 YAML 诊断，输出稳定错误码、文件位置、Path、hint 和短示例，把常见写法错误提前拦住。',
+    },
+    {
+      icon: FileJson2,
+      title: '让结果能复现、能归档',
+      text: '运行后输出 HTML、JSON、Allure、snippet 和响应体保存结果，失败请求可以快速复现，也能接入 CI 归档。',
+    },
+  ];
+
+  const workflow = [
+    {
+      step: '01',
+      title: '写 Case',
+      text: '从一个接口开始，把请求、提取和断言写进 YAML。',
+      icon: Code2,
+    },
+    {
+      step: '02',
+      title: '检查 DSL',
+      text: '用 drun check 批量发现字段写错、参数位置错误和无效组合。',
+      icon: CheckCircle2,
+    },
+    {
+      step: '03',
+      title: '按环境运行',
+      text: '通过 -env 和 -vars 切换环境与变量，单文件调试后再批量跑目录。',
+      icon: PlayCircle,
+    },
+    {
+      step: '04',
+      title: '交付报告',
+      text: '输出报告、snippet 和保存文件，让失败复现和团队协作更轻。',
+      icon: FileJson2,
+    },
+  ];
+
+  const capabilities = [
+    { icon: Terminal, title: '请求建模', text: 'method、path、headers、body、data、files、auth、stream' },
+    { icon: Repeat2, title: '数据驱动', text: 'config.parameters、CSV、product、zip' },
+    { icon: GitBranch, title: '链路编排', text: 'caseflow、invoke、invoke_case_name(s)、repeat、sleep' },
+    { icon: ServerCog, title: '环境运行', text: 'drun run、drun check、-env、-vars、-failfast、-persist-env' },
+    { icon: FileJson2, title: '报告输出', text: 'HTML、JSON、Allure、curl snippet、保存响应体、CSV 导出' },
+    { icon: Wrench, title: '调试迁移', text: 'drun q、cURL / HAR / Postman / OpenAPI 转 YAML、export curl' },
+  ];
+
   return (
     <main>
-      <section className="home-hero">
-        <div className="hero-copy">
-          <p className="eyebrow">YAML 驱动的 HTTP API 测试框架</p>
-          <h1>Drun 用户指南</h1>
-          <p className="lead">
-            从第一个 Case 到登录后链路、参数化、报告输出和 YAML 排障，按真实使用路径学习 Drun。
-          </p>
-          <div className="hero-actions">
-            <a className="primary-button" href={href('/docs/getting-started')}>
-              <BookOpen size={18} />
-              从快速开始读起
-            </a>
-            <a className="secondary-button" href="https://github.com/Devliang24/drun" target="_blank" rel="noreferrer">
-              <ExternalLink size={18} />
-              GitHub
-            </a>
+      <section className="product-hero">
+        <div className="hero-backdrop" aria-hidden="true">
+          <div className="backdrop-panel">
+            <span>$ drun check testcases</span>
+            <strong>Checked 8 file(s): 8 OK</strong>
           </div>
-          <div className="install-line" aria-label="安装命令">
-            <code>pip install drun</code>
+          <div className="backdrop-panel accent">
+            <span>DRUN-YAML-003</span>
+            <strong>Use request.path instead of request.url</strong>
+          </div>
+          <div className="backdrop-panel">
+            <span>HTML Report</span>
+            <strong>Cases 6 / 6 · Pass Rate 100%</strong>
           </div>
         </div>
-
-        <div className="hero-preview" aria-label="Drun 示例预览">
-          <div className="preview-card preview-yaml">
-            <div className="panel-title">testcases/test_user_api.yaml</div>
-            <CodeBlock sample={{ language: 'yaml', code: homeYaml }} compact />
-          </div>
-          <div className="preview-stack">
-            <div className="preview-card">
-              <div className="panel-title">CLI</div>
-              <CodeBlock sample={{ language: 'text', code: homeCli }} compact />
+        <div className="product-hero-inner">
+          <div className="hero-product-copy">
+            <p className="eyebrow">YAML-driven HTTP API testing</p>
+            <h1>Drun</h1>
+            <p className="product-lead">
+              用 YAML 把接口调试、链路测试、环境变量、诊断排障和报告输出沉淀成团队可维护的测试资产。
+            </p>
+            <div className="hero-command" aria-label="快速开始命令">
+              <span>$</span>
+              <code>pip install drun && drun init api-tests</code>
             </div>
-            <div className="report-card">
-              <div className="report-header">
-                <span>HTML Report</span>
-                <span className="status-dot">passed</span>
-              </div>
-              <div className="report-grid">
-                <span>Cases</span>
-                <strong>6 / 6</strong>
-                <span>Steps</span>
-                <strong>18 / 18</strong>
-                <span>Pass Rate</span>
-                <strong>100%</strong>
-              </div>
+            <div className="hero-actions">
+              <a className="primary-button" href={href('/docs/getting-started')}>
+                <BookOpen size={18} />
+                快速开始
+              </a>
+              <a className="secondary-button" href={href('/docs/yaml-dsl')}>
+                <Code2 size={18} />
+                查看 DSL
+              </a>
+              <a className="secondary-button" href="https://github.com/Devliang24/drun" target="_blank" rel="noreferrer">
+                <ExternalLink size={18} />
+                GitHub
+              </a>
+            </div>
+          </div>
+
+          <div className="hero-proof" aria-label="Drun 核心价值">
+            <div>
+              <strong>YAML DSL</strong>
+              <span>请求、变量、断言</span>
+            </div>
+            <div>
+              <strong>drun check</strong>
+              <span>稳定错误码与修复建议</span>
+            </div>
+            <div>
+              <strong>caseflow</strong>
+              <span>组合登录后业务链路</span>
+            </div>
+            <div>
+              <strong>Reports</strong>
+              <span>HTML / JSON / Allure / snippet</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="home-section">
-        <div className="section-heading">
-          <p className="eyebrow">学习路径</p>
-          <h2>不是单页介绍，而是能跟着写的用户指南</h2>
+      <section className="product-section product-showcase">
+        <div className="section-heading split-heading">
+          <div>
+            <p className="eyebrow">产品形态</p>
+            <h2>一个 Case，一次检查，一份可分享报告</h2>
+          </div>
+          <a className="text-link" href={href('/docs/getting-started')}>
+            跟着写第一个 Case <ArrowRight size={16} />
+          </a>
         </div>
-        <div className="feature-grid compact-grid">
-          {featureCards.map((feature) => {
-            const Icon = feature.icon;
+        <div className="product-demo" aria-label="Drun 产品预览">
+          <div className="demo-pane demo-yaml">
+            <div className="panel-title">testcases/test_user_api.yaml</div>
+            <CodeBlock sample={{ language: 'yaml', code: homeYaml }} compact />
+          </div>
+          <div className="demo-pane">
+            <div className="panel-title">CLI</div>
+            <CodeBlock sample={{ language: 'text', code: homeCli }} compact />
+          </div>
+          <div className="demo-report">
+            <div className="report-header">
+              <span>Run Report</span>
+              <span className="status-dot">passed</span>
+            </div>
+            <div className="report-grid">
+              <span>Cases</span>
+              <strong>6 / 6</strong>
+              <span>Steps</span>
+              <strong>18 / 18</strong>
+              <span>Pass Rate</span>
+              <strong>100%</strong>
+            </div>
+            <a href={href('/docs/reports')}>
+              查看报告能力 <ArrowRight size={16} />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section className="product-section product-positioning">
+        <div className="section-heading">
+          <p className="eyebrow">产品定位</p>
+          <h2>从一次接口调试，到可复用的 API 测试资产</h2>
+          <p>
+            Drun 适合把团队日常接口验证沉淀下来：本地能快速调试，CI 能稳定运行，失败时能直接看到诊断、请求片段和报告证据。
+          </p>
+        </div>
+        <div className="product-pillar-grid">
+          {productPillars.map((pillar) => {
+            const Icon = pillar.icon;
             return (
-              <article className="feature-card" key={feature.title}>
-                <Icon size={22} />
-                <h3>{feature.title}</h3>
-                <p>{feature.text}</p>
+              <article className="product-pillar" key={pillar.title}>
+                <Icon size={24} />
+                <h3>{pillar.title}</h3>
+                <p>{pillar.text}</p>
               </article>
             );
           })}
         </div>
       </section>
 
-      <section className="home-section docs-index">
+      <section className="product-section workflow-section">
         <div className="section-heading">
-          <p className="eyebrow">文档目录</p>
-          <h2>按阶段查用法</h2>
+          <p className="eyebrow">工作流</p>
+          <h2>写、查、跑、交付，一条路径完成</h2>
+          <p>首页先讲产品怎么帮你完成工作，详细语法和实战步骤继续放在文档页里。</p>
+        </div>
+        <div className="workflow-grid">
+          {workflow.map((item) => {
+            const Icon = item.icon;
+            return (
+              <article className="workflow-card" key={item.step}>
+                <span>{item.step}</span>
+                <Icon size={22} />
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="product-section capability-section">
+        <div className="section-heading">
+          <p className="eyebrow">核心能力</p>
+          <h2>围绕 API 测试资产的完整闭环</h2>
+        </div>
+        <div className="capability-grid">
+          {capabilities.map((item) => {
+            const Icon = item.icon;
+            return (
+              <article className="capability-card" key={item.title}>
+                <Icon size={22} />
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.text}</p>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="product-section docs-index">
+        <div className="section-heading split-heading">
+          <div>
+            <p className="eyebrow">产品文档</p>
+            <h2>继续深入使用 Drun</h2>
+          </div>
+          <a className="text-link" href={href('/docs/getting-started')}>
+            从快速开始进入 <ArrowRight size={16} />
+          </a>
         </div>
         <div className="index-grid">
           {docGroups.map((group) => (
@@ -233,10 +402,10 @@ function HomePage() {
         </div>
       </section>
 
-      <section className="home-section reading-path">
+      <section className="product-section reading-path">
         <div className="section-heading">
-          <p className="eyebrow">推荐阅读路径</p>
-          <h2>把实战步骤放在文档里读完</h2>
+          <p className="eyebrow">推荐路径</p>
+          <h2>第一次使用建议这样读</h2>
         </div>
         <div className="reading-steps">
           {[
