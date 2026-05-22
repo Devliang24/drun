@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from drun.runner.assertions import compare
+from drun.runner.checks import compare
 from drun.runner.runner import Runner
 
 
-class ValidatorCompatTests(unittest.TestCase):
+class CheckCompatTests(unittest.TestCase):
     def test_jsonpath_length_suffix_is_supported(self) -> None:
         runner = Runner(log=None)
         resp = {"body": {"data": [{"id": 1}, {"id": 2}, {"id": 3}]}}

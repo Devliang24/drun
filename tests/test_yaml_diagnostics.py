@@ -45,6 +45,28 @@ class DiagnosticCodeRegistryTests(unittest.TestCase):
 
 
 class YamlDiagnosticModelTests(unittest.TestCase):
+    def test_check_field_loads_as_step_checks(self) -> None:
+        with TemporaryDirectory() as tmp:
+            case_file = Path(tmp) / "test_check.yaml"
+            case_file.write_text(
+                """
+config:
+  name: Check DSL
+steps:
+  - name: ping
+    request:
+      method: GET
+      path: /ping
+    check:
+      - eq: [status_code, 200]
+""".strip(),
+                encoding="utf-8",
+            )
+
+            cases, _ = load_yaml_file(case_file)
+
+        self.assertEqual(cases[0].steps[0].checks[0].check, "status_code")
+
     def test_request_url_diagnostic_has_code_location_hint_and_example(self) -> None:
         with TemporaryDirectory() as tmp:
             case_file = Path(tmp) / "test_bad.yaml"
@@ -101,6 +123,56 @@ steps:
             self.assertIn("config.parameters", diagnostics[0].hint or "")
             self.assertIn("parameters:", diagnostics[0].example or "")
 
+    def test_validate_field_reports_check_migration_diagnostic(self) -> None:
+        with TemporaryDirectory() as tmp:
+            case_file = Path(tmp) / "test_legacy_validate.yaml"
+            case_file.write_text(
+                """
+config:
+  name: Legacy Validate
+steps:
+  - name: ping
+    request:
+      method: GET
+      path: /ping
+    validate:
+      - eq: [status_code, 200]
+""".strip(),
+                encoding="utf-8",
+            )
+
+            diagnostics = collect_yaml_diagnostics(case_file)
+
+            self.assertEqual(diagnostics[0].code, "DRUN-YAML-012")
+            self.assertIn("renamed to check", diagnostics[0].message)
+            self.assertEqual(diagnostics[0].path, "steps[0].validate")
+            self.assertIn("Use `check` instead of `validate`", diagnostics[0].hint or "")
+            self.assertIn("check:", diagnostics[0].example or "")
+
+    def test_request_nested_validate_reports_check_migration_diagnostic(self) -> None:
+        with TemporaryDirectory() as tmp:
+            case_file = Path(tmp) / "test_nested_legacy_validate.yaml"
+            case_file.write_text(
+                """
+config:
+  name: Nested Legacy Validate
+steps:
+  - name: ping
+    request:
+      method: GET
+      path: /ping
+      validate:
+        - eq: [status_code, 200]
+""".strip(),
+                encoding="utf-8",
+            )
+
+            diagnostics = collect_yaml_diagnostics(case_file)
+
+            self.assertEqual(diagnostics[0].code, "DRUN-YAML-012")
+            self.assertEqual(diagnostics[0].path, "steps[0].request.validate")
+            self.assertIn("Use `check` at the step level", diagnostics[0].hint or "")
+
 
 class CheckCommandDiagnosticTests(unittest.TestCase):
     def test_check_aggregates_diagnostics_across_files(self) -> None:
@@ -117,7 +189,7 @@ steps:
       path: /users
       json:
         name: Alice
-    validate:
+    check:
       - eq: [body.id, 1]
 """.strip(),
                 encoding="utf-8",

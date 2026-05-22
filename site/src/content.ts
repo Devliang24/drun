@@ -88,7 +88,7 @@ steps:
         username: test_\${uuid()}
     extract:
       userId: $.data.id
-    validate:
+    check:
       - eq: [status_code, 201]`;
 
 export const homeCli = `$ drun check testcases
@@ -111,7 +111,7 @@ export const agentSkillContent: AgentSkillContent = {
     { title: '编写或改写 YAML', text: '单接口 Case、文件上传、登录链路、参数化和 caseflow 编排。' },
     { title: '解释高级 DSL', text: 'invoke、invoke_case_name(s)、repeat、sleep、hooks、request.files、response.save_body_to。' },
     { title: '设计运行命令', text: 'drun run、drun q、环境加载、-vars、-persist-env、报告和 snippet 输出。' },
-    { title: '转换与迁移', text: '从 cURL、HAR、Postman、OpenAPI 起步，转换后补 validate、extract 和环境变量。' },
+    { title: '转换与迁移', text: '从 cURL、HAR、Postman、OpenAPI 起步，转换后补 check、extract 和环境变量。' },
     { title: '排障与修复', text: '分析 drun check / drun run 输出，定位 YAML path，给出修复后的片段。' },
     { title: '报告与复现', text: '解释 JSON、HTML、Allure、snippet、server 和响应体保存的使用方式。' },
   ],
@@ -188,7 +188,7 @@ export const agentSkillContent: AgentSkillContent = {
 
 要求：
 - 使用 \${ENV(BASE_URL)} 和 \${ENV(API_KEY)}
-- 断言 status_code=200
+- 检查 status_code=200
 - 提取 token`,
     },
     {
@@ -218,7 +218,7 @@ export const agentSkillContent: AgentSkillContent = {
       prompt: `请使用 drun-usage skill，把下面这段 cURL 转成 Drun YAML。
 
 请补充：
-- validate
+- check
 - extract
 - -env dev 运行命令
 - 迁移后需要手动确认的字段`,
@@ -316,7 +316,7 @@ steps:
         password: pass123
     extract:
       token: $.data.token
-    validate:
+    check:
       - eq: [status_code, 200]
       - contains: [$.message, success]`,
         },
@@ -344,7 +344,7 @@ drun run test_login -env dev`,
       {
         id: 'practice',
         title: '完整练习：从 0 写第一个 Case',
-        body: ['新项目建议先只沉淀一个登录接口。确认环境、路径、请求体、状态码断言和 token 提取都正确后，再继续扩展链路。'],
+        body: ['新项目建议先只沉淀一个登录接口。确认环境、路径、请求体、状态码检查和 token 提取都正确后，再继续扩展链路。'],
         code: {
           title: '创建环境文件',
           language: 'bash',
@@ -375,18 +375,18 @@ drun run testcases/test_login.yaml -env dev`,
     id: 'yaml-dsl',
     path: '/docs/yaml-dsl',
     title: 'YAML DSL 基础',
-    description: '理解 `config`、`steps`、`request`、`extract`、`validate` 的最小闭环。',
+    description: '理解 `config`、`steps`、`request`、`extract`、`check` 的最小闭环。',
     icon: Code2,
     sections: [
       {
         id: 'when',
         title: '适用场景',
-        body: ['当你准备把一个 HTTP 调试请求沉淀成稳定测试时，先用 DSL 的五个核心块描述“请求、提取、断言”。'],
+        body: ['当你准备把一个 HTTP 调试请求沉淀成稳定测试时，先用 DSL 的五个核心块描述“请求、提取、检查”。'],
       },
       {
         id: 'minimal',
         title: '最小示例',
-        body: ['一个最小 Request Step 只需要 `name`、`request.method`、`request.path` 和一个基础断言。'],
+        body: ['一个最小 Request Step 只需要 `name`、`request.method`、`request.path` 和一个基础检查。'],
         code: {
           language: 'yaml',
           code: `config:
@@ -398,14 +398,14 @@ steps:
     request:
       method: GET
       path: /health
-    validate:
+    check:
       - eq: [status_code, 200]`,
         },
       },
       {
         id: 'full',
         title: '完整示例',
-        body: ['真实 Case 通常会包含请求头、请求体、提取变量和多条断言。`extract` 写出的变量可被后续 Step 通过 `$变量名` 复用。'],
+        body: ['真实 Case 通常会包含请求头、请求体、提取变量和多条检查。`extract` 写出的变量可被后续 Step 通过 `$变量名` 复用。'],
         code: {
           language: 'yaml',
           code: `config:
@@ -424,7 +424,7 @@ steps:
         email: user@example.com
     extract:
       userId: $.data.id
-    validate:
+    check:
       - eq: [status_code, 201]
       - regex: [$.data.id, '^\\d+$']
 
@@ -432,7 +432,7 @@ steps:
     request:
       method: GET
       path: /users/$userId
-    validate:
+    check:
       - eq: [status_code, 200]
       - eq: [$.data.id, $userId]`,
         },
@@ -451,7 +451,7 @@ drun run testcases -env dev -k smoke`,
       {
         id: 'output',
         title: '预期输出',
-        body: ['当断言都通过时，Step 和 Case 都会计为 passed；任一断言失败会让对应 Step 失败。'],
+        body: ['当检查都通过时，Step 和 Case 都会计为 passed；任一检查失败会让对应 Step 失败。'],
         code: {
           language: 'text',
           code: `[CASE] 用户创建与查询 passed
@@ -464,7 +464,7 @@ drun run testcases -env dev -k smoke`,
         title: '常见坑',
         body: [
           '每个 Step 只能有一个执行目标：`request`、`invoke`、`sleep` 三选一。',
-          '`validate` 和 `extract` 与 `request` 同级，不要缩进到 `request` 下面。',
+          '`check` 和 `extract` 与 `request` 同级，不要缩进到 `request` 下面。',
           '响应体路径使用 `$.data.id` 这类 JSONPath，不要写成 `body.data.id`。',
         ],
         kind: 'warning',
@@ -497,7 +497,7 @@ drun run testcases -env dev -k smoke`,
       body:
         username: demo
         email: demo@example.com
-    validate:
+    check:
       - eq: [status_code, 201]`,
         },
       },
@@ -519,7 +519,7 @@ drun run testcases -env dev -k smoke`,
         source: web
       files:
         avatar: data/avatar.png
-    validate:
+    check:
       - eq: [status_code, 200]
 
   - name: 下载头像
@@ -529,7 +529,7 @@ drun run testcases -env dev -k smoke`,
       stream: true
     response:
       save_body_to: downloads/avatar.png
-    validate:
+    check:
       - eq: [status_code, 200]`,
         },
       },
@@ -618,7 +618,7 @@ steps:
         password: \${ENV(PASSWORD)}
     extract:
       token: $.data.token
-    validate:
+    check:
       - eq: [status_code, 200]
 
   - name: 创建订单
@@ -630,7 +630,7 @@ steps:
       body:
         request_id: \${uuid()}
         sku: SKU-001
-    validate:
+    check:
       - eq: [status_code, 201]`,
         },
       },
@@ -667,10 +667,10 @@ Hint: extract token before using $token, or pass it with -vars token=...`,
     ],
   },
   {
-    id: 'assertions-extract',
-    path: '/docs/assertions-extract',
-    title: '断言与提取',
-    description: '用状态码、JSONPath 和常用断言把接口结果变成可维护的检查点。',
+    id: 'checks-extract',
+    path: '/docs/checks-extract',
+    title: '检查与提取',
+    description: '用状态码、JSONPath 和常用检查把接口结果变成可维护的检查点。',
     icon: CheckCircle2,
     sections: [
       {
@@ -684,7 +684,7 @@ Hint: extract token before using $token, or pass it with -vars token=...`,
         body: ['用 `eq` 检查 HTTP 状态码，再用 JSONPath 检查响应体字段。'],
         code: {
           language: 'yaml',
-          code: `validate:
+          code: `check:
   - eq: [status_code, 200]
   - eq: [$.data.enabled, true]`,
         },
@@ -704,7 +704,7 @@ Hint: extract token before using $token, or pass it with -vars token=...`,
         username: demo_\${uuid()}
     extract:
       userId: $.data.id
-    validate:
+    check:
       - eq: [status_code, 201]
       - regex: [$.data.id, '^\\d+$']
       - contains: [$.message, success]
@@ -713,7 +713,7 @@ Hint: extract token before using $token, or pass it with -vars token=...`,
     request:
       method: GET
       path: /users/$userId
-    validate:
+    check:
       - eq: [status_code, 200]
       - eq: [$.data.id, $userId]`,
         },
@@ -730,10 +730,10 @@ Hint: extract token before using $token, or pass it with -vars token=...`,
       {
         id: 'output',
         title: '预期输出',
-        body: ['断言通过会进入 passed；提取失败或路径不存在会让当前 Step 失败，并在报告中保留定位信息。'],
+        body: ['检查通过会进入 passed；提取失败或路径不存在会让当前 Step 失败，并在报告中保留定位信息。'],
         code: {
           language: 'text',
-          code: `[ASSERT] eq status_code 200 passed
+          code: `[CHECK] status_code eq 200 => actual=200 | PASS
 [EXTRACT] userId <- $.data.id`,
         },
       },
@@ -743,7 +743,7 @@ Hint: extract token before using $token, or pass it with -vars token=...`,
         body: [
           'JSONPath 从 `$` 开始，例如 `$.data.id`。',
           '用于后续请求的变量建议在同一个 Case 内明确提取，减少外部依赖。',
-          '断言太少会让用例只能检查“接口没挂”，不能证明业务正确。',
+          '检查太少会让用例只能检查“接口没挂”，不能证明业务正确。',
         ],
         kind: 'tip',
       },
@@ -777,7 +777,7 @@ steps:
     request:
       method: GET
       path: /users/$user_id
-    validate:
+    check:
       - eq: [status_code, 200]`,
         },
       },
@@ -804,7 +804,7 @@ steps:
     request:
       method: GET
       path: /orders/$order_id
-    validate:
+    check:
       - eq: [status_code, 200]
       - eq: [$.data.status, $expected_status]`,
         },
@@ -1062,7 +1062,7 @@ drun run testcases -env dev -snippet curl`,
       stream: true
     response:
       save_body_to: downloads/invoice.pdf
-    validate:
+    check:
       - eq: [status_code, 200]
 
   - name: 导出用户列表
@@ -1071,7 +1071,7 @@ drun run testcases -env dev -snippet curl`,
       path: /users
     export:
       csv: exports/users.csv
-    validate:
+    check:
       - eq: [status_code, 200]`,
         },
       },
@@ -1136,7 +1136,7 @@ drun q https://api.example.com/users -X POST -d '{"name":"alice"}'`,
       {
         id: 'full',
         title: '完整示例',
-        body: ['从已有资产转换后，通常还要补充 `extract`、`validate`、环境变量和 caseflow。'],
+        body: ['从已有资产转换后，通常还要补充 `extract`、`check`、环境变量和 caseflow。'],
         code: {
           language: 'bash',
           code: `drun convert sample.curl -outfile converts/sample.yaml
@@ -1160,7 +1160,7 @@ drun run converts/ecommerce.yaml -env dev`,
       {
         id: 'output',
         title: '预期输出',
-        body: ['转换输出是起点，不是终点。你应该看到 YAML 文件生成，然后继续补断言和变量。'],
+        body: ['转换输出是起点，不是终点。你应该看到 YAML 文件生成，然后继续补检查和变量。'],
         code: {
           language: 'text',
           code: `[CONVERT] Wrote converts/ecommerce.yaml
@@ -1170,7 +1170,7 @@ Checked 1 file(s): 1 OK, 0 failed, 0 error(s).`,
       {
         id: 'practice',
         title: '完整练习：从 cURL / OpenAPI 迁移',
-        body: ['迁移流程是“先转换，再检查，再补断言”。转换产物能帮你起步，但最终测试资产需要替换真实密钥、补充变量和业务断言。'],
+        body: ['迁移流程是“先转换，再检查，再补检查”。转换产物能帮你起步，但最终测试资产需要替换真实密钥、补充变量和业务检查。'],
         code: {
           language: 'bash',
           code: `drun convert sample.curl -outfile converts/sample.yaml
@@ -1187,7 +1187,7 @@ drun export curl testcases/test_user_api.yaml -outfile request.curl`,
         id: 'pitfalls',
         title: '常见坑',
         body: [
-          '转换工具不会知道你的业务断言，需要人工补 `validate`。',
+          '转换工具不会知道你的业务检查，需要人工补 `check`。',
           '从 cURL 转出来的真实 token 要替换成 `${ENV(API_KEY)}`。',
           'OpenAPI 生成的是骨架，适合批量起步，不等于完整测试资产。',
         ],
@@ -1258,6 +1258,32 @@ Example:
         },
       },
       {
+        id: 'legacy-validate',
+        title: '旧字段 validate',
+        body: ['`validate` 已经更名为更短的 `check`，不再作为兼容 alias 接受。旧 YAML 会收到 `DRUN-YAML-012` 迁移诊断。'],
+        code: {
+          title: '旧写法迁移',
+          language: 'text',
+          code: `错误写法:
+steps:
+  - name: ping
+    request:
+      method: GET
+      path: /ping
+    validate:
+      - eq: [status_code, 200]
+
+诊断:
+DRUN-YAML-012 validate has been renamed to check
+Path: steps[0].validate
+Use \`check\` instead of \`validate\`.
+
+修正:
+check:
+  - eq: [status_code, 200]`,
+        },
+      },
+      {
         id: 'command',
         title: '运行命令',
         body: ['日常先批量检查目录；运行时仍保持首个阻断错误快速退出。'],
@@ -1320,13 +1346,13 @@ Checked 10 file(s): 10 OK, 0 failed, 0 error(s).`,
 
 export const docGroups: DocGroup[] = [
   { title: '入门', pages: ['getting-started', 'yaml-dsl', 'request'] },
-  { title: '核心能力', pages: ['templating', 'assertions-extract', 'parameters', 'composition'] },
+  { title: '核心能力', pages: ['templating', 'checks-extract', 'parameters', 'composition'] },
   { title: '运行与输出', pages: ['execution-env', 'reports', 'debug-migration', 'troubleshooting'] },
 ];
 
 export const featureCards = [
   { title: '用户指南', text: '从安装到实战链路，按用户学习路径组织。', icon: BookOpen },
-  { title: 'YAML DSL', text: '用可读 YAML 描述请求、变量、断言和编排。', icon: Code2 },
+  { title: 'YAML DSL', text: '用可读 YAML 描述请求、变量、检查和编排。', icon: Code2 },
   { title: '诊断排障', text: 'drun check 输出稳定错误码、定位、hint 和示例。', icon: Bug },
   { title: '报告输出', text: 'HTML、JSON、Allure、snippet 和响应体保存。', icon: FileJson2 },
 ];

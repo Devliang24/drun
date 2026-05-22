@@ -10,7 +10,7 @@ from drun.models.case import Case
 from drun.models.config import Config
 from drun.models.request import StepRequest
 from drun.models.step import Step, StepResponseConfig
-from drun.models.validators import Validator
+from drun.models.checks import Check
 from drun.runner.runner import Runner
 
 
@@ -62,7 +62,7 @@ class SleepStepValidationTests(unittest.TestCase):
                 request=StepRequest(method="GET", path="/ping"),
             )
 
-    def test_sleep_step_rejects_response_validate_extract_and_export(self) -> None:
+    def test_sleep_step_rejects_response_check_extract_and_export(self) -> None:
         with self.assertRaises(ValueError):
             Step(
                 name="Pause",
@@ -70,7 +70,7 @@ class SleepStepValidationTests(unittest.TestCase):
                 response=StepResponseConfig(save_body_to="out.txt"),
                 extract={"token": "$.token"},
                 export={"csv": {"data": "$.items", "file": "data.csv"}},
-                validators=[Validator(check="status_code", comparator="eq", expect=200)],
+                checks=[Check(check="status_code", comparator="eq", expect=200)],
             )
 
     def test_loader_accepts_sleep_step(self) -> None:

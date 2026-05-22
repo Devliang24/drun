@@ -9,19 +9,20 @@
 | 错误码 | 含义 | 常见处理方向 |
 | --- | --- | --- |
 | `DRUN-YAML-001` | YAML 语法解析失败 | 先修正缩进、冒号、列表和引号等 YAML 基础语法。 |
-| `DRUN-YAML-002` | YAML schema 不符合 DSL | 检查根节点、`config`、`steps`、`validate` 等字段形状。 |
+| `DRUN-YAML-002` | YAML schema 不符合 DSL | 检查根节点、`config`、`steps`、`check` 等字段形状。 |
 | `DRUN-YAML-003` | `request` 字段不支持 | 常见是把 `request.path` 写成了 `request.url`。 |
 | `DRUN-YAML-004` | 不支持 `request.json` | JSON 或原始请求体改写到 `request.body`。 |
-| `DRUN-YAML-005` | 字段错误缩进到 `request` 下 | 将 `validate`、`extract`、hooks 等移出 `request`，与其同级。 |
+| `DRUN-YAML-005` | 字段错误缩进到 `request` 下 | 将 `check`、`extract`、hooks 等移出 `request`，与其同级。 |
 | `DRUN-YAML-006` | 参数位置错误 | 使用 `config.parameters`，不要使用顶层 `parameters`。 |
-| `DRUN-YAML-007` | 响应 body 路径语法错误 | `validate` / `extract` 中用 `$.data.id`，不要用 `body.id`。 |
+| `DRUN-YAML-007` | 响应 body 路径语法错误 | `check` / `extract` 中用 `$.data.id`，不要用 `body.id`。 |
 | `DRUN-YAML-008` | `request.files` 声明错误 | 修正 files 结构；multipart 普通字段放 `request.data`。 |
 | `DRUN-YAML-009` | 旧版 DSL 写法 | 将 `cases`、`loop`、`foreach` 迁移到当前 `caseflow` / `repeat` 写法。 |
 | `DRUN-YAML-010` | `caseflow` 写法错误 | `caseflow` 必须是列表，每项至少包含有效 `invoke`。 |
 | `DRUN-YAML-011` | step 执行目标错误 | 每个 step 只保留 `request`、`invoke`、`sleep` 中的一种。 |
-| `DRUN-YAML-012` | `repeat` / `sleep` 值错误 | `repeat` 用非负整数；`sleep` 用非负数值，或可解析表达式。 |
+| `DRUN-YAML-012` | 旧字段 `validate` | 改成 `check`，不再作为兼容 alias 接受。 |
 | `DRUN-YAML-013` | hooks 声明错误 | hooks 放在支持的位置，并写成 `${func(...)}` 表达式列表。 |
 | `DRUN-YAML-014` | step 间距不符合检查规则 | 在多个 step item 之间增加空行。 |
+| `DRUN-YAML-015` | `repeat` / `sleep` 值错误 | `repeat` 用非负整数；`sleep` 用非负数值，或可解析表达式。 |
 | `DRUN-YAML-999` | YAML 加载兜底错误 | 查看 hint 中的原始异常；后续可细分为更具体错误码。 |
 
 ### `request.url` 写错字段
@@ -76,6 +77,46 @@ Example:
 ```
 
 修正：参数化入口是 `config.parameters`，不要使用顶层 `parameters`。
+
+### 旧字段 `validate` 已更名
+
+错误示例：
+
+```yaml
+steps:
+  - name: ping
+    request:
+      method: GET
+      path: /ping
+    validate:
+      - eq: [status_code, 200]
+```
+
+诊断输出：
+
+```text
+DRUN-YAML-012 validate has been renamed to check
+File: testcases/test_ping.yaml:8
+Path: steps[0].validate
+
+Use `check` instead of `validate`.
+
+Example:
+  check:
+    - eq: [$.data.id, 1]
+```
+
+修正：
+
+```yaml
+steps:
+  - name: ping
+    request:
+      method: GET
+      path: /ping
+    check:
+      - eq: [status_code, 200]
+```
 
 ### `drun check` 多文件聚合
 
@@ -213,13 +254,13 @@ Step cannot combine 'request', 'invoke', and 'sleep'. Use exactly one.
 或：
 
 ```text
-Step with 'sleep' cannot use 'validate'.
+Step with 'sleep' cannot use 'check'.
 ```
 
 修正：
 
 - 一个 step 只能有一种执行目标
-- `sleep` 只负责等待；断言、提取、导出要放到前后 request step
+- `sleep` 只负责等待；检查、提取、导出要放到前后 request step
 
 ## `repeat` 或 `sleep` 表达式类型不对
 

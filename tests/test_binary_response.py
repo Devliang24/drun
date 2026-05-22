@@ -60,7 +60,7 @@ steps:
       save_body_to: artifacts/tts_out.mp3
     teardown_hooks:
       - "${remember_raw_bytes(response)}"
-    validate:
+    check:
       - eq: [status_code, 200]
       - eq: [$content_type, audio/mpeg]
       - eq: [$body_size, 3]

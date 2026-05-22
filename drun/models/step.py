@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 from pydantic.config import ConfigDict
 
 from .request import StepRequest
-from .validators import Validator, normalize_validators
+from .checks import Check, normalize_checks
 
 
 class StepResponseConfig(BaseModel):
@@ -25,13 +25,20 @@ class Step(BaseModel):
     invoke_case_names: List[str] = Field(default_factory=list)
     extract: Dict[str, str] = Field(default_factory=dict)
     export: Optional[Union[Dict[str, Any], List[str]]] = None
-    validators: List[Validator] = Field(default_factory=list, alias="validate")
+    checks: List[Check] = Field(default_factory=list, alias="check")
     setup_hooks: List[str] = Field(default_factory=list)
     teardown_hooks: List[str] = Field(default_factory=list)
     skip: Optional[str | bool] = None
     repeat: Union[int, str, None] = 1
     retry: int = 0
     retry_backoff: float = 0.5
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_legacy_validate(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "validate" in data:
+            raise ValueError("'validate' has been renamed to 'check'.")
+        return data
 
     @model_validator(mode="after")
     def check_request_or_invoke(self) -> "Step":
@@ -102,8 +109,8 @@ class Step(BaseModel):
                 incompatible_fields.append("extract")
             if self.export is not None:
                 incompatible_fields.append("export")
-            if self.validators:
-                incompatible_fields.append("validate")
+            if self.checks:
+                incompatible_fields.append("check")
             if self.retry:
                 incompatible_fields.append("retry")
             if incompatible_fields:
@@ -130,7 +137,9 @@ class Step(BaseModel):
     @classmethod
     def model_validate_obj(cls, data: Dict[str, Any]) -> "Step":
         if "validate" in data:
-            data = {**data, "validate": normalize_validators(data["validate"]) }
+            raise ValueError("'validate' has been renamed to 'check'.")
+        if "check" in data:
+            data = {**data, "check": normalize_checks(data["check"])}
         if "sql_validate" in data:
             raise ValueError(
                 "'sql_validate' is no longer supported in steps. Use setup/teardown hooks to perform SQL checks."

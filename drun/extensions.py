@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 
 BuiltinFunc = Callable[..., Any]
-AssertionFunc = Callable[[Any, Any], bool]
+CheckFunc = Callable[[Any, Any], bool]
 ImporterFunc = Callable[..., Any]
 
 
@@ -16,7 +16,7 @@ class ExporterSpec:
 
 
 _BUILTINS: Dict[str, BuiltinFunc] = {}
-_ASSERTIONS: Dict[str, AssertionFunc] = {}
+_CHECKS: Dict[str, CheckFunc] = {}
 _IMPORTERS: Dict[str, ImporterFunc] = {}
 _EXPORTERS: Dict[str, Any] = {}
 
@@ -35,16 +35,16 @@ def builtin_registry() -> Dict[str, BuiltinFunc]:
     return _BUILTINS
 
 
-def assertion_registry() -> Dict[str, AssertionFunc]:
-    return _ASSERTIONS
+def check_registry() -> Dict[str, CheckFunc]:
+    return _CHECKS
 
 
 def register_builtin(name: str, fn: BuiltinFunc) -> None:
     _BUILTINS[_normalize_extension_name(name)] = fn
 
 
-def register_assertion(name: str, fn: AssertionFunc) -> None:
-    _ASSERTIONS[_normalize_extension_name(name)] = fn
+def register_check(name: str, fn: CheckFunc) -> None:
+    _CHECKS[_normalize_extension_name(name)] = fn
 
 
 def register_importer(format_name: str, importer: ImporterFunc) -> None:
@@ -61,10 +61,10 @@ def get_builtins() -> Dict[str, BuiltinFunc]:
     return _BUILTINS
 
 
-def get_assertions() -> Dict[str, AssertionFunc]:
-    from drun.runner import assertions as _  # noqa: F401
+def get_checks() -> Dict[str, CheckFunc]:
+    from drun.runner import checks as _  # noqa: F401
 
-    return _ASSERTIONS
+    return _CHECKS
 
 
 def _ensure_default_importers_loaded() -> None:

@@ -8,7 +8,7 @@ _ESCAPED_TEMPLATE_QUOTES_PATTERN = re.compile(r'"(\$\{[^}]*\})"')
 _SIMPLE_TOKEN_PATTERN = re.compile(r"\$(?!\{)([A-Za-z_][A-Za-z0-9_]*)")
 
 # System variables that should be skipped during token normalization.
-# They are handled by the runner for response assertions/extracts.
+# They are handled by the runner for response checks/extracts.
 _RESERVED_SYSTEM_VARS = {
     "body",
     "headers",
@@ -19,7 +19,7 @@ _RESERVED_SYSTEM_VARS = {
     "stream_events",
     "stream_summary",
     "stream_raw_chunks",
-    # Response variables used in validators
+    # Response variables used in checks
     "content_type",
     "body_size",
     "raw_bytes",

@@ -110,7 +110,7 @@ def run_fix(paths: List[str], only_spacing: bool, only_hooks: bool) -> None:
 
         lines = text.splitlines()
         changed = False
-        fields_to_fix = ("validate:", "extract:", "setup_hooks:", "teardown_hooks:")
+        fields_to_fix = ("check:", "extract:", "setup_hooks:", "teardown_hooks:")
 
         for i in range(len(lines)):
             line = lines[i]

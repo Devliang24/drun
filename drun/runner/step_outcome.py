@@ -5,9 +5,9 @@ from pathlib import Path
 import re
 from typing import Any, Dict, List, Optional
 
-from drun.models.report import AssertionResult
+from drun.models.report import CheckResult
 from drun.models.step import Step
-from drun.runner.asserting import evaluate_validators
+from drun.runner.checking import evaluate_checks
 from drun.runner.response_capture import capture_step_response
 from drun.templating.context import VarContext
 
@@ -26,7 +26,7 @@ class StepOutcomeContext:
 
 @dataclass
 class StepOutcome:
-    assertions: List[AssertionResult] = field(default_factory=list)
+    checks: List[CheckResult] = field(default_factory=list)
     extracts: Dict[str, Any] = field(default_factory=dict)
     report_response: Dict[str, Any] = field(default_factory=dict)
     variables: Dict[str, Any] = field(default_factory=dict)
@@ -69,9 +69,9 @@ def process_step_outcome(*, runner: Any, context: StepOutcomeContext) -> StepOut
         context=context,
     )
 
-    assertions, step_failed = evaluate_validators(
+    checks, step_failed = evaluate_checks(
         runner=runner,
-        validators=step.validators,
+        check_rules=step.checks,
         variables=variables,
         funcs=context.funcs,
         envmap=context.envmap,
@@ -82,7 +82,7 @@ def process_step_outcome(*, runner: Any, context: StepOutcomeContext) -> StepOut
 
     response_capture = capture_step_response(runner=runner, resp_obj=resp_obj)
     return StepOutcome(
-        assertions=assertions,
+        checks=checks,
         extracts=extracts,
         report_response=response_capture.report_response,
         variables=variables,

@@ -1,6 +1,6 @@
 # DSL Core
 
-适用于编写或解释 `config`、`steps`、`request`、`extract`、`validate`、模板表达式、严格渲染、`request.files`、流式请求和响应保存。
+适用于编写或解释 `config`、`steps`、`request`、`extract`、`check`、模板表达式、严格渲染、`request.files`、流式请求和响应保存。
 
 ## 能力说明
 
@@ -9,7 +9,7 @@
 - 每个 step 只能拥有一个执行目标：`request`、`invoke` 或 `sleep`
 - 请求体字段在 YAML 中写 `body`，不要写 `json`
 - request 常用控制字段：`auth`、`timeout`、`verify`、`allow_redirects`、`stream`、`stream_timeout`
-- 提取与断言对响应体统一使用 `$...` 表达式；元数据用 `status_code` 或 `headers.<name>`
+- 提取与检查对响应体统一使用 `$...` 表达式；元数据用 `status_code` 或 `headers.<name>`
 
 ## 最小可运行 YAML
 
@@ -30,7 +30,7 @@ steps:
         Authorization: Bearer ${ENV(API_TOKEN)}
     extract:
       nickname: $.data.nickname
-    validate:
+    check:
       - eq: [status_code, 200]
       - exists: [$.data.id, true]
       - contains: [$.data.nickname, liang]
@@ -63,7 +63,7 @@ steps:
         email: ${ENV(TEST_EMAIL)}
     extract:
       user_id: $.data.id
-    validate:
+    check:
       - eq: [status_code, 201]
 ```
 
@@ -85,7 +85,7 @@ steps:
       timeout: 10
       verify: true
       allow_redirects: false
-    validate:
+    check:
       - eq: [status_code, 200]
 
   - name: basic 鉴权请求
@@ -119,7 +119,7 @@ steps:
     extract:
       first_chunk_ms: $stream_summary.first_chunk_ms
       events: $stream_events
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 
@@ -153,7 +153,7 @@ steps:
         avatar: ["./data/avatar.png", "image/png"]
     extract:
       file_url: $.data.url
-    validate:
+    check:
       - eq: [status_code, 200]
       - exists: [$.data.url, true]
 ```
@@ -187,7 +187,7 @@ steps:
       path: /api/tts?id=${audio_id}
     response:
       save_body_to: artifacts/tts_${audio_id}.mp3
-    validate:
+    check:
       - eq: [status_code, 200]
       - eq: [$content_type, audio/mpeg]
       - gt: [$body_size, 0]
@@ -204,7 +204,7 @@ steps:
 
 - `request.url` 不支持，写 `request.path`
 - `request.json` 不支持，写 `request.body`
-- `extract` 和 `validate` 中不要写 `body.id`，统一写 `$.id` 或 `$.data.id`
+- `extract` 和 `check` 中不要写 `body.id`，统一写 `$.id` 或 `$.data.id`
 - `request.files` 不能和 `request.body` 同时出现
 - 上传路径相对当前运行目录解析，不是相对 YAML 文件解析；习惯上从项目根目录执行
 - `response.save_body_to` 需要响应里存在原始 body bytes；普通 JSON 响应通常没必要使用

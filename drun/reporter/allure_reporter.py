@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from drun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult
+from drun.models.report import RunReport, CaseInstanceResult, StepResult
 
 
 def _now_ms() -> int:
@@ -42,16 +42,16 @@ def _align_like_console(text: str, pad_cols: int = 50) -> str:
 def _status_details(case: CaseInstanceResult) -> Dict[str, Any] | None:
     if case.status != "failed":
         return None
-    # Prefer the first failed step's error or first failed assertion message
+    # Prefer the first failed step's error or first failed check message
     for st in case.steps:
         if st.status == "failed":
             # step error (e.g., hook error)
             if st.error:
                 return {"message": st.error}
-            # first failed assertion
-            for a in st.asserts:
+            # first failed check
+            for a in st.checks:
                 if not a.passed:
-                    msg = a.message or "assertion failed"
+                    msg = a.message or "check failed"
                     # compact context
                     detail = f"check={a.check!r} cmp={a.comparator!r} expect={a.expect!r} actual={a.actual!r} | {msg}"
                     return {"message": detail}
@@ -81,7 +81,7 @@ def _step_to_allure(out_dir: Path, case_uuid: str, st: StepResult, start_ms: int
         "parameters": [],
     }
 
-    # Attach request/response/cURL/asserts/extracts
+    # Attach request/response/cURL/checks/extracts
     # Use already-masked request/response in StepResult
     try:
         if st.request:
@@ -107,10 +107,10 @@ def _step_to_allure(out_dir: Path, case_uuid: str, st: StepResult, start_ms: int
         except Exception:
             pass
     try:
-        if st.asserts:
-            asserts_txt = _as_json([a.model_dump() for a in st.asserts])
+        if st.checks:
+            checks_txt = _as_json([a.model_dump() for a in st.checks])
             step_obj["attachments"].append(
-                _attach(out_dir, case_uuid, "Asserts", asserts_txt, "application/json", ".json")
+                _attach(out_dir, case_uuid, "Checks", checks_txt, "application/json", ".json")
             )
     except Exception:
         pass

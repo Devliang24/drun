@@ -47,7 +47,7 @@ drun run /tmp/test_upload.yaml -env dev -html reports/upload.html -snippet-outpu
 - `-report reports/result.json` 会把完整 `RunReport` 序列化到 JSON
 - HTML 报告在项目模式默认开启；如果你想指定路径，用 `-html reports/custom.html`
 - `-allure-results allure-results` 会写 Allure 2 results 文件和附件
-- HTML 报告会展示请求头、请求体、响应体、断言、提取变量和 curl；复制按钮是图标按钮，复制状态通过 tooltip / icon 反馈
+- HTML 报告会展示请求头、请求体、响应体、检查、提取变量和 curl；复制按钮是图标按钮，复制状态通过 tooltip / icon 反馈
 
 生成 Allure 后，通常还会再跑：
 
@@ -83,7 +83,7 @@ steps:
       path: /api/files/${file_id}
     response:
       save_body_to: artifacts/${file_id}.bin
-    validate:
+    check:
       - eq: [status_code, 200]
       - gt: [$body_size, 0]
 ```
@@ -112,7 +112,7 @@ steps:
         mode: overwrite
         encoding: utf-8
         delimiter: ","
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 

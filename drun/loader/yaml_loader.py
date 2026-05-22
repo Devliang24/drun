@@ -16,7 +16,7 @@ from drun.templating.compat import (
     escape_template_expressions_in_yaml,
     strip_escaped_template_quotes,
 )
-from drun.models.validators import normalize_validators
+from drun.models.checks import normalize_checks
 from drun.engine.request_files import RequestFilesError, validate_request_files_shape
 from drun.utils.errors import Diagnostic, DiagnosticError, LoadError
 
@@ -30,7 +30,7 @@ EXAMPLE_CONFIG_PARAMETERS = """config:
   parameters:
     - user_id: [1, 2, 3]"""
 
-EXAMPLE_BODY_CHECK = """validate:
+EXAMPLE_BODY_CHECK = """check:
   - eq: [$.data.id, 1]"""
 
 EXAMPLE_MULTIPART = """request:
@@ -185,7 +185,7 @@ def _normalize_case_dict(d: Dict[str, Any], path: Path | None = None, raw_text: 
                     items = []
                 if not isinstance(items, list):
                     raise LoadError(f"Invalid config.{hk_field} entry type {type(items).__name__}; expected list of '${{func(...)}}'")
-                # validate expressions and promote to case-level
+                # check expressions and promote to case-level
                 for item in items:
                     if not isinstance(item, str):
                         raise LoadError(f"Invalid {hk_field} entry type {type(item).__name__}; expected string like '${{func(...)}}'")
@@ -247,10 +247,10 @@ def _normalize_case_dict(d: Dict[str, Any], path: Path | None = None, raw_text: 
                         validate_request_files_shape(request_obj.get("files"), source="request.files")
                     except RequestFilesError as exc:
                         raise LoadError(f"Invalid request.files in step '{step_label}': {exc}") from exc
-            if "validate" in ss:
-                ss["validate"] = [v.model_dump() for v in normalize_validators(ss["validate"])]
+            if "check" in ss:
+                ss["check"] = [v.model_dump() for v in normalize_checks(ss["check"])]
                 # enforce $-only for body checks
-                for v in ss["validate"]:
+                for v in ss["check"]:
                     chk = v.get("check")
                     if isinstance(chk, str) and chk.startswith("body."):
                         raise LoadError(f"Invalid check '{chk}': use '$' syntax e.g. '$.path.to.field'")
@@ -411,7 +411,7 @@ def _build_cases_from_obj(obj: Any, path: Path, processed_raw: str) -> Tuple[Lis
         # Legacy inline suite with 'cases:' is no longer supported
         raise LoadError("Legacy inline suite ('cases:') is not supported. Please use caseflow format.")
     else:
-        # single case file: normalize validators
+        # single case file: normalize checks
         obj = _normalize_case_dict(obj, path=path, raw_text=processed_raw)
         try:
             case = Case.model_validate(obj)
@@ -690,7 +690,21 @@ def _collect_step_diagnostics(
                     raw_text=raw_text,
                 )
             )
-        for nested_field in ("extract", "validate", "setup_hooks", "teardown_hooks"):
+        if "validate" in req:
+            loc = _find_request_subfield_location(raw_text, idx, "validate")
+            add(
+                _diagnostic(
+                    "DRUN-YAML-012",
+                    "validate has been renamed to check",
+                    file=path,
+                    line=loc[0] if loc else None,
+                    yaml_path=f"steps[{idx}].request.validate",
+                    hint="Use `check` at the step level instead of `request.validate`.",
+                    example=EXAMPLE_BODY_CHECK,
+                    raw_text=raw_text,
+                )
+            )
+        for nested_field in ("extract", "check", "setup_hooks", "teardown_hooks"):
             if nested_field in req:
                 loc = _find_request_subfield_location(raw_text, idx, nested_field)
                 add(
@@ -701,7 +715,7 @@ def _collect_step_diagnostics(
                         line=loc[0] if loc else None,
                         yaml_path=f"steps[{idx}].request.{nested_field}",
                         hint=f"Move `{nested_field}` out to align with `request`.",
-                        example="steps:\n  - name: Example\n    request:\n      method: GET\n      path: /api/users\n    validate:\n      - eq: [status_code, 200]",
+                        example="steps:\n  - name: Example\n    request:\n      method: GET\n      path: /api/users\n    check:\n      - eq: [status_code, 200]",
                         raw_text=raw_text,
                     )
                 )
@@ -738,33 +752,48 @@ def _collect_step_diagnostics(
                 )
 
     if "validate" in step:
+        loc = _find_step_child_location(raw_text, idx, "validate")
+        add(
+            _diagnostic(
+                "DRUN-YAML-012",
+                "validate has been renamed to check",
+                file=path,
+                line=loc[0] if loc else None,
+                yaml_path=f"steps[{idx}].validate",
+                hint="Use `check` instead of `validate`.",
+                example=EXAMPLE_BODY_CHECK,
+                raw_text=raw_text,
+            )
+        )
+
+    if "check" in step:
         try:
-            normalized = normalize_validators(step["validate"])
+            normalized = normalize_checks(step["check"])
         except Exception as exc:
-            loc = _find_step_child_location(raw_text, idx, "validate")
+            loc = _find_step_child_location(raw_text, idx, "check")
             add(
                 _diagnostic(
                     "DRUN-YAML-002",
-                    "Invalid validate declaration",
+                    "Invalid check declaration",
                     file=path,
                     line=loc[0] if loc else None,
-                    yaml_path=f"steps[{idx}].validate",
+                    yaml_path=f"steps[{idx}].check",
                     hint=str(exc),
                     example=EXAMPLE_BODY_CHECK,
                     raw_text=raw_text,
                 )
             )
             normalized = []
-        for validator in normalized:
-            if isinstance(validator.check, str) and validator.check.startswith("body."):
-                loc = _find_step_child_location(raw_text, idx, "validate")
+        for check in normalized:
+            if isinstance(check.check, str) and check.check.startswith("body."):
+                loc = _find_step_child_location(raw_text, idx, "check")
                 add(
                     _diagnostic(
                         "DRUN-YAML-007",
-                        f"Invalid check syntax: {validator.check}",
+                        f"Invalid check syntax: {check.check}",
                         file=path,
                         line=loc[0] if loc else None,
-                        yaml_path=f"steps[{idx}].validate",
+                        yaml_path=f"steps[{idx}].check",
                         hint="Use `$` JSONPath-like syntax for response body checks, for example `$.data.id`.",
                         example=EXAMPLE_BODY_CHECK,
                         raw_text=raw_text,
@@ -805,7 +834,7 @@ def _collect_step_diagnostics(
         if isinstance(repeat_value, bool):
             add(
                 _diagnostic(
-                    "DRUN-YAML-012",
+                    "DRUN-YAML-015",
                     f"Invalid repeat value in step `{step_label}`",
                     file=path,
                     line=loc[0] if loc else None,
@@ -818,7 +847,7 @@ def _collect_step_diagnostics(
         elif isinstance(repeat_value, int) and repeat_value < 0:
             add(
                 _diagnostic(
-                    "DRUN-YAML-012",
+                    "DRUN-YAML-015",
                     f"Invalid repeat value in step `{step_label}`",
                     file=path,
                     line=loc[0] if loc else None,
@@ -831,7 +860,7 @@ def _collect_step_diagnostics(
         elif isinstance(repeat_value, str) and not repeat_value.strip():
             add(
                 _diagnostic(
-                    "DRUN-YAML-012",
+                    "DRUN-YAML-015",
                     f"Invalid repeat value in step `{step_label}`",
                     file=path,
                     line=loc[0] if loc else None,
@@ -848,7 +877,7 @@ def _collect_step_diagnostics(
         if isinstance(sleep_value, bool):
             add(
                 _diagnostic(
-                    "DRUN-YAML-012",
+                    "DRUN-YAML-015",
                     f"Invalid sleep value in step `{step_label}`",
                     file=path,
                     line=loc[0] if loc else None,
@@ -861,7 +890,7 @@ def _collect_step_diagnostics(
         elif isinstance(sleep_value, (int, float)) and float(sleep_value) < 0:
             add(
                 _diagnostic(
-                    "DRUN-YAML-012",
+                    "DRUN-YAML-015",
                     f"Invalid sleep value in step `{step_label}`",
                     file=path,
                     line=loc[0] if loc else None,
@@ -874,7 +903,7 @@ def _collect_step_diagnostics(
         elif isinstance(sleep_value, str) and not sleep_value.strip():
             add(
                 _diagnostic(
-                    "DRUN-YAML-012",
+                    "DRUN-YAML-015",
                     f"Invalid sleep value in step `{step_label}`",
                     file=path,
                     line=loc[0] if loc else None,
@@ -886,7 +915,7 @@ def _collect_step_diagnostics(
             )
         incompatible = [
             field
-            for field in ("response", "extract", "export", "validate", "retry")
+            for field in ("response", "extract", "export", "check", "retry")
             if step.get(field)
         ]
         if incompatible:
@@ -897,7 +926,7 @@ def _collect_step_diagnostics(
                     file=path,
                     line=loc[0] if loc else None,
                     yaml_path=f"steps[{idx}]",
-                    hint="Move assertions, extraction, export, response saving, or retry to a request step.",
+                    hint="Move checks, extraction, export, response saving, or retry to a request step.",
                     example=EXAMPLE_SLEEP,
                     raw_text=raw_text,
                 )
@@ -993,7 +1022,7 @@ def _diagnostic_from_case_validation_error(
                 )
             if "sleep" in msg or "repeat" in msg:
                 return _diagnostic(
-                    "DRUN-YAML-012",
+                    "DRUN-YAML-015",
                     msg.replace("Value error, ", ""),
                     file=path,
                     line=line_info[0] if line_info else None,
@@ -1048,7 +1077,7 @@ def _format_case_validation_error(exc: ValidationError, obj: Dict[str, Any], pat
                 "      path: /api/endpoint  # Use 'path', not 'url'"
             )
 
-        # Friendly message when fields (extract/validate/...) are indented under request
+        # Friendly message when fields (extract/check/...) are indented under request
         if (
             err_type == "extra_forbidden"
             and len(loc) >= 4
@@ -1057,7 +1086,7 @@ def _format_case_validation_error(exc: ValidationError, obj: Dict[str, Any], pat
             and loc[2] == "request"
         ):
             field = loc[3]
-            if field in {"extract", "validate", "setup_hooks", "teardown_hooks"}:
+            if field in {"extract", "check", "setup_hooks", "teardown_hooks"}:
                 step_label = _step_name(loc[1])
                 line_info = _find_step_field_location(raw_text, loc[1], field)
                 if line_info:
@@ -1075,11 +1104,11 @@ def _format_case_validation_error(exc: ValidationError, obj: Dict[str, Any], pat
                         "    request:\n"
                         "      ...\n"
                         "    extract: { token: $.data.token }\n"
-                        "    validate: [ { eq: [status_code, 200] } ]"
+                        "    check: [ { eq: [status_code, 200] } ]"
                     )
                 return (
                     f"Invalid YAML indentation in {path}: step '{step_label}' has '{field}' nested under 'request'. "
-                    "Check indentation — 'extract'/'validate' blocks belong alongside 'request', not inside it."
+                    "Check indentation — 'extract'/'check' blocks belong alongside 'request', not inside it."
                 )
 
     # Fallback to default detail when we cannot produce a custom hint

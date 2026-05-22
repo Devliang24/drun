@@ -133,9 +133,9 @@ def summarize_failure_reason(step) -> str:
     if error:
         return str(error).replace("\n", " ").strip()
 
-    for assertion in getattr(step, "asserts", []) or []:
-        if not getattr(assertion, "passed", True):
-            msg = getattr(assertion, "message", None) or "assertion failed"
+    for check in getattr(step, "checks", []) or []:
+        if not getattr(check, "passed", True):
+            msg = getattr(check, "message", None) or "check failed"
             return str(msg).replace("\n", " ").strip()
 
     return "(no error message)"

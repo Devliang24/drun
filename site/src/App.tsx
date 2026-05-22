@@ -31,6 +31,7 @@ import {
 } from './content';
 
 const legacyRouteRedirects: Record<string, string> = {
+  '/docs/assertions-extract': '/docs/checks-extract',
   '/tutorials/first-case': '/docs/getting-started',
   '/tutorials/login-flow': '/docs/composition',
   '/tutorials/check-diagnostics': '/docs/troubleshooting',
@@ -150,7 +151,7 @@ function HomePage() {
     {
       icon: Code2,
       title: '把接口请求写成可维护资产',
-      text: '用 YAML 描述 method、path、headers、body、extract 和 validate，测试内容不再散落在临时脚本和调试记录里。',
+      text: '用 YAML 描述 method、path、headers、body、extract 和 check，测试内容不再散落在临时脚本和调试记录里。',
     },
     {
       icon: GitBranch,
@@ -173,7 +174,7 @@ function HomePage() {
     {
       step: '01',
       title: '写 Case',
-      text: '从一个接口开始，把请求、提取和断言写进 YAML。',
+      text: '从一个接口开始，把请求、提取和检查写进 YAML。',
       icon: Code2,
     },
     {
@@ -252,7 +253,7 @@ function HomePage() {
           <div className="hero-proof" aria-label="Drun 核心价值">
             <div>
               <strong>YAML DSL</strong>
-              <span>请求、变量、断言</span>
+              <span>请求、变量、检查</span>
             </div>
             <div>
               <strong>drun check</strong>

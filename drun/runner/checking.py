@@ -2,23 +2,23 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
-from drun.models.report import AssertionResult, to_report_safe
-from drun.models.validators import Validator
-from drun.runner.assertions import compare
+from drun.models.report import CheckResult, to_report_safe
+from drun.models.checks import Check
+from drun.runner.checks import compare
 
 
-def evaluate_validators(
+def evaluate_checks(
     *,
     runner: Any,
-    validators: List[Validator],
+    check_rules: List[Check],
     variables: Dict[str, Any],
     funcs: Dict[str, Any] | None,
     envmap: Dict[str, Any] | None,
     resp_obj: Dict[str, Any],
-) -> Tuple[List[AssertionResult], bool]:
-    assertions: List[AssertionResult] = []
+) -> Tuple[List[CheckResult], bool]:
+    check_results: List[CheckResult] = []
     step_failed = False
-    for v in validators:
+    for v in check_rules:
         rendered_check = runner._render(v.check, variables, funcs, envmap)
         original_check = v.check.strip() if isinstance(v.check, str) else None
         if not isinstance(rendered_check, str):
@@ -38,9 +38,9 @@ def evaluate_validators(
             addon = ""
             if isinstance(check_str, str) and check_str.startswith("body."):
                 addon = " | unsupported 'body.' syntax; use '$' (e.g., $.path.to.field)"
-            msg = f"Assertion failed: {check_str} {v.comparator} {expect_rendered!r} (actual={actual!r}){addon}"
-        assertions.append(
-            AssertionResult(
+            msg = f"Check failed: {check_str} {v.comparator} {expect_rendered!r} (actual={actual!r}){addon}"
+        check_results.append(
+            CheckResult(
                 check=str(check_str),
                 comparator=v.comparator,
                 expect=to_report_safe(expect_rendered),
@@ -53,16 +53,16 @@ def evaluate_validators(
             step_failed = True
             if runner.log:
                 expect_fmt = runner._format_log_value(expect_rendered)
-                prefix = f"[VALIDATION] {check_str} {v.comparator} {expect_fmt} => actual="
+                prefix = f"[CHECK] {check_str} {v.comparator} {expect_fmt} => actual="
                 indent_len = len(prefix.split("\n")[-1])
                 actual_fmt = runner._format_log_value(actual, prefix_len=indent_len)
                 runner.log.error(prefix + actual_fmt + " | FAIL")
         else:
             if runner.log:
                 expect_fmt = runner._format_log_value(expect_rendered)
-                prefix = f"[VALIDATION] {check_str} {v.comparator} {expect_fmt} => actual="
+                prefix = f"[CHECK] {check_str} {v.comparator} {expect_fmt} => actual="
                 indent_len = len(prefix.split("\n")[-1])
                 actual_fmt = runner._format_log_value(actual, prefix_len=indent_len)
                 runner.log.info(prefix + actual_fmt + " | PASS")
 
-    return assertions, step_failed
+    return check_results, step_failed

@@ -22,10 +22,10 @@ from drun.loader.collector import discover
 from drun.loader.yaml_loader import load_yaml_file
 from drun.loader.env import load_environment
 from drun.models.case import Case
+from drun.models.checks import Check
 from drun.models.config import Config
 from drun.models.request import StepRequest
 from drun.models.step import Step
-from drun.models.validators import Validator
 from drun.runner.runner import Runner
 
 
@@ -209,6 +209,13 @@ class _DrunRootGroup(typer.core.TyperGroup):
     def parse_args(self, ctx: click.Context, args: List[str]) -> List[str]:
         if _looks_like_subcommand_help(args):
             raise click.UsageError(_SUBCOMMAND_HELP_GUIDE, ctx=ctx)
+        if args and args[0] == "q" and any(
+            token == "-validate" or token.startswith("-validate=") for token in args[1:]
+        ):
+            raise click.UsageError(
+                "`-validate` has been renamed to `-check`. Use `-check` instead.",
+                ctx=ctx,
+            )
         return super().parse_args(ctx, args)
 
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
@@ -305,19 +312,19 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
         if not isinstance(step, dict):
             cleaned_steps.append(step)
             continue
-        # Normalize validators to shorthand form expected by loader: {'eq': [status_code, 200]}
-        raw_validators = step.get("validate", []) or []
-        step_validators: List[Dict[str, _FlowSeq]] = []
-        for item in raw_validators:
+        # Normalize checks to shorthand form expected by loader: {'eq': [status_code, 200]}
+        raw_checks = step.get("check", []) or []
+        step_checks: List[Dict[str, _FlowSeq]] = []
+        for item in raw_checks:
             if not isinstance(item, dict):
                 continue
             comparator = item.get("comparator")
             check = item.get("check")
             expect = item.get("expect")
             if comparator and check is not None:
-                step_validators.append({str(comparator): _FlowSeq([check, expect])})
-        if "validate" in step:
-            step.pop("validate", None)
+                step_checks.append({str(comparator): _FlowSeq([check, expect])})
+        if "check" in step:
+            step.pop("check", None)
 
         for field in ("variables", "extract", "setup_hooks", "teardown_hooks"):
             if field in step and not step.get(field):
@@ -346,22 +353,22 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
 
         ensure_body = expect_json or method in {"POST", "PUT", "PATCH"}
 
-        # Add default validators when applicable.
-        def _ensure_validator(
+        # Add default checks when applicable.
+        def _ensure_check(
             comp: str, check_value: str | object, expect_value: object
         ) -> None:
-            for item in step_validators:
+            for item in step_checks:
                 if comp in item:
                     seq = item[comp]
                     if seq and str(seq[0]) == str(check_value):
                         return
-            step_validators.append({comp: _FlowSeq([check_value, expect_value])})
+            step_checks.append({comp: _FlowSeq([check_value, expect_value])})
 
         if expect_json:
-            _ensure_validator("contains", "headers.Content-Type", "application/json")
+            _ensure_check("contains", "headers.Content-Type", "application/json")
 
         if ensure_body:
-            _ensure_validator("ne", "$", None)
+            _ensure_check("ne", "$", None)
 
         reorder_keys = (
             "method",
@@ -394,8 +401,8 @@ def _to_yaml_case_dict(case: Case) -> Dict[str, object]:
         if "stream_timeout" in req and req.get("stream_timeout") is None:
             req.pop("stream_timeout", None)
 
-        if step_validators:
-            step["validate"] = step_validators
+        if step_checks:
+            step["check"] = step_checks
 
         if "retry" in step and (
             step["retry"] is None or step["retry"] == default_retry
@@ -551,7 +558,7 @@ def _make_step_from_imported(imported_step: Any) -> Step:
     return Step(
         name=imported_step.name,
         request=req,
-        validators=[Validator(check="status_code", comparator="eq", expect=200)],
+        checks=[Check(check="status_code", comparator="eq", expect=200)],
     )
 
 
@@ -1321,10 +1328,10 @@ def _quick_parse_expect(text: str) -> Any:
     return s
 
 
-def _quick_parse_validate_expr(expr: str) -> tuple[str, str, Any]:
+def _quick_parse_check_expr(expr: str) -> tuple[str, str, Any]:
     raw = (expr or "").strip()
     if not raw:
-        raise ValueError("Empty validate expression")
+        raise ValueError("Empty check expression")
 
     comparator: str | None = None
     rest = raw
@@ -1353,13 +1360,13 @@ def _quick_parse_validate_expr(expr: str) -> tuple[str, str, Any]:
 
     if pos is None or op_found is None:
         raise ValueError(
-            "Validate expression must contain one of: !=, >=, <=, ==, >, <, ="
+            "Check expression must contain one of: !=, >=, <=, ==, >, <, ="
         )
 
     check = rest[:pos].strip()
     expect_str = rest[pos + len(op_found) :].strip()
     if not check:
-        raise ValueError("Validate check is empty")
+        raise ValueError("Check target is empty")
 
     if comparator is None:
         comparator = {
@@ -1406,7 +1413,7 @@ def quick(
         "-d",
         help="请求体内容；使用 @file 从文件读取（如 -d @body.json）",
     ),
-    validate: List[str] = typer.Option([], "-validate", help="断言表达式（可多次）"),
+    check: List[str] = typer.Option([], "-check", help="检查表达式（可多次）"),
     extract: List[str] = typer.Option(
         [], "-extract", help="提取变量（可多次），格式: name=$expr"
     ),
@@ -1426,7 +1433,7 @@ def quick(
     """快速调试：直接执行 HTTP 请求（httpie 风格），无需 YAML 和环境文件。
 
     默认输出：Status + Body（截断）。
-    退出码：0=通过，1=断言失败，2=参数或请求错误。
+    退出码：0=通过，1=检查失败，2=参数或请求错误。
     """
     secrets_mode = (secrets or "plain").strip().lower()
     if secrets_mode not in {"plain", "mask"}:
@@ -1438,7 +1445,7 @@ def quick(
     from urllib.parse import urlsplit, urlunsplit, parse_qsl
 
     from drun.engine.http import HTTPClient
-    from drun.runner.assertions import compare, OPS
+    from drun.runner.checks import compare, OPS
     from drun.utils.mask import mask_body, mask_headers
 
     raw_url = (url or "").strip()
@@ -1468,36 +1475,36 @@ def quick(
     all_params = list(url_query) + list(extra_params)
     params_obj: Any = all_params if all_params else None
 
-    # Pre-validate validate/extract flags BEFORE sending request (no network)
-    parsed_validations: list[tuple[str, str, Any]] = []
-    for rule in validate or []:
+    # Pre-check check/extract flags BEFORE sending request (no network)
+    parsed_checks: list[tuple[str, str, Any]] = []
+    for rule in check or []:
         try:
-            comp, check, expect = _quick_parse_validate_expr(rule)
+            comp, check_target, expect = _quick_parse_check_expr(rule)
         except ValueError as e:
-            typer.echo(f"[ERROR] Invalid -validate '{rule}': {e}")
+            typer.echo(f"[ERROR] Invalid -check '{rule}': {e}")
             raise typer.Exit(code=2)
 
         if comp not in OPS:
             typer.echo(
-                f"[ERROR] Invalid -validate '{rule}': unknown comparator '{comp}'"
+                f"[ERROR] Invalid -check '{rule}': unknown comparator '{comp}'"
             )
             raise typer.Exit(code=2)
 
         if not (
-            check == "status_code"
-            or check.startswith("headers.")
-            or check.strip().startswith("$")
+            check_target == "status_code"
+            or check_target.startswith("headers.")
+            or check_target.strip().startswith("$")
         ):
             typer.echo(
-                f"[ERROR] Unsupported validate check: {check!r} (use status_code, headers.<name>, or $expr)"
+                f"[ERROR] Unsupported check target: {check_target!r} (use status_code, headers.<name>, or $expr)"
             )
             raise typer.Exit(code=2)
 
-        if check.startswith("headers.") and not check.split(".", 1)[1].strip():
-            typer.echo("[ERROR] Invalid validate check: headers.<name> is required")
+        if check_target.startswith("headers.") and not check_target.split(".", 1)[1].strip():
+            typer.echo("[ERROR] Invalid check target: headers.<name> is required")
             raise typer.Exit(code=2)
 
-        parsed_validations.append((comp, check, expect))
+        parsed_checks.append((comp, check_target, expect))
 
     parsed_extracts: list[tuple[str, str]] = []
     for item in extract or []:
@@ -1662,24 +1669,24 @@ def quick(
             typer.echo(f"[ERROR] Failed to write output file '{output}': {e}")
             raise typer.Exit(code=2)
 
-    # Validate / extract (reuse runner internals for '$' semantics)
+    # Check / extract (reuse runner internals for '$' semantics)
     runner = Runner(log=None)
 
     any_failed = False
 
-    for comp, check, expect in parsed_validations:
-        actual = runner._resolve_check(check, resp_obj)
+    for comp, check_target, expect in parsed_checks:
+        actual = runner._resolve_check(check_target, resp_obj)
         passed, err = compare(comp, actual, expect)
         if err is not None:
-            typer.echo(f"[ERROR] Validate error: {err}")
+            typer.echo(f"[ERROR] Check error: {err}")
             raise typer.Exit(code=2)
 
         if passed:
-            typer.echo(f"Validate: {check} {comp} {expect!r} -> PASS")
+            typer.echo(f"Check: {check_target} {comp} {expect!r} -> PASS")
         else:
             any_failed = True
             typer.echo(
-                f"Validate: {check} {comp} {expect!r} -> FAIL (actual={actual!r})"
+                f"Check: {check_target} {comp} {expect!r} -> FAIL (actual={actual!r})"
             )
 
     extracted: dict[str, Any] = {}
@@ -1718,12 +1725,12 @@ def quick(
                 if isinstance(yaml_body, (dict, list)):
                     yaml_body = mask_body(yaml_body)
 
-            yaml_validations: list[dict[str, _FlowSeq]] = []
-            for comp, check, expect in parsed_validations:
-                yaml_validations.append({str(comp): _FlowSeq([check, expect])})
-            # If user didn't provide validations, use current status_code as a sane default
-            if not yaml_validations and code:
-                yaml_validations.append({"eq": _FlowSeq(["status_code", code])})
+            yaml_checks: list[dict[str, _FlowSeq]] = []
+            for comp, check_target, expect in parsed_checks:
+                yaml_checks.append({str(comp): _FlowSeq([check_target, expect])})
+            # If user didn't provide checks, use current status_code as a sane default.
+            if not yaml_checks and code:
+                yaml_checks.append({"eq": _FlowSeq(["status_code", code])})
 
             yaml_extract: dict[str, str] | None = None
             if parsed_extracts:
@@ -1748,8 +1755,8 @@ def quick(
             }
             if yaml_extract:
                 step_obj["extract"] = yaml_extract
-            if yaml_validations:
-                step_obj["validate"] = yaml_validations
+            if yaml_checks:
+                step_obj["check"] = yaml_checks
 
             case_obj: dict[str, Any] = {
                 "config": {

@@ -9,7 +9,7 @@ from drun.models.config import Config
 from drun.models.report import StepResult
 from drun.models.request import StepRequest
 from drun.models.step import Step
-from drun.models.validators import normalize_validators
+from drun.models.checks import normalize_checks
 from drun.runner.runner import Runner
 from drun.runner.step_lifecycle import StepLifecycle, StepLifecycleContext
 from drun.templating.context import VarContext
@@ -105,7 +105,7 @@ class StepLifecycleRequestTests(unittest.TestCase):
                 step=Step(
                     name="Fetch user ${user_id}",
                     request=StepRequest(method="GET", path="/users/${user_id}"),
-                    validate=normalize_validators(
+                    checks=normalize_checks(
                         [
                             {"eq": ["status_code", 200]},
                             {"eq": ["$.id", "${user_id}"]},
@@ -131,7 +131,7 @@ class StepLifecycleRequestTests(unittest.TestCase):
         step_result = lifecycle_result.results[0]
         self.assertEqual(step_result.name, "Fetch user 42")
         self.assertEqual(step_result.status, "passed")
-        self.assertTrue(all(assertion.passed for assertion in step_result.asserts))
+        self.assertTrue(all(check.passed for check in step_result.checks))
         self.assertEqual(step_result.extracts, {"token": "abc123"})
         self.assertEqual(context.ctx.get_merged({})["token"], "abc123")
         self.assertEqual(envmap["TOKEN"], "abc123")
@@ -170,7 +170,7 @@ class StepLifecycleRequestTests(unittest.TestCase):
                 Step(
                     name="Download",
                     request=StepRequest(method="GET", path="/download"),
-                    validate=normalize_validators([{"eq": ["status_code", 200]}]),
+                    checks=normalize_checks([{"eq": ["status_code", 200]}]),
                 )
             ],
         )

@@ -8,13 +8,13 @@
 
 [在线文档站](https://devliang24.github.io/drun/) · [GitHub](https://github.com/Devliang24/drun)
 
-`Drun` 是一个面向 HTTP API 的 YAML 驱动测试框架。你可以用简洁的 YAML 描述接口、变量提取、断言、套件编排和报告输出，把接口验证、调试和 CI/CD 串成一条可维护的链路。
+`Drun` 是一个面向 HTTP API 的 YAML 驱动测试框架。你可以用简洁的 YAML 描述接口、变量提取、检查、套件编排和报告输出，把接口验证、调试和 CI/CD 串成一条可维护的链路。
 
 ## 核心能力
 
-- YAML DSL：通过 `config`、`steps`、`extract`、`validate`、`caseflow` 编写测试。
+- YAML DSL：通过 `config`、`steps`、`extract`、`check`、`caseflow` 编写测试。
 - 模板系统：支持 `$var`、`${ENV(KEY)}`、`${uuid()}` 等动态表达式。
-- 丰富断言：内置 `eq`、`contains`、`regex`、`len_eq`、`gt` 等校验。
+- 丰富检查：内置 `eq`、`contains`、`regex`、`len_eq`、`gt` 等校验。
 - 测试编排：支持测试套件、`invoke` 调用、步骤 `repeat`、标签过滤。
 - 延时步骤：支持 `sleep: 2000` 这类显式等待 DSL，单位为毫秒。
 - 结果输出：支持 HTML、JSON、Allure 报告，以及日志、代码片段导出。
@@ -91,7 +91,7 @@ steps:
         email: test@example.com
     extract:
       userId: $.data.id
-    validate:
+    check:
       - eq: [status_code, 201]
       - regex: [$.data.id, '^\d+$']
 
@@ -101,7 +101,7 @@ steps:
       path: /users/${ENV(USER_ID)}
       headers:
         Authorization: Bearer ${ENV(API_KEY)}
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 
@@ -139,7 +139,7 @@ steps:
         password: pass123
     extract:
       token: $.data.token
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 
@@ -173,7 +173,7 @@ steps:
       body:
         username: $username
         email: $email
-    validate:
+    check:
       - eq: [status_code, 201]
 ```
 
@@ -186,7 +186,7 @@ steps:
     request:
       method: GET
       path: /health
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 

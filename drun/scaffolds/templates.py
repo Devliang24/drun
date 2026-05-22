@@ -14,7 +14,7 @@ steps:
     request:
       method: GET
       path: /get?page=1&limit=10
-    validate:
+    check:
       - eq: [status_code, 200]
       - eq: [$.args.page, "1"]
 
@@ -29,7 +29,7 @@ steps:
         data: test_${short_uid(6)}
     extract:
       posted_data: $.json.data
-    validate:
+    check:
       - eq: [status_code, 200]
       - contains: [$.json.username, ${ENV(USER_USERNAME)}]
 """
@@ -45,7 +45,7 @@ steps:
     request:
       method: GET
       path: /get
-    validate:
+    check:
       - eq: [status_code, 200]
       - contains: [headers.Content-Type, application/json]
 """
@@ -87,7 +87,7 @@ steps:
         username: $username
         email: $email
         role: $role
-    validate:
+    check:
       - eq: [status_code, 200]
       - eq: [$.json.username, $username]
 """
@@ -318,7 +318,7 @@ steps:
         username: ${ENV(USER_USERNAME)}
     extract:
       token: $.data.token
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 

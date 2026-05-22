@@ -17,8 +17,8 @@ from drun.commands.run import (
     run_cases,
 )
 from drun.models.report import (
-    AssertionResult,
     CaseInstanceResult,
+    CheckResult,
     RunReport,
     StepResult,
 )
@@ -48,8 +48,8 @@ class _StubRunner:
                         StepResult(
                             name=step.name,
                             status="failed",
-                            asserts=[
-                                AssertionResult(
+                            checks=[
+                                CheckResult(
                                     check="status_code",
                                     comparator="eq",
                                     expect=200,
@@ -174,10 +174,10 @@ class SummaryFormattingTests(unittest.TestCase):
                             error="request.files.file path not found: ./data/demo.wav",
                         ),
                         StepResult(
-                            name="Step 2: Validate",
+                            name="Step 2: Check",
                             status="failed",
-                            asserts=[
-                                AssertionResult(
+                            checks=[
+                                CheckResult(
                                     check="status_code",
                                     comparator="eq",
                                     expect=200,
@@ -201,7 +201,7 @@ class SummaryFormattingTests(unittest.TestCase):
         self.assertIn("[FAILED CASES]", text)
         self.assertIn("- Broken Case", text)
         self.assertIn("  failed_step: Step 1: Upload", text)
-        self.assertIn("  failed_step: Step 2: Validate", text)
+        self.assertIn("  failed_step: Step 2: Check", text)
         self.assertIn(
             "  reason: request.files.file path not found: ./data/demo.wav", text
         )
@@ -536,7 +536,7 @@ steps:
     request:
       method: POST
       path: /upload
-  - name: "Step 2: Validate"
+  - name: "Step 2: Check"
     request:
       method: GET
       path: /status
@@ -605,7 +605,7 @@ steps:
             self.assertIn("- Broken Case", log_text)
             self.assertIn("- Another Broken Case", log_text)
             self.assertIn("  failed_step: Step 1: Upload", log_text)
-            self.assertIn("  failed_step: Step 2: Validate", log_text)
+            self.assertIn("  failed_step: Step 2: Check", log_text)
             self.assertIn(
                 "  reason: request.files.file path not found: ./data/demo.wav", log_text
             )

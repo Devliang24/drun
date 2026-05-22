@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from drun.models.report import AssertionResult, CaseInstanceResult, RunReport, StepResult
+from drun.models.report import CheckResult, CaseInstanceResult, RunReport, StepResult
 from drun.reporter.html_reporter import _build_step, write_html
 
 
@@ -20,22 +20,22 @@ class HtmlReporterLayoutTests(unittest.TestCase):
                 "path": "/api_v2/approvals?page_number=1&page_size=20&status=1&type=1&applicant_name=lab1&created_start_time=1776949634&created_end_time=1776949644",
             },
             response={"status_code": 200, "body": {"ok": True}},
-            asserts=[
-                AssertionResult(
+            checks=[
+                CheckResult(
                     check="status_code",
                     comparator="eq",
                     expect=200,
                     actual=200,
                     passed=True,
                 ),
-                AssertionResult(
+                CheckResult(
                     check="$.data.total",
                     comparator="ge",
                     expect=1,
                     actual=1,
                     passed=True,
                 ),
-                AssertionResult(
+                CheckResult(
                     check="$.data.items[0].id",
                     comparator="exists",
                     expect=True,
@@ -51,7 +51,7 @@ class HtmlReporterLayoutTests(unittest.TestCase):
         self.assertIn("class='st-head-main'", html)
         self.assertIn("class='st-head-side'", html)
         self.assertIn("class='st-head-duration muted'>150.9 ms</span>", html)
-        self.assertIn("class='st-head-asserts muted'>断言: 3 ✓ / 0 ✗</span>", html)
+        self.assertIn("class='st-head-checks muted'>检查: 3 ✓ / 0 ✗</span>", html)
 
     def test_build_step_uses_icon_only_copy_button(self) -> None:
         html = _build_step(self._build_step_result(), step_idx=2)

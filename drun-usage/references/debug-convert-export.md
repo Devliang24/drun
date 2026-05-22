@@ -4,14 +4,14 @@
 
 ## `drun q`：先打通请求，再决定要不要落 YAML
 
-`q` 直接发 HTTP 请求，不依赖 YAML。适合单接口调试、校验 headers/body、快速试断言和提取。
+`q` 直接发 HTTP 请求，不依赖 YAML。适合单接口调试、校验 headers/body、快速试检查和提取。
 
 ```bash
 drun q https://api.example.com/api/login \
   -X POST \
   -H 'Content-Type: application/json' \
   -d '{"username":"alice","password":"secret"}' \
-  -validate 'status_code=200' \
+  -check 'status_code=200' \
   -extract 'token=$.data.token' \
   -max-body 4096 \
   -save-yaml testcases/test_login_from_q.yaml \
@@ -23,9 +23,9 @@ drun q https://api.example.com/api/login \
 - `-H 'Key: Value'`
 - `-p k=v`
 - `-d @body.json`
-- `-validate 'status_code=200'`
-- `-validate '$.data.count>0'`
-- `-validate 'len_ge:$.items=1'`
+- `-check 'status_code=200'`
+- `-check '$.data.count>0'`
+- `-check 'len_ge:$.items=1'`
 - `-extract 'token=$.data.token'`
 - `-max-body 4096`
 - `-o body.json`
@@ -36,7 +36,7 @@ drun q https://api.example.com/api/login \
 
 - `q` 适合快速试请求，不适合多步链路编排
 - `-save-yaml` 生成的是单 case 骨架，复杂复用还要再手工整理
-- 退出码：`0` 表示请求和断言通过，`1` 表示断言失败，`2` 表示参数或请求错误
+- 退出码：`0` 表示请求和检查通过，`1` 表示检查失败，`2` 表示参数或请求错误
 
 ## `drun convert`：从 cURL / HAR / Postman 迁移
 
@@ -82,7 +82,7 @@ drun convert-openapi spec/openapi/ecommerce_api.json \
 - 输入支持 `.json` / `.yaml`
 - `-tags` 会按 OpenAPI operation tags 过滤
 - `-base-url` 不传时，优先取 spec `servers[0].url`，再退化到 `http://localhost:8000`
-- 生成结果更适合“起手骨架”，断言、提取、鉴权通常还需要手补
+- 生成结果更适合“起手骨架”，检查、提取、鉴权通常还需要手补
 
 ## `drun export curl`：从现有 case 反推可复现请求
 

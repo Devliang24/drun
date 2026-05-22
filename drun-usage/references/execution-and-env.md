@@ -58,7 +58,7 @@ steps:
     extract:
       token: $.data.token
       user_id: $.data.user_id
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 

@@ -24,7 +24,7 @@ steps:
     extract:
       token: $.data.token
       user_id: $.data.user_id
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 
@@ -42,7 +42,7 @@ steps:
       path: /api/users/${user_id}
       headers:
         Authorization: Bearer ${token}
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 
@@ -122,7 +122,7 @@ steps:
     request:
       method: GET
       path: /api/orders/${order_id}
-    validate:
+    check:
       - eq: [status_code, 200]
 
   - name: 等待异步处理
@@ -133,7 +133,7 @@ steps:
 
 - `repeat` 解析后必须是整数，且 `>= 0`
 - `sleep` 单位是毫秒，解析后必须是有限数字
-- `sleep` step 不能再带 `validate`、`extract`、`export`、`response`、`retry`
+- `sleep` step 不能再带 `check`、`extract`、`export`、`response`、`retry`
 
 ## hooks
 
@@ -185,7 +185,7 @@ steps:
       body:
         username: $username
         password: $password
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 

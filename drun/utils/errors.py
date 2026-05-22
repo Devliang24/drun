@@ -36,7 +36,7 @@ DIAGNOSTIC_CODE_CATALOG: tuple[DiagnosticCode, ...] = (
     DiagnosticCode(
         "DRUN-YAML-005",
         "Invalid request nesting",
-        "A step field such as `validate`, `extract`, or hooks is incorrectly nested under `request`.",
+        "A step field such as `check`, `extract`, or hooks is incorrectly nested under `request`.",
     ),
     DiagnosticCode(
         "DRUN-YAML-006",
@@ -70,8 +70,8 @@ DIAGNOSTIC_CODE_CATALOG: tuple[DiagnosticCode, ...] = (
     ),
     DiagnosticCode(
         "DRUN-YAML-012",
-        "Invalid repeat or sleep value",
-        "`repeat` or `sleep` has an unsupported value type or range.",
+        "Legacy validate field",
+        "`validate` has been renamed to `check`.",
     ),
     DiagnosticCode(
         "DRUN-YAML-013",
@@ -82,6 +82,11 @@ DIAGNOSTIC_CODE_CATALOG: tuple[DiagnosticCode, ...] = (
         "DRUN-YAML-014",
         "Invalid step spacing",
         "Step items are missing the blank line required by `drun check` style validation.",
+    ),
+    DiagnosticCode(
+        "DRUN-YAML-015",
+        "Invalid repeat or sleep value",
+        "`repeat` or `sleep` has an unsupported value type or range.",
     ),
     DiagnosticCode(
         "DRUN-YAML-999",

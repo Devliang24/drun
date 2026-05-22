@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any, List, Dict, Optional
 
-from drun.models.report import RunReport, CaseInstanceResult, StepResult, AssertionResult, NotifyResult
+from drun.models.report import RunReport, CaseInstanceResult, StepResult, CheckResult, NotifyResult
 from drun.utils.config import get_system_name
 
 
@@ -70,8 +70,8 @@ def _copy_button() -> str:
     )
 
 
-def _format_assert_value(value: Any) -> str:
-    """Format assertion value: strings without quotes, others with JSON"""
+def _format_check_value(value: Any) -> str:
+    """Format check value: strings without quotes, others with JSON."""
     if value is None:
         return "null"
     if isinstance(value, str):
@@ -84,19 +84,19 @@ def _format_assert_value(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def _build_assert_table(asserts: List[AssertionResult]) -> str:
+def _build_check_table(checks: List[CheckResult]) -> str:
     rows = []
-    for a in asserts or []:
+    for a in checks or []:
         cells = [
             f"<td><code>{_escape_html(str(a.check))}</code></td>",
             f"<td><code>{_escape_html(str(a.comparator))}</code></td>",
-            f"<td><code>{_escape_html(_format_assert_value(a.expect))}</code></td>",
-            f"<td><code>{_escape_html(_format_assert_value(a.actual))}</code></td>",
+            f"<td><code>{_escape_html(_format_check_value(a.expect))}</code></td>",
+            f"<td><code>{_escape_html(_format_check_value(a.actual))}</code></td>",
             ("<td><span class='ok'>✓</span></td>" if a.passed else f"<td><span class='err' title='{_escape_html(a.message or '')}'>✗</span></td>")
         ]
         rows.append("<tr " + ("data-pass=1" if a.passed else "data-pass=0") + ">" + "".join(cells) + "</tr>")
     thead = "<thead><tr><th>check</th><th>op</th><th>expect</th><th>actual</th><th>结果</th></tr></thead>"
-    return f"<table class='assert-table'>{thead}<tbody>{''.join(rows)}</tbody></table>"
+    return f"<table class='check-table'>{thead}<tbody>{''.join(rows)}</tbody></table>"
 
 
 def _extract_merged_content(events: List[Dict[str, Any]]) -> str:
@@ -190,8 +190,8 @@ def _build_stream_response_panel(response_map: Dict[str, Any]) -> str:
 
 
 def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
-    pass_cnt = sum(1 for a in (step.asserts or []) if a.passed)
-    fail_cnt = sum(1 for a in (step.asserts or []) if not a.passed)
+    pass_cnt = sum(1 for a in (step.checks or []) if a.passed)
+    fail_cnt = sum(1 for a in (step.checks or []) if not a.passed)
 
     request_map = step.request if isinstance(step.request, dict) else {}
     response_map = step.response if isinstance(step.response, dict) else {}
@@ -269,7 +269,7 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
         "<div class='st-head-side'>"
         f"<span class='pill {step.status} st-head-status'>{step.status}</span>"
         f"<span class='st-head-duration muted'>{step.duration_ms:.1f} ms</span>"
-        f"<span class='st-head-asserts muted'>断言: {pass_cnt} ✓ / {fail_cnt} ✗</span>"
+        f"<span class='st-head-checks muted'>检查: {pass_cnt} ✓ / {fail_cnt} ✗</span>"
         "</div>"
     )
 
@@ -335,11 +335,11 @@ def _build_step(step: StepResult, step_idx: Optional[int] = None) -> str:
             "</div>"
         )
 
-    # Asserts table
+    # Checks table
     panels.append(
         "<div class='panel' style='margin-top:8px;'>"
-        "<div class='p-head'><span>断言</span></div>"
-        + _build_assert_table(step.asserts or [])
+        "<div class='p-head'><span>检查</span></div>"
+        + _build_check_table(step.checks or [])
         + "</div>"
     )
 
@@ -478,7 +478,7 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
   .step .st-head-main > div { min-width:0; overflow-wrap:anywhere; }
   .step .st-head .st-meta { font-size: 12px; font-weight: 500; margin-left: 8px; color: var(--muted); }
   .step .st-head-side { display:inline-flex; align-items:center; justify-content:flex-end; gap:8px; flex:0 0 auto; flex-wrap:nowrap; white-space:nowrap; text-align:right; }
-  .step .st-head-duration, .step .st-head-asserts { white-space:nowrap; }
+  .step .st-head-duration, .step .st-head-checks { white-space:nowrap; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
   .panel { border:1px solid var(--border); border-radius:8px; overflow:hidden; }
   .panel .p-head { padding:6px 8px; background:var(--panel-head-bg); color:var(--muted); font-size:12px; display:flex; justify-content:space-between; align-items:center; }
@@ -493,11 +493,11 @@ def write_html(report: RunReport, outfile: str | Path, environment: Optional[str
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   th { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; text-align: left; font-weight: 600; }
   td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; word-break: break-word; }
-  .assert-table th:nth-child(1), .assert-table td:nth-child(1) { width: 23%; }
-  .assert-table th:nth-child(2), .assert-table td:nth-child(2) { width: 15%; }
-  .assert-table th:nth-child(3), .assert-table td:nth-child(3) { width: 23%; }
-  .assert-table th:nth-child(4), .assert-table td:nth-child(4) { width: 24%; }
-  .assert-table th:nth-child(5), .assert-table td:nth-child(5) { width: 15%; text-align: center; }
+  .check-table th:nth-child(1), .check-table td:nth-child(1) { width: 23%; }
+  .check-table th:nth-child(2), .check-table td:nth-child(2) { width: 15%; }
+  .check-table th:nth-child(3), .check-table td:nth-child(3) { width: 23%; }
+  .check-table th:nth-child(4), .check-table td:nth-child(4) { width: 24%; }
+  .check-table th:nth-child(5), .check-table td:nth-child(5) { width: 15%; text-align: center; }
   .ok { color: var(--ok); }
   .err { color: var(--fail); }
   .muted { color: var(--muted); }

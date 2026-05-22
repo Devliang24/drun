@@ -16,10 +16,10 @@ def collect_failures(report: RunReport, topn: int = 5) -> List[Tuple[str, str, s
         for s in c.steps:
             if s.status == "failed":
                 step_name = s.name
-                # prefer assertion message
-                for a in s.asserts:
+                # prefer check message
+                for a in s.checks:
                     if not a.passed:
-                        message = a.message or "assertion failed"
+                        message = a.message or "check failed"
                         break
                 if not message and s.error:
                     message = s.error
@@ -40,11 +40,11 @@ def collect_failed_steps(report: RunReport, topn: int = 5) -> List[Tuple[str, st
     for case in report.cases:
         for step in case.steps:
             if step.status == "failed":
-                # 获取错误信息，优先使用断言失败信息
+                # 获取错误信息，优先使用检查失败信息
                 error_msg = ""
-                for assertion in step.asserts:
-                    if not assertion.passed:
-                        error_msg = assertion.message or "assertion failed"
+                for check in step.checks:
+                    if not check.passed:
+                        error_msg = check.message or "check failed"
                         break
                 if not error_msg and step.error:
                     error_msg = step.error

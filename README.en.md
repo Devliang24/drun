@@ -6,13 +6,13 @@
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-`Drun` is a YAML-driven HTTP API testing framework. It lets you describe requests, variable extraction, assertions, suite orchestration, and report output in concise YAML, making API validation, debugging, and CI/CD execution easier to maintain.
+`Drun` is a YAML-driven HTTP API testing framework. It lets you describe requests, variable extraction, checks, suite orchestration, and report output in concise YAML, making API validation, debugging, and CI/CD execution easier to maintain.
 
 ## Highlights
 
-- YAML DSL: write tests with `config`, `steps`, `extract`, `validate`, and `caseflow`.
+- YAML DSL: write tests with `config`, `steps`, `extract`, `check`, and `caseflow`.
 - Template system: supports `$var`, `${ENV(KEY)}`, `${uuid()}`, and other dynamic expressions.
-- Rich assertions: built-in checks such as `eq`, `contains`, `regex`, `len_eq`, and `gt`.
+- Rich checks: built-in checks such as `eq`, `contains`, `regex`, `len_eq`, and `gt`.
 - Test orchestration: supports suites, `invoke`, step `repeat`, and tag filtering.
 - Sleep steps: supports explicit wait DSL such as `sleep: 2000`, using milliseconds.
 - Outputs: HTML, JSON, Allure reports, logs, and generated code snippets.
@@ -89,7 +89,7 @@ steps:
         email: test@example.com
     extract:
       userId: $.data.id
-    validate:
+    check:
       - eq: [status_code, 201]
       - regex: [$.data.id, '^\d+$']
 
@@ -99,7 +99,7 @@ steps:
       path: /users/${ENV(USER_ID)}
       headers:
         Authorization: Bearer ${ENV(API_KEY)}
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 
@@ -137,7 +137,7 @@ steps:
         password: pass123
     extract:
       token: $.data.token
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 
@@ -171,7 +171,7 @@ steps:
       body:
         username: $username
         email: $email
-    validate:
+    check:
       - eq: [status_code, 201]
 ```
 
@@ -184,7 +184,7 @@ steps:
     request:
       method: GET
       path: /health
-    validate:
+    check:
       - eq: [status_code, 200]
 ```
 

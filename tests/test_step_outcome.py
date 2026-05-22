@@ -8,7 +8,7 @@ import unittest
 
 from drun.models.request import StepRequest
 from drun.models.step import Step, StepResponseConfig
-from drun.models.validators import normalize_validators
+from drun.models.checks import normalize_checks
 from drun.runner.runner import Runner
 from drun.runner.step_outcome import StepOutcomeContext, process_step_outcome
 from drun.templating.context import VarContext
@@ -64,7 +64,7 @@ class StepOutcomeTests(unittest.TestCase):
                             "columns": ["id", "name"],
                         }
                     },
-                    validate=normalize_validators(
+                    checks=normalize_checks(
                         [
                             {"eq": ["status_code", 200]},
                             {"eq": ["$.token", "abc123"]},
@@ -92,7 +92,7 @@ class StepOutcomeTests(unittest.TestCase):
                 self.assertEqual(outcome.variables["token"], "abc123")
                 self.assertEqual(envmap["TOKEN"], "abc123")
                 self.assertEqual(envmap["token"], "abc123")
-                self.assertTrue(all(assertion.passed for assertion in outcome.assertions))
+                self.assertTrue(all(check.passed for check in outcome.checks))
                 self.assertEqual((tmpdir / "download.bin").read_bytes(), raw_bytes)
                 self.assertIn(
                     "id,name",

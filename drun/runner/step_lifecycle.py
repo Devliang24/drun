@@ -731,7 +731,7 @@ class StepLifecycle:
                 request=request_projection.report_request,
                 response=outcome.report_response,
                 curl=request_projection.curl,
-                asserts=outcome.assertions,
+                checks=outcome.checks,
                 extracts=outcome.extracts,
                 duration_ms=resp_obj.get("elapsed_ms") or 0.0,
                 error=outcome.error,

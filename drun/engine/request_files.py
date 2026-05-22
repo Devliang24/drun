@@ -14,7 +14,7 @@ class RequestFilesError(ValueError):
 
 
 def validate_request_files_shape(files: Any, *, source: str = "request.files") -> None:
-    """Validate YAML-friendly request.files shapes without touching the filesystem."""
+    """Check YAML-friendly request.files shapes without touching the filesystem."""
     if files is None:
         return
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable, Dict, Tuple
 
-from drun.extensions import assertion_registry, register_assertion
+from drun.extensions import check_registry, register_check
 
 
 def _len(x: Any) -> int:
@@ -57,7 +57,7 @@ def op_exists(a: Any, b: Any) -> bool:
     return (a is not None) == should_exist
 
 
-_DEFAULT_ASSERTIONS: Dict[str, Callable[[Any, Any], bool]] = {
+_DEFAULT_CHECKS: Dict[str, Callable[[Any, Any], bool]] = {
     "eq": op_eq,
     "ne": op_ne,
     "neq": op_ne,
@@ -80,10 +80,10 @@ _DEFAULT_ASSERTIONS: Dict[str, Callable[[Any, Any], bool]] = {
     "exists": op_exists,
 }
 
-for _name, _fn in _DEFAULT_ASSERTIONS.items():
-    register_assertion(_name, _fn)
+for _name, _fn in _DEFAULT_CHECKS.items():
+    register_check(_name, _fn)
 
-OPS = assertion_registry()
+OPS = check_registry()
 
 
 def compare(comparator: str, actual: Any, expect: Any) -> Tuple[bool, str | None]:

@@ -45,7 +45,7 @@ class NotifyResult(BaseModel):
     status: str    # success, failed
 
 
-class AssertionResult(BaseModel):
+class CheckResult(BaseModel):
     check: str
     comparator: str
     expect: Any
@@ -62,7 +62,7 @@ class StepResult(BaseModel):
     repeat_total: Optional[int] = None
     request: Dict[str, Any] = Field(default_factory=dict)
     response: Dict[str, Any] = Field(default_factory=dict)
-    asserts: List[AssertionResult] = Field(default_factory=list)
+    checks: List[CheckResult] = Field(default_factory=list)
     extracts: Dict[str, Any] = Field(default_factory=dict)
     curl: Optional[str] = None
     status: str  # passed|failed|skipped
