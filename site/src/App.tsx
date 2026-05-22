@@ -16,14 +16,28 @@ import {
   homeCli,
   homeYaml,
   pageById,
-  tutorialCards,
-  tutorialPages,
   type ArticlePage as ArticlePageType,
   type ArticleSection,
   type CodeSample,
 } from './content';
 
+const legacyRouteRedirects: Record<string, string> = {
+  '/tutorials/first-case': '/docs/getting-started',
+  '/tutorials/login-flow': '/docs/composition',
+  '/tutorials/check-diagnostics': '/docs/troubleshooting',
+  '/tutorials/curl-openapi': '/docs/debug-migration',
+};
+
 function routeFromHash() {
+  const raw = window.location.hash.replace(/^#/, '');
+  if (!raw || raw === '/') {
+    return '/';
+  }
+  const route = raw.startsWith('/') ? raw : `/${raw}`;
+  return legacyRouteRedirects[route] ?? route;
+}
+
+function rawRouteFromHash() {
   const raw = window.location.hash.replace(/^#/, '');
   if (!raw || raw === '/') {
     return '/';
@@ -68,7 +82,6 @@ function Header({ route }: { route: string }) {
   const nav = [
     { label: '首页', path: '/' },
     { label: '文档', path: '/docs/getting-started' },
-    { label: '教程', path: '/tutorials/first-case' },
     { label: '排障', path: '/docs/troubleshooting' },
   ];
   const isNavActive = (path: string) => {
@@ -80,9 +93,6 @@ function Header({ route }: { route: string }) {
     }
     if (path.startsWith('/docs')) {
       return route.startsWith('/docs') && route !== '/docs/troubleshooting';
-    }
-    if (path.startsWith('/tutorials')) {
-      return route.startsWith('/tutorials');
     }
     return route === path;
   };
@@ -131,7 +141,7 @@ function HomePage() {
       <section className="home-hero">
         <div className="hero-copy">
           <p className="eyebrow">YAML 驱动的 HTTP API 测试框架</p>
-          <h1>Drun 用户教程</h1>
+          <h1>Drun 用户指南</h1>
           <p className="lead">
             从第一个 Case 到登录后链路、参数化、报告输出和 YAML 排障，按真实使用路径学习 Drun。
           </p>
@@ -223,21 +233,28 @@ function HomePage() {
         </div>
       </section>
 
-      <section className="home-section tutorials-index">
+      <section className="home-section reading-path">
         <div className="section-heading">
-          <p className="eyebrow">教程博客</p>
-          <h2>按真实工作流练习</h2>
+          <p className="eyebrow">推荐阅读路径</p>
+          <h2>把实战步骤放在文档里读完</h2>
         </div>
-        <div className="tutorial-list">
-          {tutorialCards.map((tutorial) => (
-            <a className="tutorial-link-card" href={href(tutorial.path)} key={tutorial.id}>
-              <h3>{tutorial.title}</h3>
-              <p>{tutorial.description}</p>
-              <span>
-                阅读教程 <ArrowRight size={16} />
-              </span>
-            </a>
-          ))}
+        <div className="reading-steps">
+          {[
+            pageById('getting-started'),
+            pageById('composition'),
+            pageById('troubleshooting'),
+            pageById('debug-migration'),
+          ].map((page) =>
+            page ? (
+              <a className="reading-step" href={href(page.path)} key={page.id}>
+                <h3>{page.title}</h3>
+                <p>{page.description}</p>
+                <span>
+                  阅读文档 <ArrowRight size={16} />
+                </span>
+              </a>
+            ) : null,
+          )}
         </div>
       </section>
     </main>
@@ -263,14 +280,6 @@ function Sidebar({ route }: { route: string }) {
           })}
         </div>
       ))}
-      <div className="sidebar-group">
-        <p>教程博客</p>
-        {tutorialPages.map((page) => (
-          <a className={route === page.path ? 'active' : ''} href={href(page.path)} key={page.id}>
-            {page.title}
-          </a>
-        ))}
-      </div>
     </aside>
   );
 }
@@ -323,7 +332,7 @@ function ArticlePage({ page, route }: { page: ArticlePageType; route: string }) 
       <article className="article">
         <div className="article-hero">
           <Icon size={30} />
-          <p className="eyebrow">{route.startsWith('/tutorials') ? '教程博客' : '用户指南'}</p>
+          <p className="eyebrow">用户指南</p>
           <h1>{page.title}</h1>
           <p>{page.description}</p>
         </div>
@@ -353,7 +362,7 @@ function Footer() {
     <footer className="footer">
       <div>
         <strong>Drun</strong>
-        <p>中文用户教程文档站。</p>
+        <p>中文用户指南文档站。</p>
       </div>
       <div className="footer-links">
         <a href="https://github.com/Devliang24/drun" target="_blank" rel="noreferrer">
@@ -372,7 +381,21 @@ export function App() {
   const currentPage = useMemo(() => findPage(route), [route]);
 
   useEffect(() => {
+    const rawRoute = rawRouteFromHash();
+    const redirect = legacyRouteRedirects[rawRoute];
+    if (redirect) {
+      window.location.replace(`${window.location.pathname}${window.location.search}#${redirect}`);
+    }
+  }, []);
+
+  useEffect(() => {
     function onHashChange() {
+      const rawRoute = rawRouteFromHash();
+      const redirect = legacyRouteRedirects[rawRoute];
+      if (redirect) {
+        window.location.replace(`${window.location.pathname}${window.location.search}#${redirect}`);
+        return;
+      }
       setRoute(routeFromHash());
       window.scrollTo({ top: 0 });
     }

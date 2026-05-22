@@ -3,11 +3,9 @@ import {
   Bug,
   CheckCircle2,
   Code2,
-  FileArchive,
   FileJson2,
   FileText,
   GitBranch,
-  Layers3,
   PlayCircle,
   Repeat2,
   ServerCog,
@@ -41,13 +39,6 @@ export type ArticlePage = {
 export type DocGroup = {
   title: string;
   pages: string[];
-};
-
-export type TutorialCard = {
-  id: string;
-  title: string;
-  description: string;
-  path: string;
 };
 
 export const homeYaml = `config:
@@ -166,6 +157,24 @@ drun run test_login -env dev`,
         code: {
           language: 'text',
           code: commonOutput,
+        },
+      },
+      {
+        id: 'practice',
+        title: '完整练习：从 0 写第一个 Case',
+        body: ['新项目建议先只沉淀一个登录接口。确认环境、路径、请求体、状态码断言和 token 提取都正确后，再继续扩展链路。'],
+        code: {
+          title: '创建环境文件',
+          language: 'bash',
+          code: `drun init demo-api
+cd demo-api
+cat > .env.dev <<'EOF'
+BASE_URL=https://api.example.com
+API_KEY=demo-token
+EOF
+
+drun check testcases/test_login.yaml
+drun run testcases/test_login.yaml -env dev`,
         },
       },
       {
@@ -727,6 +736,34 @@ drun run testsuites/smoke.yaml -env dev -failfast`,
         },
       },
       {
+        id: 'practice',
+        title: '完整练习：登录后业务链路',
+        body: ['登录后链路不要写成一个巨大的 YAML。把登录、资料查询、业务动作拆成独立 Case，再由 suite 表达执行顺序。'],
+        code: {
+          language: 'yaml',
+          code: `config:
+  name: 登录后冒烟链路
+
+caseflow:
+  - name: 登录成功
+    invoke: test_auth
+    invoke_case_name: 登录成功
+
+  - name: 查询用户资料
+    invoke: test_profile
+
+  - name: 提交业务动作
+    invoke: test_submit_order
+
+  - name: 等待异步处理
+    sleep: 2000
+
+  - name: 查询处理结果
+    invoke: test_order_status
+    repeat: 3`,
+        },
+      },
+      {
         id: 'pitfalls',
         title: '常见坑',
         body: [
@@ -949,6 +986,22 @@ Checked 1 file(s): 1 OK, 0 failed, 0 error(s).`,
         },
       },
       {
+        id: 'practice',
+        title: '完整练习：从 cURL / OpenAPI 迁移',
+        body: ['迁移流程是“先转换，再检查，再补断言”。转换产物能帮你起步，但最终测试资产需要替换真实密钥、补充变量和业务断言。'],
+        code: {
+          language: 'bash',
+          code: `drun convert sample.curl -outfile converts/sample.yaml
+drun convert-openapi spec/openapi/ecommerce_api.json \\
+  -output-mode split \\
+  -outfile converts/ecommerce.yaml
+
+drun check converts/ecommerce.yaml
+drun run converts/ecommerce.yaml -env dev
+drun export curl testcases/test_user_api.yaml -outfile request.curl`,
+        },
+      },
+      {
         id: 'pitfalls',
         title: '常见坑',
         body: [
@@ -1050,6 +1103,26 @@ Checked 8 file(s): 6 OK, 2 failed, 3 error(s).`,
         },
       },
       {
+        id: 'practice',
+        title: '完整练习：用 check 修作者错误',
+        body: ['团队批量写 YAML 后，先用 `drun check` 清掉字段写错、缩进错误和旧 DSL 写法，再运行真实请求。'],
+        code: {
+          language: 'text',
+          code: `$ drun check testcases
+FAIL testcases/test_a.yaml
+  DRUN-YAML-003 Invalid request field: request.url
+  DRUN-YAML-004 request.json is not supported
+
+FAIL testcases/test_b.yaml
+  DRUN-YAML-006 Invalid parameter location
+
+Checked 10 file(s): 8 OK, 2 failed, 3 error(s).
+
+$ drun check testcases
+Checked 10 file(s): 10 OK, 0 failed, 0 error(s).`,
+        },
+      },
+      {
         id: 'pitfalls',
         title: '常见坑',
         body: [
@@ -1069,321 +1142,17 @@ export const docGroups: DocGroup[] = [
   { title: '运行与输出', pages: ['execution-env', 'reports', 'debug-migration', 'troubleshooting'] },
 ];
 
-export const tutorialPages: ArticlePage[] = [
-  {
-    id: 'first-case',
-    path: '/tutorials/first-case',
-    title: '从 0 写第一个 Drun Case',
-    description: '面向第一次落地 Drun 的完整练习：初始化、写环境、写 YAML、检查和运行。',
-    icon: FileText,
-    sections: [
-      {
-        id: 'when',
-        title: '适用场景',
-        body: ['你刚接手一个 API 项目，想先把一个登录接口沉淀成可重复运行的测试。'],
-      },
-      {
-        id: 'minimal',
-        title: '最小示例',
-        body: ['先创建项目和环境文件。'],
-        code: {
-          language: 'bash',
-          code: `drun init demo-api
-cd demo-api
-cat > .env.dev <<'EOF'
-BASE_URL=https://api.example.com
-API_KEY=demo-token
-EOF`,
-        },
-      },
-      {
-        id: 'full',
-        title: '完整示例',
-        body: ['把登录请求写成 YAML。新用户先关注路径、请求体、状态码断言和 token 提取这四件事。'],
-        code: {
-          language: 'yaml',
-          code: `config:
-  name: 第一个登录 Case
-  base_url: \${ENV(BASE_URL)}
-
-steps:
-  - name: 登录
-    request:
-      method: POST
-      path: /login
-      headers:
-        Authorization: Bearer \${ENV(API_KEY)}
-      body:
-        username: demo
-        password: pass123
-    extract:
-      token: $.data.token
-    validate:
-      - eq: [status_code, 200]
-      - contains: [$.message, success]`,
-        },
-      },
-      {
-        id: 'command',
-        title: '运行命令',
-        body: ['把检查和运行分开，更容易判断是 YAML 写错还是接口失败。'],
-        code: {
-          language: 'bash',
-          code: `drun check testcases/test_login.yaml
-drun run testcases/test_login.yaml -env dev`,
-        },
-      },
-      {
-        id: 'output',
-        title: '预期输出',
-        body: ['成功后你应该看到登录 Step passed，并能在报告里看到 token 提取记录。'],
-        code: {
-          language: 'text',
-          code: `[STEP] 登录 passed
-[EXTRACT] token <- $.data.token
-[SUMMARY] Cases Pass Rate 100.00%`,
-        },
-      },
-      {
-        id: 'pitfalls',
-        title: '常见坑',
-        body: ['不要把真实 API_KEY 写进 YAML；不要一开始就写很长链路，先让一个接口稳定通过。'],
-        kind: 'tip',
-      },
-    ],
-  },
-  {
-    id: 'login-flow',
-    path: '/tutorials/login-flow',
-    title: '用 invoke 组织登录后业务链路',
-    description: '把登录、查询资料、提交业务动作拆成独立 Case，再用 suite 串起来。',
-    icon: Layers3,
-    sections: [
-      {
-        id: 'when',
-        title: '适用场景',
-        body: ['登录后链路经常变长。拆成小 Case 可以让失败定位更清楚，也方便复用登录、查询等基础能力。'],
-      },
-      {
-        id: 'minimal',
-        title: '最小示例',
-        body: ['套件只描述顺序，不承载具体请求细节。'],
-        code: {
-          language: 'yaml',
-          code: `config:
-  name: 登录后冒烟链路
-
-caseflow:
-  - name: 登录
-    invoke: test_login
-
-  - name: 查询用户资料
-    invoke: test_profile`,
-        },
-      },
-      {
-        id: 'full',
-        title: '完整示例',
-        body: ['当一个文件包含多个 Case 时，使用 `invoke_case_name` 或 `invoke_case_names` 选择目标。'],
-        code: {
-          language: 'yaml',
-          code: `config:
-  name: 下单链路
-
-caseflow:
-  - name: 登录成功
-    invoke: test_auth
-    invoke_case_name: 登录成功
-
-  - name: 创建两类订单
-    invoke: test_order
-    invoke_case_names: [创建普通订单, 创建优惠订单]
-
-  - name: 等待异步处理
-    sleep: 2000
-
-  - name: 查询订单状态
-    invoke: test_order_status
-    repeat: 3`,
-        },
-      },
-      {
-        id: 'command',
-        title: '运行命令',
-        body: ['链路调试时建议开启 failfast，先修第一个失败点。'],
-        code: {
-          language: 'bash',
-          code: `drun check testsuites/order_flow.yaml
-drun run testsuites/order_flow.yaml -env dev -failfast -html reports/order-flow.html`,
-        },
-      },
-      {
-        id: 'output',
-        title: '预期输出',
-        body: ['报告中可以看到 suite 展开后的每个 Case。'],
-        code: {
-          language: 'text',
-          code: `[CASEFLOW] 登录成功 passed
-[CASEFLOW] 创建普通订单 passed
-[CASEFLOW] 创建优惠订单 passed
-[CASEFLOW] 查询订单状态 passed`,
-        },
-      },
-      {
-        id: 'pitfalls',
-        title: '常见坑',
-        body: ['不要把所有请求塞进一个巨大的 YAML。先按可复用业务动作拆 Case，再用 suite 表达顺序。'],
-        kind: 'tip',
-      },
-    ],
-  },
-  {
-    id: 'check-diagnostics',
-    path: '/tutorials/check-diagnostics',
-    title: '用 drun check 修 YAML 作者错误',
-    description: '通过稳定错误码、定位、hint 和 example，减少反复试错。',
-    icon: Bug,
-    sections: [
-      {
-        id: 'when',
-        title: '适用场景',
-        body: ['团队开始批量写 YAML 后，最常见的问题不是接口失败，而是字段写错、缩进错误或旧 DSL 写法混入。'],
-      },
-      {
-        id: 'minimal',
-        title: '最小示例',
-        body: ['先对目录运行检查，让 Drun 聚合列出所有作者错误。'],
-        code: {
-          language: 'bash',
-          code: `drun check testcases`,
-        },
-      },
-      {
-        id: 'full',
-        title: '完整示例',
-        body: ['按错误码修复，而不是只看底层校验异常。'],
-        code: {
-          language: 'text',
-          code: `FAIL testcases/test_a.yaml
-  DRUN-YAML-003 Invalid request field: request.url
-  DRUN-YAML-004 request.json is not supported
-
-FAIL testcases/test_b.yaml
-  DRUN-YAML-006 Invalid parameter location
-
-Checked 10 file(s): 8 OK, 2 failed, 3 error(s).`,
-        },
-      },
-      {
-        id: 'command',
-        title: '运行命令',
-        body: ['修完之后再运行真实请求。'],
-        code: {
-          language: 'bash',
-          code: `drun check testcases
-drun run testcases -env dev`,
-        },
-      },
-      {
-        id: 'output',
-        title: '预期输出',
-        body: ['当 check 没有错误时，run 阶段的失败才更可能是真实接口、环境或断言问题。'],
-        code: {
-          language: 'text',
-          code: `Checked 10 file(s): 10 OK, 0 failed, 0 error(s).`,
-        },
-      },
-      {
-        id: 'pitfalls',
-        title: '常见坑',
-        body: ['不要跳过 `drun check` 直接调接口；很多错误在请求发出前就可以被定位。'],
-        kind: 'warning',
-      },
-    ],
-  },
-  {
-    id: 'curl-openapi',
-    path: '/tutorials/curl-openapi',
-    title: '从 cURL / OpenAPI 迁移到 Drun',
-    description: '把已有调试请求和接口规范变成可维护 YAML，再补断言和编排。',
-    icon: FileArchive,
-    sections: [
-      {
-        id: 'when',
-        title: '适用场景',
-        body: ['你已经有 Postman、cURL、HAR 或 OpenAPI，不想从空白 YAML 开始写。'],
-      },
-      {
-        id: 'minimal',
-        title: '最小示例',
-        body: ['从一个 cURL 文件生成 YAML。'],
-        code: {
-          language: 'bash',
-          code: `drun convert sample.curl -outfile converts/sample.yaml
-drun check converts/sample.yaml`,
-        },
-      },
-      {
-        id: 'full',
-        title: '完整示例',
-        body: ['OpenAPI 更适合批量起骨架；转换之后要补充环境变量、提取和断言。'],
-        code: {
-          language: 'bash',
-          code: `drun convert-openapi spec/openapi/ecommerce_api.json \\
-  -output-mode split \\
-  -outfile converts/ecommerce.yaml
-
-drun check converts/ecommerce.yaml
-drun run converts/ecommerce.yaml -env dev`,
-        },
-      },
-      {
-        id: 'command',
-        title: '运行命令',
-        body: ['当某个 YAML 已经稳定，还可以导出 cURL 给其他人复现。'],
-        code: {
-          language: 'bash',
-          code: `drun export curl testcases/test_user_api.yaml -outfile request.curl`,
-        },
-      },
-      {
-        id: 'output',
-        title: '预期输出',
-        body: ['转换产物能通过 `drun check` 后，再进入断言补强和链路组织。'],
-        code: {
-          language: 'text',
-          code: `[CONVERT] Wrote converts/ecommerce.yaml
-Checked 1 file(s): 1 OK, 0 failed, 0 error(s).`,
-        },
-      },
-      {
-        id: 'pitfalls',
-        title: '常见坑',
-        body: ['转换后的 YAML 不应该直接当最终测试资产提交；至少要替换真实密钥并补业务断言。'],
-        kind: 'warning',
-      },
-    ],
-  },
-];
-
-export const tutorialCards: TutorialCard[] = tutorialPages.map((page) => ({
-  id: page.id,
-  title: page.title,
-  description: page.description,
-  path: page.path,
-}));
-
 export const featureCards = [
-  { title: '教程式文档', text: '从安装到实战链路，按用户学习路径组织。', icon: BookOpen },
+  { title: '用户指南', text: '从安装到实战链路，按用户学习路径组织。', icon: BookOpen },
   { title: 'YAML DSL', text: '用可读 YAML 描述请求、变量、断言和编排。', icon: Code2 },
   { title: '诊断排障', text: 'drun check 输出稳定错误码、定位、hint 和示例。', icon: Bug },
   { title: '报告输出', text: 'HTML、JSON、Allure、snippet 和响应体保存。', icon: FileJson2 },
 ];
 
 export function findPage(path: string): ArticlePage | undefined {
-  return [...docPages, ...tutorialPages].find((page) => page.path === path);
+  return docPages.find((page) => page.path === path);
 }
 
 export function pageById(id: string): ArticlePage | undefined {
-  return [...docPages, ...tutorialPages].find((page) => page.id === id);
+  return docPages.find((page) => page.id === id);
 }
