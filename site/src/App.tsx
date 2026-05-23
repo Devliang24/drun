@@ -704,7 +704,7 @@ function Footer() {
         <a href={href('/agent-skill')}>
           Agent Skill <ArrowRight size={14} />
         </a>
-        <a href="https://github.com/Devliang24/drun/blob/main/README.en.md" target="_blank" rel="noreferrer">
+        <a href="https://github.com/Devliang24/drun/blob/main/README.md" target="_blank" rel="noreferrer">
           English README <ExternalLink size={14} />
         </a>
       </div>

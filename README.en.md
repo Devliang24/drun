@@ -1,10 +1,12 @@
 # Drun: Modern HTTP API Testing Framework
 
-[English](README.en.md) | [中文](README.md)
+[English](README.md) | [中文](README.zh.md)
 
 [![Version](https://img.shields.io/badge/version-7.2.19-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+[Documentation](https://devliang24.github.io/drun/) · [GitHub](https://github.com/Devliang24/drun)
 
 `Drun` is a YAML-driven HTTP API testing framework. It lets you describe requests, variable extraction, checks, suite orchestration, and report output in concise YAML, making API validation, debugging, and CI/CD execution easier to maintain.
 

@@ -1,34 +1,34 @@
-# Drun：现代 HTTP API 测试框架
+# Drun: Modern HTTP API Testing Framework
 
-[中文](README.md) | [English](README.en.md)
+[English](README.md) | [中文](README.zh.md)
 
 [![Version](https://img.shields.io/badge/version-7.2.19-blue.svg)](https://github.com/Devliang24/drun)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-[在线文档站](https://devliang24.github.io/drun/) · [GitHub](https://github.com/Devliang24/drun)
+[Documentation](https://devliang24.github.io/drun/) · [GitHub](https://github.com/Devliang24/drun)
 
-`Drun` 是一个面向 HTTP API 的 YAML 驱动测试框架。你可以用简洁的 YAML 描述接口、变量提取、检查、套件编排和报告输出，把接口验证、调试和 CI/CD 串成一条可维护的链路。
+`Drun` is a YAML-driven HTTP API testing framework. It lets you describe requests, variable extraction, checks, suite orchestration, and report output in concise YAML, making API validation, debugging, and CI/CD execution easier to maintain.
 
-## 核心能力
+## Highlights
 
-- YAML DSL：通过 `config`、`steps`、`extract`、`check`、`caseflow` 编写测试。
-- 模板系统：支持 `$var`、`${ENV(KEY)}`、`${uuid()}` 等动态表达式。
-- 丰富检查：内置 `eq`、`contains`、`regex`、`len_eq`、`gt` 等校验。
-- 测试编排：支持测试套件、`invoke` 调用、步骤 `repeat`、标签过滤。
-- 延时步骤：支持 `sleep: 2000` 这类显式等待 DSL，单位为毫秒。
-- 结果输出：支持 HTML、JSON、Allure 报告，以及日志、代码片段导出。
-- 调试友好：支持 `drun q` 快速发请求，支持从 cURL、Postman、HAR、OpenAPI 转换用例。
+- YAML DSL: write tests with `config`, `steps`, `extract`, `check`, and `caseflow`.
+- Template system: supports `$var`, `${ENV(KEY)}`, `${uuid()}`, and other dynamic expressions.
+- Rich checks: built-in checks such as `eq`, `contains`, `regex`, `len_eq`, and `gt`.
+- Test orchestration: supports suites, `invoke`, step `repeat`, and tag filtering.
+- Sleep steps: supports explicit wait DSL such as `sleep: 2000`, using milliseconds.
+- Outputs: HTML, JSON, Allure reports, logs, and generated code snippets.
+- Debug-friendly: `drun q` for quick requests, plus converters from cURL, Postman, HAR, and OpenAPI.
 
-## 安装
+## Installation
 
-推荐 Python 3.10+。
+Python 3.10+ is recommended.
 
 ```bash
 pip install drun
 ```
 
-如果你使用 `uv`：
+If you prefer `uv`:
 
 ```bash
 uv venv
@@ -36,16 +36,16 @@ source .venv/bin/activate
 uv pip install drun
 ```
 
-## 快速开始
+## Quick Start
 
-### 1. 初始化项目
+### 1. Initialize a Project
 
 ```bash
 drun init myproject
 cd myproject
 ```
 
-默认会生成类似结构：
+Default scaffold:
 
 ```text
 myproject/
@@ -60,7 +60,7 @@ myproject/
 └── Dhook.py
 ```
 
-### 2. 配置环境变量
+### 2. Configure Environment Variables
 
 `.env`
 
@@ -69,18 +69,18 @@ BASE_URL=https://api.example.com
 API_KEY=demo-token
 ```
 
-### 3. 编写第一个测试
+### 3. Write Your First Test
 
 `testcases/test_user_api.yaml`
 
 ```yaml
 config:
-  name: 用户接口测试
+  name: User API Test
   base_url: ${ENV(BASE_URL)}
   tags: [smoke, user]
 
 steps:
-  - name: 创建用户
+  - name: Create User
     request:
       method: POST
       path: /users
@@ -95,7 +95,7 @@ steps:
       - eq: [status_code, 201]
       - regex: [$.data.id, '^\d+$']
 
-  - name: 查询用户
+  - name: Get User
     request:
       method: GET
       path: /users/${ENV(USER_ID)}
@@ -105,7 +105,7 @@ steps:
       - eq: [status_code, 200]
 ```
 
-### 4. 执行测试
+### 4. Run Tests
 
 ```bash
 drun run testcases/test_user_api.yaml -env dev
@@ -114,23 +114,23 @@ drun run testcases -env dev -k "smoke and not slow"
 drun run test_user_api -env dev -html reports/report.html
 ```
 
-说明：
+Notes:
 
-- 支持省略 `.yaml` 扩展名。
-- 单文件临时运行时，默认只在当前目录输出一个日志文件。
-- 脚手架项目运行时，会默认输出到 `logs/`、`reports/`、`snippets/`。
+- `.yaml` can be omitted in run targets.
+- Temporary single-file runs write only one log file to the current directory.
+- Scaffolded project runs keep outputs in `logs/`, `reports/`, and `snippets/`.
 
-## 常用写法
+## Common Patterns
 
-### 单用例文件
+### Single Test File
 
 ```yaml
 config:
-  name: 登录接口
+  name: Login API
   base_url: ${ENV(BASE_URL)}
 
 steps:
-  - name: 登录
+  - name: Login
     request:
       method: POST
       path: /login
@@ -143,30 +143,30 @@ steps:
       - eq: [status_code, 200]
 ```
 
-### 套件文件
+### Suite File
 
 ```yaml
 config:
-  name: 冒烟套件
+  name: Smoke Suite
 
 caseflow:
-  - name: 登录
+  - name: Login
     invoke: test_login
-  - name: 查询资料
+  - name: Profile
     invoke: test_profile
 ```
 
-### 数据驱动
+### Data-Driven Execution
 
 ```yaml
 config:
-  name: 批量注册
+  name: Batch Registration
   parameters:
     - csv:
         path: data/users.csv
 
 steps:
-  - name: 注册 $username
+  - name: Register $username
     request:
       method: POST
       path: /register
@@ -177,11 +177,11 @@ steps:
       - eq: [status_code, 201]
 ```
 
-### 重复执行
+### Repeated Steps
 
 ```yaml
 steps:
-  - name: 重试健康检查
+  - name: Retry Health Check
     repeat: 3
     request:
       method: GET
@@ -190,20 +190,20 @@ steps:
       - eq: [status_code, 200]
 ```
 
-### 延时步骤
+### Sleep Steps
 
 ```yaml
 steps:
-  - name: 等待服务稳定
+  - name: Wait for stabilization
     sleep: 2000
 
-  - name: 按变量等待
+  - name: Wait from variable
     sleep: ${wait_ms}
 ```
 
-## 常用命令
+## Common Commands
 
-### 运行与调试
+### Run and Debug
 
 ```bash
 drun run PATH -env dev
@@ -214,9 +214,9 @@ drun check testcases
 drun fix testcases
 ```
 
-`drun check` 会聚合输出 YAML/DSL 作者错误，并带有稳定错误码（如 `DRUN-YAML-003`）、定位、修复建议和最小示例；`drun run` 遇到阻断性 YAML 错误时仍会快速停止。
+`drun check` aggregates YAML/DSL authoring diagnostics with stable error codes such as `DRUN-YAML-003`, file locations, fix hints, and minimal examples. `drun run` still stops quickly on blocking YAML errors.
 
-### 格式转换
+### Format Conversion
 
 ```bash
 drun convert sample.curl -outfile out.yaml
@@ -224,23 +224,23 @@ drun convert-openapi spec/openapi/ecommerce_api.json -output-mode split -outfile
 drun export curl testcases/test_user_api.yaml -outfile request.curl
 ```
 
-### 报告服务
+### Report Server
 
 ```bash
 drun server
 drun server -port 8080
 ```
 
-启动后可浏览测试报告列表并查看详情页。
+After startup, you can browse the report list and detail pages in the browser.
 
-## 报告与输出
+## Reports and Outputs
 
-- HTML：适合本地查看与分享。
-- JSON：适合流水线消费。
-- Allure：适合集成到测试平台。
-- Snippets：自动生成 Shell 或 Python 请求脚本，便于复现请求。
+- HTML: good for local viewing and sharing.
+- JSON: good for CI pipelines and machine consumption.
+- Allure: good for integration with test platforms.
+- Snippets: generates Shell or Python request scripts for replaying requests.
 
-示例：
+Examples:
 
 ```bash
 drun run testcases -env dev -html reports/report.html
@@ -248,7 +248,7 @@ drun run testcases -env dev -allure-results allure-results
 allure serve allure-results
 ```
 
-## 从源码开发
+## Develop from Source
 
 ```bash
 git clone https://github.com/Devliang24/drun.git
@@ -258,60 +258,60 @@ python -m pytest -q
 python -m drun.cli --version
 ```
 
-仓库主目录说明：
+Repository overview:
 
-- `drun/`：核心实现。
-- `tests/`：回归测试。
-- `spec/`：示例 OpenAPI 规范。
-- `CHANGELOG.md`：版本历史。
-- `drun-usage/`：面向 AI 编码助手的本地深度使用 skill，提供 `drun` YAML、CLI、排障与转换说明。
-- `AGENTS.md`：贡献者约定与本地开发说明。
+- `drun/`: core implementation.
+- `tests/`: regression tests.
+- `spec/`: sample OpenAPI specs.
+- `CHANGELOG.md`: version history.
+- `drun-usage/`: local deep-usage skill for AI coding assistants, covering `drun` YAML, CLI usage, conversion, and troubleshooting.
+- `AGENTS.md`: contributor rules and local development notes.
 
-## AI 助手协作
+## AI Assistant Collaboration
 
-仓库内置了本地 skill `drun-usage/`，用于让 AI 编码助手在处理 `drun` 相关问题时，优先按当前仓库真实能力给出可执行 YAML、CLI 命令和排障建议，而不是泛化地讨论 API 测试理论。
+This repository includes a local skill at `drun-usage/`. Its purpose is to help AI coding assistants answer `drun` questions using the repository's actual CLI and DSL behavior, and to return runnable YAML, CLI commands, and troubleshooting guidance instead of generic API testing advice.
 
-适用场景包括：
+Typical use cases:
 
-- 生成 `drun` YAML 用例
-- 解释 `invoke`、`invoke_case_name`、`invoke_case_names`、`repeat`、`sleep`
-- 设计 `drun run`、`drun q`、`convert`、`convert-openapi`、`export curl`
-- 解释 HTML / JSON / Allure / snippet / `server`
-- 根据报错做 `drun` 排障
+- Generate `drun` YAML cases
+- Explain `invoke`, `invoke_case_name`, `invoke_case_names`, `repeat`, and `sleep`
+- Design `drun run`, `drun q`, `convert`, `convert-openapi`, and `export curl` commands
+- Explain HTML / JSON / Allure / snippet / `server`
+- Troubleshoot `drun` errors
 
 ### Claude Code
 
-如果你使用 `Claude Code`，建议在仓库根目录直接明确点名这个 skill，或要求它先读该目录下说明再执行。
+If you use `Claude Code`, the safest approach is to mention the skill explicitly or ask it to read the skill files before working.
 
-示例提示词：
+Example prompts:
 
 ```text
-请使用 drun-usage，帮我写一个登录后查询资料的 drun testsuite。
+Use drun-usage to generate a drun testsuite for login and profile lookup.
 ```
 
 ```text
-先阅读 drun-usage/SKILL.md，再帮我把这个 curl 转成 drun YAML，并给出 run 命令。
+Read drun-usage/SKILL.md first, then convert this curl command into drun YAML and provide the run command.
 ```
 
 ### Codex
 
-如果你使用 `Codex`，推荐直接提 `drun-usage` 名称，或用自然语言触发词，例如“drun YAML”“drun invoke”“drun 排障”。在本仓库协作时，也建议先阅读 `AGENTS.md`。
+If you use `Codex`, explicitly naming `drun-usage` works well. Natural trigger phrases such as "drun YAML", "drun invoke", or "drun troubleshooting" are also useful. When collaborating in this repository, read `AGENTS.md` first.
 
-示例提示词：
+Example prompts:
 
 ```text
-使用 drun-usage，解释 invoke_case_name 和 invoke_case_names 的区别，并给我可运行示例。
+Use drun-usage to explain the difference between invoke_case_name and invoke_case_names, and give me a runnable example.
 ```
 
 ```text
-帮我排查这个 drun 报错，必要时参考 drun-usage/references/troubleshooting.md。
+Help me debug this drun error, and consult drun-usage/references/troubleshooting.md if needed.
 ```
 
 ### OpenCode
 
-如果你使用 `OpenCode`，且当前工作流不会自动发现本地 skill，最稳妥的方式是显式要求它先读取 `drun-usage/SKILL.md`，再按需要读取 `references/` 下对应文件。
+If you use `OpenCode` and your workflow does not automatically discover local skills, explicitly ask it to read `drun-usage/SKILL.md` first, then load the matching file under `references/` as needed.
 
-示例提示词：
+Example prompts:
 
 ```text
 Read drun-usage/SKILL.md first, then generate a drun YAML case for file upload and provide the matching run command.
@@ -321,30 +321,30 @@ Read drun-usage/SKILL.md first, then generate a drun YAML case for file upload a
 Read drun-usage/references/debug-convert-export.md and give me a drun convert-openapi command for this spec.
 ```
 
-### 使用建议
+### Usage Tips
 
-- 需要“直接产出可运行 YAML 和命令”时，优先显式提 `drun-usage`
-- 只问单个 DSL 点时，可以直接说“解释 drun repeat”或“解释 drun export curl”
-- 如果改动了 `drun` 的 CLI、DSL、报告输出或排障行为，记得同步更新 `drun-usage/`
+- If you want runnable YAML and commands, mention `drun-usage` explicitly
+- If you only need one DSL concept, ask directly, for example: "Explain drun repeat"
+- If you change CLI, DSL, reporting, or troubleshooting behavior, update `drun-usage/` accordingly
 
-## 适用场景
+## Use Cases
 
-- HTTP API 回归测试
-- 冒烟测试与发布验证
-- 测试数据驱动执行
-- 接口调试与请求复现
-- CI/CD 中的接口质量门禁
+- HTTP API regression testing
+- Smoke testing and release verification
+- Data-driven execution
+- API debugging and request replay
+- CI/CD quality gates for interfaces
 
-## 贡献
+## Contributing
 
-欢迎提交 issue 或 PR。提交前建议至少执行以下命令：
+Before opening a PR, run at least:
 
 ```bash
 python -m pytest -q
 drun --help
 ```
 
-如果你在仓库内协作开发，请先阅读 `AGENTS.md`。
+If you are contributing within this repository, read `AGENTS.md` first.
 
 ## License
 
