@@ -114,42 +114,58 @@ class SingleLetterCommandHelpTests(unittest.TestCase):
 
 
 class LongNameRejectedTests(unittest.TestCase):
-    """Long command names should produce a clear error, not run silently."""
+    """Long command names should produce a clear migration error, not run silently."""
+
+    def _assert_renamed_hint(self, result, long_name: str, letter: str) -> None:
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn(long_name, result.output)
+        self.assertIn(letter, result.output)
+        self.assertIn("single-letter form", result.output)
 
     def test_long_init_is_rejected(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli.app, ["init", "-force"])
-        self.assertNotEqual(result.exit_code, 0)
+        self._assert_renamed_hint(result, "init", "i")
 
     def test_long_run_is_rejected(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli.app, ["run", "tcases"])
-        self.assertNotEqual(result.exit_code, 0)
+        self._assert_renamed_hint(result, "run", "r")
 
     def test_long_check_is_rejected(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli.app, ["check", "tcases"])
-        self.assertNotEqual(result.exit_code, 0)
+        self._assert_renamed_hint(result, "check", "c")
 
     def test_long_fix_is_rejected(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli.app, ["fix", "tcases"])
-        self.assertNotEqual(result.exit_code, 0)
+        self._assert_renamed_hint(result, "fix", "f")
 
     def test_long_tags_is_rejected(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli.app, ["tags", "tcases"])
-        self.assertNotEqual(result.exit_code, 0)
+        self._assert_renamed_hint(result, "tags", "t")
 
     def test_long_convert_is_rejected(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli.app, ["convert", "sample.curl"])
-        self.assertNotEqual(result.exit_code, 0)
+        self._assert_renamed_hint(result, "convert", "o")
+
+    def test_long_convert_openapi_is_rejected(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli.app, ["convert-openapi", "spec.yaml"])
+        self._assert_renamed_hint(result, "convert-openapi", "w")
 
     def test_long_server_is_rejected(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli.app, ["server"])
-        self.assertNotEqual(result.exit_code, 0)
+        self._assert_renamed_hint(result, "server", "s")
+
+    def test_long_export_is_rejected(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli.app, ["export", "tc_demo.yaml"])
+        self._assert_renamed_hint(result, "export", "e")
 
 
 class ExportDefaultToCurlTests(unittest.TestCase):

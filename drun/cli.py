@@ -217,14 +217,49 @@ def _collect_command_help_rows(
         )
         if desc_part:
             command_header = f"{command_header}  {desc_part}"
-    elif not argument_rows and getattr(command, "help", None):
+    elif not argument_rows and (getattr(command, "short_help", None) or getattr(command, "help", None)):
         # Commands with no arguments (groups or option-only commands) get
-        # their help text appended so the line is not empty.
-        command_header = f"{command_header}  {command.help.strip()}"
+        # a short description appended so the line is not empty. Prefer
+        # short_help to keep the output narrow; fall back to first line of
+        # help for commands that only set a long docstring.
+        desc = command.short_help or command.help.strip().splitlines()[0]
+        command_header = f"{command_header}  {desc.strip()}"
     return command_header, option_rows
 
 
+# v8.1.0 migration: long command names were renamed to single letters.
+# These maps let parse_args surface a clear "renamed to" hint instead of
+# the generic "No such command" error.
+_DEPRECATED_TO_LETTER = {
+    "init": "i",
+    "run": "r",
+    "check": "c",
+    "fix": "f",
+    "tags": "t",
+    "convert": "o",
+    "convert-openapi": "w",
+    "server": "s",
+    "export": "e",
+}
+_DEPRECATED_LONG_COMMAND_NAMES = frozenset(_DEPRECATED_TO_LETTER.keys())
+
+
 class _DrunRootGroup(typer.core.TyperGroup):
+    def get_command(
+        self, ctx: click.Context, cmd_name: str
+    ) -> Optional[click.Command]:
+        # v8.1.0 migration hint: long command names were renamed to single
+        # letters. Surface a clear migration message instead of the generic
+        # "No such command" so existing users get actionable feedback.
+        if cmd_name in _DEPRECATED_LONG_COMMAND_NAMES:
+            letter = _DEPRECATED_TO_LETTER[cmd_name]
+            raise click.UsageError(
+                f"Command '{cmd_name}' has been renamed to single-letter form. "
+                f"Use 'drun {letter}' instead.",
+                ctx=ctx,
+            )
+        return super().get_command(ctx, cmd_name)
+
     def parse_args(self, ctx: click.Context, args: List[str]) -> List[str]:
         if _looks_like_subcommand_help(args):
             raise click.UsageError(_SUBCOMMAND_HELP_GUIDE, ctx=ctx)
@@ -236,6 +271,10 @@ class _DrunRootGroup(typer.core.TyperGroup):
                 ctx=ctx,
             )
         # `e` is a group; default to `e curl` when no subcommand is given.
+        # NOTE: This is a v8.1.0 convenience. If more subcommands are added
+        # under the export group in the future (e.g. `e jmeter`), this
+        # default will need to be removed and users will be required to
+        # use the explicit subcommand form `drun e <subcommand>`.
         if args and args[0] == "e" and (len(args) == 1 or args[1].startswith("-")):
             args = ["e", "curl"] + args[1:]
         return super().parse_args(ctx, args)
