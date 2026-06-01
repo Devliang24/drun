@@ -33,8 +33,8 @@ jobs:
         run: |
           drun --help | tee /tmp/drun-help.txt
           grep -q "Expanded Help (All Commands)" /tmp/drun-help.txt
-          grep -q "drun run PATH" /tmp/drun-help.txt
-          grep -q "drun server" /tmp/drun-help.txt
+          grep -q "drun r PATH" /tmp/drun-help.txt
+          grep -q "drun s" /tmp/drun-help.txt
 
       - name: Build distribution packages
         run: |
