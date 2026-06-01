@@ -5,7 +5,7 @@ import re
 from tempfile import TemporaryDirectory
 import unittest
 
-from typer.testing import CliRunner
+from tests.cli_runner import CliRunner
 
 import drun.cli as cli
 from drun.loader.yaml_loader import collect_yaml_diagnostics, load_yaml_file

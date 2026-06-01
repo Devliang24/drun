@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from typer.testing import CliRunner
+from tests.cli_runner import CliRunner
 
 import drun.cli as cli
 

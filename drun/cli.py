@@ -152,16 +152,30 @@ def _looks_like_subcommand_help(args: List[str]) -> bool:
     return False
 
 
+def _is_command_group(command: click.Command) -> bool:
+    return isinstance(command, click.Group) or isinstance(
+        getattr(command, "commands", None), dict
+    )
+
+
+def _is_argument_param(param: click.Parameter) -> bool:
+    return (
+        isinstance(param, click.Argument)
+        or getattr(param, "param_type_name", None) == "argument"
+    )
+
+
 def _iter_visible_commands(
-    group: click.Group, prefix: str = ""
+    group: click.Command, prefix: str = ""
 ) -> List[Tuple[str, click.Command]]:
     entries: List[Tuple[str, click.Command]] = []
-    for name, command in group.commands.items():
+    commands = getattr(group, "commands", {}) or {}
+    for name, command in commands.items():
         if getattr(command, "hidden", False):
             continue
         full_name = f"{prefix}{name}".strip()
         entries.append((full_name, command))
-        if isinstance(command, click.Group):
+        if _is_command_group(command):
             entries.extend(_iter_visible_commands(command, prefix=f"{full_name} "))
     return entries
 
@@ -188,7 +202,7 @@ def _collect_command_help_rows(
         left, right = record
         cleaned_left = _strip_type_suffix(left.strip())
         cleaned_right = _unescape_brackets((right or "-").strip())
-        if isinstance(param, click.Argument):
+        if _is_argument_param(param):
             argument_rows.append((cleaned_left, cleaned_right))
         else:
             option_rows.append((cleaned_left, cleaned_right))

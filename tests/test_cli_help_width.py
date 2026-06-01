@@ -8,8 +8,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
+import click
 import drun.cli as cli
-from typer.testing import CliRunner
+from tests.cli_runner import CliRunner
 
 
 class CliHelpWidthTests(unittest.TestCase):
@@ -44,6 +45,27 @@ class CliHelpWidthTests(unittest.TestCase):
         click_app = get_command(cli.app)
         export_command = click_app.commands["export"]
         self.assertIsNotNone(export_command.callback)
+
+    def test_help_helpers_support_typer_click_compat_types(self) -> None:
+        command = Mock(spec=click.Command)
+        argument = SimpleNamespace(
+            hidden=False,
+            param_type_name="argument",
+            get_help_record=Mock(return_value=("PATH", "目标路径 [required]")),
+        )
+        option = SimpleNamespace(
+            hidden=False,
+            param_type_name="option",
+            get_help_record=Mock(return_value=("-flag TEXT", "选项")),
+        )
+        command.get_params.return_value = [argument, option]
+
+        header, rows = cli._collect_command_help_rows(command, "demo")
+        self.assertEqual(header, "drun demo PATH  目标路径 [required]")
+        self.assertEqual(rows, [("-flag", "选项")])
+
+        group_like = SimpleNamespace(commands={"demo": command}, hidden=False)
+        self.assertEqual(cli._iter_visible_commands(group_like), [("demo", command)])
 
     def test_root_help_lists_q_not_quick(self) -> None:
         runner = CliRunner()
