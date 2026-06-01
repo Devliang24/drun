@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 > Historical note: entries mentioning the scoring system are retained for release history only. The current CLI does not expose a `drun score` command.
 
+## [8.1.1] - 2026-06-01
+
+### Fixed
+- Expanded `--help` for empty-arg commands (e.g. `drun s`, `drun e`) now shows
+  their docstring instead of a bare header.
+
 ## [8.1.0] - 2026-06-01
 
 ### BREAKING CHANGE: All CLI subcommands are now single-letter
