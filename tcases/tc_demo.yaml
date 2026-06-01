@@ -1,0 +1,28 @@
+config:
+  name: HTTP Demo
+  base_url: ${ENV(BASE_URL)}
+  tags: [demo, smoke]
+
+steps:
+  - name: GET Request
+    request:
+      method: GET
+      path: /get?page=1&limit=10
+    check:
+      - eq: [status_code, 200]
+      - eq: [$.args.page, "1"]
+
+  - name: POST Request with Extract
+    request:
+      method: POST
+      path: /post
+      headers:
+        Content-Type: application/json
+      body:
+        username: ${ENV(USER_USERNAME)}
+        data: test_${short_uid(6)}
+    extract:
+      posted_data: $.json.data
+    check:
+      - eq: [status_code, 200]
+      - contains: [$.json.username, ${ENV(USER_USERNAME)}]

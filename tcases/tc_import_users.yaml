@@ -1,0 +1,20 @@
+config:
+  name: CSV Data-Driven Test
+  base_url: ${ENV(BASE_URL)}
+  tags: [csv]
+  parameters:
+    - csv:
+        path: data/users.csv
+
+steps:
+  - name: Register User $username
+    request:
+      method: POST
+      path: /anything/register
+      body:
+        username: $username
+        email: $email
+        role: $role
+    check:
+      - eq: [status_code, 200]
+      - eq: [$.json.username, $username]

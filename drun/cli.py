@@ -231,6 +231,9 @@ class _DrunRootGroup(typer.core.TyperGroup):
                 "`-validate` has been renamed to `-check`. Use `-check` instead.",
                 ctx=ctx,
             )
+        # `e` is a group; default to `e curl` when no subcommand is given.
+        if args and args[0] == "e" and (len(args) == 1 or args[1].startswith("-")):
+            args = ["e", "curl"] + args[1:]
         return super().parse_args(ctx, args)
 
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
@@ -270,7 +273,7 @@ export_app = typer.Typer(
     add_help_option=False,
     context_settings=_CLI_CONTEXT_SETTINGS,
 )
-app.add_typer(export_app, name="export")
+app.add_typer(export_app, name="e")
 
 
 @export_app.callback()
@@ -622,7 +625,7 @@ def _write_imported_cases(
 
 
 # Unified convert entrypoint (auto-detect by suffix)
-@app.command("convert", add_help_option=False)
+@app.command("o", add_help_option=False)
 def convert_auto(
     infile: str = typer.Argument(..., help="待转换的源文件 (.curl/.har/.json)"),
     outfile: Optional[str] = typer.Option(None, "-outfile", help="输出到指定文件"),
@@ -1118,7 +1121,7 @@ def export_curl(
         typer.echo(output)
 
 
-@app.command("tags", add_help_option=False)
+@app.command("t", add_help_option=False)
 def list_tags(
     path: str = typer.Argument("tcases", help="要扫描的文件或目录"),
 ) -> None:
@@ -1680,8 +1683,7 @@ def quick(
         raise typer.Exit(code=1)
 
 
-@app.command("run", add_help_option=False)
-@app.command("r", hidden=True, add_help_option=False)
+@app.command("r", add_help_option=False)
 def r(
     path: str = typer.Argument(
         ...,
@@ -1815,7 +1817,7 @@ def r(
     )
 
 
-@app.command("check", add_help_option=False)
+@app.command("c", add_help_option=False)
 def check(
     path: str = typer.Argument(..., help="要验证的文件或目录"),
 ):
@@ -1830,7 +1832,7 @@ def check(
     run_check(path)
 
 
-@app.command("fix", add_help_option=False)
+@app.command("f", add_help_option=False)
 def fix(
     paths: List[str] = typer.Argument(
         ...,
@@ -1861,7 +1863,7 @@ def fix(
     )
 
 
-@app.command("init", add_help_option=False)
+@app.command("i", add_help_option=False)
 def init_project(
     name: Optional[str] = typer.Argument(
         None, help="Project name (default: current directory)"
@@ -2063,7 +2065,7 @@ def init_project(
     typer.echo("Docs: https://github.com/Devliang24/drun")
 
 
-@app.command("convert-openapi", add_help_option=False)
+@app.command("w", add_help_option=False)
 def convert_openapi(
     spec: str = typer.Argument(..., help="OpenAPI 3.x 规范文件（.json 或 .yaml）"),
     outfile: Optional[str] = typer.Option(None, "-outfile", help="输出文件路径"),
@@ -2131,8 +2133,7 @@ def convert_openapi(
     )
 
 
-@app.command("server", add_help_option=False)
-@app.command("s", hidden=True, add_help_option=False)
+@app.command("s", add_help_option=False)
 def serve_reports(
     port: int = typer.Option(8080, "-port", help="监听端口"),
     host: str = typer.Option(

@@ -220,7 +220,7 @@ steps:
                 encoding="utf-8",
             )
 
-            result = runner.invoke(cli.app, ["check", "."])
+            result = runner.invoke(cli.app, ["c", "."])
 
         self.assertEqual(result.exit_code, 2)
         out = result.output
@@ -252,7 +252,7 @@ steps:
                 encoding="utf-8",
             )
 
-            result = runner.invoke(cli.app, ["check", "tc_many.yaml"])
+            result = runner.invoke(cli.app, ["c", "tc_many.yaml"])
 
         self.assertEqual(result.exit_code, 2)
         self.assertEqual(result.output.count("DRUN-YAML-004"), 5)
@@ -278,7 +278,7 @@ steps:
                 encoding="utf-8",
             )
 
-            result = runner.invoke(cli.app, ["run", "tc_bad.yaml"])
+            result = runner.invoke(cli.app, ["r", "tc_bad.yaml"])
 
         self.assertEqual(result.exit_code, 2)
         self.assertIn("DRUN-YAML-003 Invalid request field: request.url", result.output)

@@ -43,7 +43,7 @@ class CliHelpWidthTests(unittest.TestCase):
         from typer.main import get_command
 
         click_app = get_command(cli.app)
-        export_command = click_app.commands["export"]
+        export_command = click_app.commands["e"]
         self.assertIsNotNone(export_command.callback)
 
     def test_help_helpers_support_typer_click_compat_types(self) -> None:
@@ -81,7 +81,7 @@ class CliHelpWidthTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         out = result.stdout
         self.assertIn("Expanded Help (All Commands)", out)
-        self.assertIn("drun run", out)
+        self.assertIn("drun r", out)
         self.assertIn("-env", out)
         self.assertIn("-report", out)
         self.assertIn("-secrets", out)
@@ -95,29 +95,29 @@ class CliHelpWidthTests(unittest.TestCase):
         self.assertNotIn("-X, -method", out)
         self.assertNotIn("-H, -header", out)
         self.assertNotIn("-p, -param", out)
-        self.assertIn("drun convert", out)
+        self.assertIn("drun o", out)
         self.assertIn("-output-mode", out)
         self.assertIn("-placeholders", out)
-        self.assertIn("drun server", out)
+        self.assertIn("drun s", out)
         self.assertIn("-port", out)
         self.assertIn("-headless", out)
-        self.assertIn("drun fix", out)
+        self.assertIn("drun f", out)
         self.assertIn("-mode", out)
         self.assertNotIn("--only-spacing", out)
         self.assertNotIn("--only-hooks", out)
-        self.assertIn("drun init", out)
-        self.assertIn("drun init [NAME]", out)
+        self.assertIn("drun i", out)
+        self.assertIn("drun i [NAME]", out)
         self.assertIn("-force", out)
         self.assertIn("-ci", out)
-        self.assertIn("drun export", out)
-        self.assertIn("drun export curl", out)
-        self.assertIn("drun export curl PATH", out)
+        self.assertIn("drun e", out)
+        self.assertIn("drun e curl", out)
+        self.assertIn("drun e curl PATH", out)
         self.assertIn("-case-name", out)
         self.assertIn("-outfile", out)
         self.assertIn("-layout", out)
         self.assertIn("-comments", out)
-        self.assertIn("drun run PATH", out)
-        self.assertIn("drun convert INFILE", out)
+        self.assertIn("drun r PATH", out)
+        self.assertIn("drun o INFILE", out)
         self.assertNotIn("--case-name", out)
         self.assertNotIn("--outfile", out)
         self.assertNotIn("-outfile TEXT", out)
@@ -141,17 +141,17 @@ class CliHelpWidthTests(unittest.TestCase):
     def test_subcommand_help_is_disabled_and_redirected(self) -> None:
         runner = CliRunner()
         cases = [
-            ["run", "--help"],
+            ["r", "--help"],
             ["q", "--help"],
-            ["server", "--help"],
-            ["check", "--help"],
-            ["fix", "--help"],
-            ["tags", "--help"],
-            ["init", "--help"],
-            ["convert", "--help"],
-            ["convert-openapi", "--help"],
-            ["export", "--help"],
-            ["export", "curl", "--help"],
+            ["s", "--help"],
+            ["c", "--help"],
+            ["f", "--help"],
+            ["t", "--help"],
+            ["i", "--help"],
+            ["o", "--help"],
+            ["w", "--help"],
+            ["e", "--help"],
+            ["e", "curl", "--help"],
         ]
         for argv in cases:
             result = runner.invoke(cli.app, argv)
@@ -161,7 +161,7 @@ class CliHelpWidthTests(unittest.TestCase):
     def test_run_accepts_single_dash_env_option(self) -> None:
         runner = CliRunner()
         with patch.object(cli, "_run_impl", return_value=None) as run_impl:
-            result = runner.invoke(cli.app, ["run", "demo", "-env", "dev"])
+            result = runner.invoke(cli.app, ["r", "demo", "-env", "dev"])
         self.assertEqual(result.exit_code, 0)
         run_impl.assert_called_once()
         self.assertEqual(run_impl.call_args.args[8], "dev")
@@ -169,7 +169,7 @@ class CliHelpWidthTests(unittest.TestCase):
     def test_run_rejects_double_dash_env_option(self) -> None:
         runner = CliRunner()
         with patch.object(cli, "_run_impl", return_value=None) as run_impl:
-            result = runner.invoke(cli.app, ["run", "demo", "--env", "dev"])
+            result = runner.invoke(cli.app, ["r", "demo", "--env", "dev"])
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("No such option: --env", result.output)
         run_impl.assert_not_called()
@@ -179,7 +179,7 @@ class CliHelpWidthTests(unittest.TestCase):
         with patch.object(cli, "_run_impl", return_value=None) as run_impl:
             result = runner.invoke(
                 cli.app,
-                ["run", "demo", "-secrets", "mask", "-snippet", "off"],
+                ["r", "demo", "-secrets", "mask", "-snippet", "off"],
             )
         self.assertEqual(result.exit_code, 0)
         run_impl.assert_called_once()
@@ -190,7 +190,7 @@ class CliHelpWidthTests(unittest.TestCase):
     def test_run_rejects_invalid_snippet_mode(self) -> None:
         runner = CliRunner()
         with patch.object(cli, "_run_impl", return_value=None) as run_impl:
-            result = runner.invoke(cli.app, ["run", "demo", "-snippet", "java"])
+            result = runner.invoke(cli.app, ["r", "demo", "-snippet", "java"])
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("Invalid -snippet value", result.output)
         run_impl.assert_not_called()
@@ -234,7 +234,7 @@ class CliHelpWidthTests(unittest.TestCase):
             result = runner.invoke(
                 cli.app,
                 [
-                    "convert",
+                    "o",
                     "sample.curl",
                     "-outfile",
                     "out.yaml",
@@ -251,7 +251,7 @@ class CliHelpWidthTests(unittest.TestCase):
 
         legacy = runner.invoke(
             cli.app,
-            ["convert", "sample.curl", "--split-output", "-outfile", "out.yaml"],
+            ["o", "sample.curl", "--split-output", "-outfile", "out.yaml"],
         )
         self.assertNotEqual(legacy.exit_code, 0)
         self.assertIn("No such option: --split-output", legacy.output)
@@ -277,7 +277,7 @@ class CliHelpWidthTests(unittest.TestCase):
                 result = runner.invoke(
                     cli.app,
                     [
-                        "export",
+                        "e",
                         "curl",
                         "demo.yaml",
                         "-layout",
@@ -295,7 +295,7 @@ class CliHelpWidthTests(unittest.TestCase):
 
             legacy = runner.invoke(
                 cli.app,
-                ["export", "curl", "demo.yaml", "--with-comments"],
+                ["e", "curl", "demo.yaml", "--with-comments"],
             )
             self.assertNotEqual(legacy.exit_code, 0)
             self.assertIn("No such option: --with-comments", legacy.output)
@@ -303,24 +303,24 @@ class CliHelpWidthTests(unittest.TestCase):
     def test_fix_mode_maps_to_existing_run_fix_flags(self) -> None:
         runner = CliRunner()
         with patch.object(cli, "run_fix", return_value=None) as run_fix:
-            result = runner.invoke(cli.app, ["fix", "tcases", "-mode", "spacing"])
+            result = runner.invoke(cli.app, ["f", "tcases", "-mode", "spacing"])
         self.assertEqual(result.exit_code, 0)
         run_fix.assert_called_once_with(
             paths=["tcases"], only_spacing=True, only_hooks=False
         )
 
-        invalid = runner.invoke(cli.app, ["fix", "tcases", "-mode", "unknown"])
+        invalid = runner.invoke(cli.app, ["f", "tcases", "-mode", "unknown"])
         self.assertNotEqual(invalid.exit_code, 0)
         self.assertIn("Invalid -mode value", invalid.output)
 
     def test_init_uses_single_dash_flags_and_rejects_legacy_double_dash(self) -> None:
         runner = CliRunner()
         with runner.isolated_filesystem():
-            result = runner.invoke(cli.app, ["init", "demo_proj", "-ci", "-force"])
+            result = runner.invoke(cli.app, ["i", "demo_proj", "-ci", "-force"])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(Path("demo_proj").is_dir())
 
-            legacy = runner.invoke(cli.app, ["init", "demo_proj2", "--ci"])
+            legacy = runner.invoke(cli.app, ["i", "demo_proj2", "--ci"])
             self.assertNotEqual(legacy.exit_code, 0)
             self.assertIn("No such option: --ci", legacy.output)
 
@@ -328,7 +328,7 @@ class CliHelpWidthTests(unittest.TestCase):
         runner = CliRunner()
         result = runner.invoke(
             cli.app,
-            ["convert-openapi", "openapi.json", "--outfile", "out.yaml"],
+            ["w", "openapi.json", "--outfile", "out.yaml"],
         )
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("No such option: --outfile", result.output)
