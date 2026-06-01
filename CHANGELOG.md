@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 > Historical note: entries mentioning the scoring system are retained for release history only. The current CLI does not expose a `drun score` command.
 
+## [8.1.4] - 2026-06-01
+
+### Changed
+- `drun e` (the export group) now defaults to `e curl` only when called bare
+  (`drun e` with no other args). Previously any extra arg starting with `-`
+  also triggered the injection, which produced confusing errors like
+  `drun e -port` being rewritten to `drun e curl -port`. Now `drun e -port`
+  fails fast with the standard "No such option" error.
+- Removed redundant `_DEPRECATED_LONG_COMMAND_NAMES` constant; the migration
+  hint now uses `_DEPRECATED_TO_LETTER` directly.
+
+### Added
+- README / README.zh now include a "Commands" section with the
+  single-letter command map for quick lookup.
+- 4 new tests for the `e` group dispatch behavior (bare, with curl,
+  with unknown arg, with option).
+
 ## [8.1.3] - 2026-06-01
 
 ### Improved

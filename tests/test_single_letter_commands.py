@@ -188,5 +188,53 @@ class ExportDefaultToCurlTests(unittest.TestCase):
             self.assertIn("curl", e_group.commands)
 
 
+class ExportGroupDispatchTests(unittest.TestCase):
+    """v8.1.4: `drun e` should default to `e curl` only when bare."""
+
+    def test_bare_e_dispatches_to_curl(self) -> None:
+        """`drun e` (no other args) should invoke `e curl`, which then
+        errors on the missing PATH argument. The error should mention
+        `curl`, proving the dispatch happened."""
+        runner = CliRunner()
+        result = runner.invoke(cli.app, ["e"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("e curl", result.output)
+
+    def test_e_with_curl_subcommand_dispatches(self) -> None:
+        """`drun e curl <path>` should reach the curl subcommand."""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            Path("tc_demo.yaml").write_text(
+                "config:\n  name: Demo\n  base_url: https://example.test\nsteps: []\n",
+                encoding="utf-8",
+            )
+            with patch("drun.cli.load_yaml_file") as mock_load:
+                mock_load.return_value = ([], {})
+                result = runner.invoke(
+                    cli.app, ["e", "curl", "tc_demo.yaml", "-outfile", "out.curl"]
+                )
+                # Should reach the curl handler (no "No such command" error).
+                self.assertNotIn("No such command", result.output)
+
+    def test_e_with_unknown_arg_passes_through(self) -> None:
+        """`drun e foo` (foo is not a subcommand) should fail with the
+        standard 'No such command' error, not silently inject curl."""
+        runner = CliRunner()
+        result = runner.invoke(cli.app, ["e", "foo"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("No such command", result.output)
+
+    def test_e_with_option_does_not_inject_curl(self) -> None:
+        """v8.1.4 regression: `drun e -port` must NOT silently inject
+        `curl` (which would fail with 'No such option: -p'). Instead,
+        the user sees the standard export group error pointing at the
+        missing subcommand."""
+        runner = CliRunner()
+        result = runner.invoke(cli.app, ["e", "-port", "8080"])
+        self.assertNotEqual(result.exit_code, 0)
+        # Should NOT mention curl being invoked.
+        self.assertNotIn("e curl", result.output)
+
+
 # Import patch at the top
 from unittest.mock import patch

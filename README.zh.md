@@ -36,6 +36,26 @@ source .venv/bin/activate
 uv pip install drun
 ```
 
+## 命令列表
+
+Drun CLI 子命令全部为单字母。使用 `drun <letter>`：
+
+| 字母 | 功能                                       |
+|------|--------------------------------------------|
+| `i`  | 初始化项目脚手架                            |
+| `r`  | 运行测试用例或套件                          |
+| `c`  | 校验 YAML 语法 / DSL 作者错误               |
+| `f`  | 自动修复 YAML 格式                          |
+| `t`  | 列出所有用例使用的标签                      |
+| `q`  | 快速 HTTP 请求调试（不需要 YAML）           |
+| `o`  | 转换 `.curl` / `.har` / `.json` 为 YAML    |
+| `w`  | 转换 OpenAPI 规范为 YAML 测试骨架            |
+| `e`  | 导出测试为 `curl` 命令                     |
+| `s`  | 启动 Web 服务查看测试报告                   |
+
+> 从 v8.0 或更早版本升级？`drun <long-name>` 会输出明确提示：
+> `Error: Command 'init' has been renamed to single-letter form. Use 'drun i' instead.`
+
 ## 快速开始
 
 ### 1. 初始化项目

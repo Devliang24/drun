@@ -228,7 +228,7 @@ def _collect_command_help_rows(
 
 
 # v8.1.0 migration: long command names were renamed to single letters.
-# These maps let parse_args surface a clear "renamed to" hint instead of
+# This map lets the CLI surface a clear "renamed to" hint instead of
 # the generic "No such command" error.
 _DEPRECATED_TO_LETTER = {
     "init": "i",
@@ -241,7 +241,6 @@ _DEPRECATED_TO_LETTER = {
     "server": "s",
     "export": "e",
 }
-_DEPRECATED_LONG_COMMAND_NAMES = frozenset(_DEPRECATED_TO_LETTER.keys())
 
 
 class _DrunRootGroup(typer.core.TyperGroup):
@@ -251,7 +250,7 @@ class _DrunRootGroup(typer.core.TyperGroup):
         # v8.1.0 migration hint: long command names were renamed to single
         # letters. Surface a clear migration message instead of the generic
         # "No such command" so existing users get actionable feedback.
-        if cmd_name in _DEPRECATED_LONG_COMMAND_NAMES:
+        if cmd_name in _DEPRECATED_TO_LETTER:
             letter = _DEPRECATED_TO_LETTER[cmd_name]
             raise click.UsageError(
                 f"Command '{cmd_name}' has been renamed to single-letter form. "
@@ -270,13 +269,15 @@ class _DrunRootGroup(typer.core.TyperGroup):
                 "`-validate` has been renamed to `-check`. Use `-check` instead.",
                 ctx=ctx,
             )
-        # `e` is a group; default to `e curl` when no subcommand is given.
-        # NOTE: This is a v8.1.0 convenience. If more subcommands are added
-        # under the export group in the future (e.g. `e jmeter`), this
-        # default will need to be removed and users will be required to
-        # use the explicit subcommand form `drun e <subcommand>`.
-        if args and args[0] == "e" and (len(args) == 1 or args[1].startswith("-")):
-            args = ["e", "curl"] + args[1:]
+        # `e` is a group; default to `e curl` only when called bare.
+        # If a second arg is given (option or subcommand), pass through
+        # to click's normal resolution. This avoids surprising behavior
+        # like `drun e -port` silently becoming `drun e curl -port`.
+        # NOTE: v8.1.0 convenience. If more subcommands are added to `e`,
+        # users will be required to use the explicit `drun e <subcommand>`
+        # form.
+        if args and args[0] == "e" and len(args) == 1:
+            args = ["e", "curl"]
         return super().parse_args(ctx, args)
 
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:

@@ -36,6 +36,26 @@ source .venv/bin/activate
 uv pip install drun
 ```
 
+## Commands
+
+Drun CLI subcommands are all single letters. Use `drun <letter>`:
+
+| Letter | What it does                                |
+|--------|----------------------------------------------|
+| `i`    | Initialize a project scaffold                |
+| `r`    | Run test cases or suites                    |
+| `c`    | Check YAML syntax/DSL diagnostics            |
+| `f`    | Auto-fix YAML formatting                     |
+| `t`    | List all tags used in your test cases        |
+| `q`    | Quick HTTP request debug (no YAML needed)    |
+| `o`    | Convert `.curl` / `.har` / `.json` to YAML   |
+| `w`    | Convert OpenAPI spec to YAML test skeleton   |
+| `e`    | Export tests to `curl` commands              |
+| `s`    | Start a web server to view test reports      |
+
+> Migrating from v8.0 or earlier? `drun <long-name>` still produces a
+> clear hint: `Error: Command 'init' has been renamed to single-letter form. Use 'drun i' instead.`
+
 ## Quick Start
 
 ### 1. Initialize a Project
