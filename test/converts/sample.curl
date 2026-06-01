@@ -1,6 +1,0 @@
-# Sample: POST request with JSON body
-curl -X POST 'https://api.example.com/api/v1/login' \
-  -H 'Content-Type: application/json' \
-  --data-raw '{"username": "test", "password": "pass123"}'
-
-# Convert: drun convert converts/sample.curl -outfile tcases/tc_from_curl.yaml -placeholders on
