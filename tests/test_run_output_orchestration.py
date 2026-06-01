@@ -29,8 +29,8 @@ class RunOutputOrchestrationTests(unittest.TestCase):
     def test_outputs_keep_paths_reports_summary_failures_and_snippets(self) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp) / "demo-project"
-            testcase_dir = project / "testcases"
-            testsuite_dir = project / "testsuites"
+            testcase_dir = project / "tcases"
+            testsuite_dir = project / "tsuites"
             workbench_dir = project / "workbench"
             testcase_dir.mkdir(parents=True)
             testsuite_dir.mkdir()
@@ -39,7 +39,7 @@ class RunOutputOrchestrationTests(unittest.TestCase):
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
             (project / "Dhook.py").write_text("", encoding="utf-8")
-            target = testcase_dir / "test_demo.yaml"
+            target = testcase_dir / "tc_demo.yaml"
             target.write_text("config:\n  name: Demo\nsteps: []\n", encoding="utf-8")
 
             plan = build_run_output_plan(

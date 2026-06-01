@@ -57,10 +57,10 @@ DEMO_TESTSUITE = """config:
 
 caseflow:
   - name: Health Check
-    invoke: test_api_health
+    invoke: tc_api_health
 
   - name: Demo Flow
-    invoke: test_demo
+    invoke: tc_demo
 """
 
 # CSV sample data
@@ -98,7 +98,7 @@ curl -X POST 'https://api.example.com/api/v1/login' \\
   -H 'Content-Type: application/json' \\
   --data-raw '{"username": "test", "password": "pass123"}'
 
-# Convert: drun convert sample.curl --outfile testcases/from_curl.yaml --placeholders
+# Convert: drun convert converts/sample.curl -outfile tcases/tc_from_curl.yaml -placeholders on
 """
 
 # Environment config template
@@ -267,12 +267,12 @@ API automation testing with [Drun](https://github.com/Devliang24/drun).
 
 ```
 .
-├── testcases/           # Test cases
-│   ├── test_demo.yaml
-│   ├── test_api_health.yaml
-│   └── test_import_users.yaml
-├── testsuites/          # Test suites (caseflow)
-│   └── testsuite_smoke.yaml
+├── tcases/              # Test cases
+│   ├── tc_demo.yaml
+│   ├── tc_api_health.yaml
+│   └── tc_import_users.yaml
+├── tsuites/             # Test suites (caseflow)
+│   └── ts_smoke.yaml
 ├── data/                # Test data
 │   └── users.csv
 ├── converts/            # Format conversion source files
@@ -292,13 +292,13 @@ API automation testing with [Drun](https://github.com/Devliang24/drun).
 pip install drun
 
 # Run tests
-drun run testcases -env dev -html reports/report.html
+drun run tcases -env dev -html reports/report.html
 
 # Run test suite
-drun run testsuite_smoke -env dev
+drun run ts_smoke -env dev
 
 # Run with tag filter
-drun run testcases -k "smoke" -env dev
+drun run tcases -k "smoke" -env dev
 ```
 
 ## Test Case Example
@@ -331,12 +331,12 @@ config:
 
 caseflow:
   - name: Login
-    invoke: test_login
+    invoke: tc_login
 
   - name: Create Order
     variables:
       token: $token
-    invoke: test_create_order
+    invoke: tc_create_order
 ```
 
 ## More
@@ -368,7 +368,7 @@ jobs:
         env:
           BASE_URL: ${{ secrets.BASE_URL }}
         run: |
-          drun run testcases \\
+          drun run tcases \\
             -html reports/report.html \\
             -secrets mask
 

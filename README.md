@@ -49,8 +49,8 @@ Default scaffold:
 
 ```text
 myproject/
-├── testcases/
-├── testsuites/
+├── tcases/
+├── tsuites/
 ├── data/
 ├── converts/
 ├── logs/
@@ -71,7 +71,7 @@ API_KEY=demo-token
 
 ### 3. Write Your First Test
 
-`testcases/test_user_api.yaml`
+`tcases/tc_user_api.yaml`
 
 ```yaml
 config:
@@ -108,9 +108,9 @@ steps:
 ### 4. Run Tests
 
 ```bash
-drun run testcases/test_user_api.yaml -env dev
+drun run tcases/tc_user_api.yaml -env dev
 drun run test_user_api -env dev
-drun run testcases -env dev -k "smoke and not slow"
+drun run tcases -env dev -k "smoke and not slow"
 drun run test_user_api -env dev -html reports/report.html
 ```
 
@@ -209,9 +209,9 @@ steps:
 drun run PATH -env dev
 drun q https://api.example.com/ping
 drun q https://api.example.com/users -X POST -d '{"name":"alice"}'
-drun tags testcases
-drun check testcases
-drun fix testcases
+drun tags tcases
+drun check tcases
+drun fix tcases
 ```
 
 `drun check` aggregates YAML/DSL authoring diagnostics with stable error codes such as `DRUN-YAML-003`, file locations, fix hints, and minimal examples. `drun run` still stops quickly on blocking YAML errors.
@@ -221,7 +221,7 @@ drun fix testcases
 ```bash
 drun convert sample.curl -outfile out.yaml
 drun convert-openapi spec/openapi/ecommerce_api.json -output-mode split -outfile converted/ecommerce.yaml
-drun export curl testcases/test_user_api.yaml -outfile request.curl
+drun export curl tcases/tc_user_api.yaml -outfile request.curl
 ```
 
 ### Report Server
@@ -243,8 +243,8 @@ After startup, you can browse the report list and detail pages in the browser.
 Examples:
 
 ```bash
-drun run testcases -env dev -html reports/report.html
-drun run testcases -env dev -allure-results allure-results
+drun run tcases -env dev -html reports/report.html
+drun run tcases -env dev -allure-results allure-results
 allure serve allure-results
 ```
 

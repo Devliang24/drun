@@ -233,7 +233,7 @@ class RepeatRunnerTests(unittest.TestCase):
         self.assertIn("skip error:", result.steps[0].error or "")
 
     def test_invoke_repeat_passes_prefixed_name_for_multi_repeat(self) -> None:
-        step = Step(name="Invoke flow", repeat=2, invoke="test_login")
+        step = Step(name="Invoke flow", repeat=2, invoke="tc_login")
         case = Case(config=Config(name="Invoke Repeat Case"), steps=[step])
         runner, _fake_client = self._build_runner()
         captured: list[tuple[str, str | None]] = []
@@ -256,7 +256,7 @@ class RepeatRunnerTests(unittest.TestCase):
         )
 
     def test_invoke_single_repeat_does_not_force_prefix(self) -> None:
-        step = Step(name="Invoke flow", repeat=1, invoke="test_login")
+        step = Step(name="Invoke flow", repeat=1, invoke="tc_login")
         case = Case(config=Config(name="Invoke Single Repeat Case"), steps=[step])
         runner, _fake_client = self._build_runner()
         captured: list[tuple[str, str | None]] = []
@@ -273,7 +273,7 @@ class RepeatRunnerTests(unittest.TestCase):
         self.assertEqual(captured, [("Invoke flow", None)])
 
     def test_invoke_repeat_with_skip_expression_skips_last_iteration(self) -> None:
-        step = Step(name="Invoke flow", repeat=3, skip="${repeat_no > 2}", invoke="test_login")
+        step = Step(name="Invoke flow", repeat=3, skip="${repeat_no > 2}", invoke="tc_login")
         case = Case(config=Config(name="Invoke Repeat Skip Case"), steps=[step])
         runner, _fake_client = self._build_runner()
         captured: list[str] = []
@@ -318,7 +318,7 @@ steps:
 
     def test_loader_rejects_legacy_foreach_field_in_caseflow(self) -> None:
         with TemporaryDirectory() as tmp:
-            suite_file = Path(tmp) / "suite.yaml"
+            suite_file = Path(tmp) / "ts_suite.yaml"
             suite_file.write_text(
                 """
 config:
@@ -326,7 +326,7 @@ config:
 caseflow:
   - name: invoke ping
     foreach: [1, 2]
-    invoke: test_ping
+    invoke: tc_ping
 """.strip(),
                 encoding="utf-8",
             )

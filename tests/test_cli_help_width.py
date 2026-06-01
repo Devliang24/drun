@@ -303,13 +303,13 @@ class CliHelpWidthTests(unittest.TestCase):
     def test_fix_mode_maps_to_existing_run_fix_flags(self) -> None:
         runner = CliRunner()
         with patch.object(cli, "run_fix", return_value=None) as run_fix:
-            result = runner.invoke(cli.app, ["fix", "testcases", "-mode", "spacing"])
+            result = runner.invoke(cli.app, ["fix", "tcases", "-mode", "spacing"])
         self.assertEqual(result.exit_code, 0)
         run_fix.assert_called_once_with(
-            paths=["testcases"], only_spacing=True, only_hooks=False
+            paths=["tcases"], only_spacing=True, only_hooks=False
         )
 
-        invalid = runner.invoke(cli.app, ["fix", "testcases", "-mode", "unknown"])
+        invalid = runner.invoke(cli.app, ["fix", "tcases", "-mode", "unknown"])
         self.assertNotEqual(invalid.exit_code, 0)
         self.assertIn("Invalid -mode value", invalid.output)
 

@@ -30,7 +30,7 @@
 优化前：
 
 ```text
-FAIL: testcases/test_demo.yaml -> Failed to load testcases/test_demo.yaml: 1 validation error for Case
+FAIL: tcases/tc_demo.yaml -> Failed to load tcases/tc_demo.yaml: 1 validation error for Case
 steps.0.request.url
   Extra inputs are not permitted
 ```
@@ -39,7 +39,7 @@ steps.0.request.url
 
 ```text
 DRUN-YAML-003 Invalid request field: request.url
-File: testcases/test_demo.yaml:8
+File: tcases/tc_demo.yaml:8
 Path: steps[0].request.url
 
 Use `request.path` instead of `request.url`.
@@ -57,14 +57,14 @@ Example:
 优化前：
 
 ```text
-FAIL: testcases/test_users.yaml -> Invalid top-level 'parameters'. Move case parameters under 'config.parameters'.
+FAIL: tcases/tc_users.yaml -> Invalid top-level 'parameters'. Move case parameters under 'config.parameters'.
 ```
 
 优化后：
 
 ```text
 DRUN-YAML-006 Invalid parameter location
-File: testcases/test_users.yaml:2
+File: tcases/tc_users.yaml:2
 Path: parameters
 
 Move `parameters` under `config.parameters`.
@@ -96,7 +96,7 @@ steps:
 
 ```text
 DRUN-YAML-012 validate has been renamed to check
-File: testcases/test_ping.yaml:8
+File: tcases/tc_ping.yaml:8
 Path: steps[0].validate
 
 Use `check` instead of `validate`.
@@ -123,23 +123,23 @@ steps:
 优化前：
 
 ```text
-FAIL: testcases/test_a.yaml -> Invalid request field 'json' ...
+FAIL: tcases/tc_a.yaml -> Invalid request field 'json' ...
 ```
 
 优化后：
 
 ```text
-FAIL testcases/test_a.yaml
+FAIL tcases/tc_a.yaml
   DRUN-YAML-004 request.json is not supported
   DRUN-YAML-007 Invalid check syntax: body.id
 
-FAIL testcases/test_b.yaml
+FAIL tcases/tc_b.yaml
   DRUN-YAML-011 Step cannot combine `request`, `invoke`, and `sleep`
 
 Checked 8 file(s): 6 OK, 2 failed, 3 error(s).
 ```
 
-修正：先用 `drun check testcases` 批量清理 YAML 作者错误，再执行 `drun run`。
+修正：先用 `drun check tcases` 批量清理 YAML 作者错误，再执行 `drun run`。
 
 ## 环境未命中
 
@@ -357,6 +357,6 @@ Legacy inline suite ('cases:') is not supported
 正确示例：
 
 ```bash
-drun convert sample.curl -outfile testcases/from_curl.yaml
-drun convert traffic.har -output-mode split -outfile testcases/imported.yaml
+drun convert sample.curl -outfile tcases/from_curl.yaml
+drun convert traffic.har -output-mode split -outfile tcases/imported.yaml
 ```

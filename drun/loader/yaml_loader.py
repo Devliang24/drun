@@ -43,7 +43,9 @@ EXAMPLE_MULTIPART = """request:
 
 EXAMPLE_CASEFLOW = """caseflow:
   - name: Login
-    invoke: test_login"""
+    invoke: tc_login"""
+
+INVOKE_TARGET_RE = re.compile(r"^(?:tcases/)?(?:[a-z0-9_]+/)*tc_[a-z0-9_]+(?:\.ya?ml)?$")
 
 EXAMPLE_REPEAT = """steps:
   - name: Poll status
@@ -425,6 +427,47 @@ def _build_cases_from_obj(obj: Any, path: Path, processed_raw: str) -> Tuple[Lis
     return cases, meta
 
 
+def _validate_static_invoke_target(value: Any) -> bool:
+    return isinstance(value, str) and INVOKE_TARGET_RE.fullmatch(value.replace("\\", "/")) is not None
+
+
+
+def _collect_layout_type_diagnostics(obj: Dict[str, Any], path: Path, raw_text: str) -> List[Diagnostic]:
+    diagnostics: List[Diagnostic] = []
+    name = path.name
+    parts = {p.lower() for p in path.parts}
+    is_case_path = "tcases" in parts or name.startswith("tc_")
+    is_suite_path = "tsuites" in parts or name.startswith("ts_")
+    if is_case_path and "caseflow" in obj:
+        diagnostics.append(
+            _diagnostic(
+                "DRUN-YAML-011",
+                "Files named tc_*.yaml must contain steps, not caseflow",
+                file=path,
+                line=_find_top_level_key_location(raw_text, "caseflow"),
+                yaml_path="caseflow",
+                hint="Move this file under tsuites/ and name it ts_*.yaml, or replace caseflow with steps.",
+                example="config:\n  name: Demo\nsteps: []",
+                raw_text=raw_text,
+            )
+        )
+    if is_suite_path and "steps" in obj:
+        diagnostics.append(
+            _diagnostic(
+                "DRUN-YAML-011",
+                "Files named ts_*.yaml must contain caseflow, not steps",
+                file=path,
+                line=_find_top_level_key_location(raw_text, "steps"),
+                yaml_path="steps",
+                hint="Move this file under tcases/ and name it tc_*.yaml, or replace steps with caseflow.",
+                example=EXAMPLE_CASEFLOW,
+                raw_text=raw_text,
+            )
+        )
+    return diagnostics
+
+
+
 def _collect_common_diagnostics(obj: Any, path: Path, raw_text: str) -> List[Diagnostic]:
     diagnostics: List[Diagnostic] = []
 
@@ -443,6 +486,10 @@ def _collect_common_diagnostics(obj: Any, path: Path, raw_text: str) -> List[Dia
             )
         )
         return diagnostics
+
+    layout_diagnostics = _collect_layout_type_diagnostics(obj, path, raw_text)
+    if layout_diagnostics:
+        return layout_diagnostics
 
     if "cases" in obj:
         add(
@@ -517,6 +564,20 @@ def _collect_common_diagnostics(obj: Any, path: Path, raw_text: str) -> List[Dia
                         line=loc[0] if loc else None,
                         yaml_path=f"caseflow[{idx}].invoke",
                         hint="Add the target testcase name or path to `invoke`.",
+                        example=EXAMPLE_CASEFLOW,
+                        raw_text=raw_text,
+                    )
+                )
+            elif not _validate_static_invoke_target(item.get("invoke")):
+                loc = _find_caseflow_item_location(raw_text, idx, "invoke")
+                add(
+                    _diagnostic(
+                        "DRUN-YAML-011",
+                        "Invalid invoke target: invoke must be a static tc_ case target",
+                        file=path,
+                        line=loc[0] if loc else None,
+                        yaml_path=f"caseflow[{idx}].invoke",
+                        hint="Use a static tc_ case target such as `tc_login` or `auth/tc_login`.",
                         example=EXAMPLE_CASEFLOW,
                         raw_text=raw_text,
                     )
@@ -632,6 +693,20 @@ def _collect_step_diagnostics(
         for field in ("request", "invoke", "sleep")
         if field in step and step.get(field) is not None
     ]
+    if "invoke" in step and step.get("invoke") is not None and not _validate_static_invoke_target(step.get("invoke")):
+        loc = _find_step_child_location(raw_text, idx, "invoke")
+        add(
+            _diagnostic(
+                "DRUN-YAML-011",
+                "Invalid invoke target: invoke must be a static tc_ case target",
+                file=path,
+                line=loc[0] if loc else None,
+                yaml_path=f"steps[{idx}].invoke",
+                hint="Use a static tc_ case target such as `tc_login` or `auth/tc_login`.",
+                example="steps:\n  - name: Login\n    invoke: tc_login",
+                raw_text=raw_text,
+            )
+        )
     if len(active_targets) > 1:
         loc = _find_step_child_location(raw_text, idx, active_targets[1]) or _find_step_child_location(raw_text, idx, active_targets[0])
         add(

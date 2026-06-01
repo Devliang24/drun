@@ -26,6 +26,7 @@ class StepLifecycleContext(ExecutionContext):
     rendered_locals: Dict[str, Any]
     client: Any | None = None
     params: Dict[str, Any] | None = None
+    source: str | None = None
 
 
 @dataclass
@@ -443,6 +444,7 @@ class StepLifecycle:
                 repeat_index=repeat_index,
                 repeat_no=repeat_index + 1,
                 repeat_total=repeat_total,
+                source=context.source,
             )
             results.extend(invoke_results)
             if any(r.status == "failed" for r in invoke_results) and runner.failfast:

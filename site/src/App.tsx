@@ -211,7 +211,7 @@ function HomePage() {
       <section className="product-hero">
         <div className="hero-backdrop" aria-hidden="true">
           <div className="backdrop-panel">
-            <span>$ drun check testcases</span>
+            <span>$ drun check tcases</span>
             <strong>Checked 8 file(s): 8 OK</strong>
           </div>
           <div className="backdrop-panel accent">
@@ -283,7 +283,7 @@ function HomePage() {
         </div>
         <div className="product-demo" aria-label="Drun 产品预览">
           <div className="demo-pane demo-yaml">
-            <div className="panel-title">testcases/test_user_api.yaml</div>
+            <div className="panel-title">tcases/tc_user_api.yaml</div>
             <CodeBlock sample={{ language: 'yaml', code: homeYaml }} compact />
           </div>
           <div className="demo-pane">

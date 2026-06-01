@@ -102,8 +102,8 @@ check:
 
 ```yaml
 cases:
-  - test_login.yaml
-  - test_profile.yaml
+  - tc_login.yaml
+  - tc_profile.yaml
 ```
 
 正确：

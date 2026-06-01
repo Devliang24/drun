@@ -178,7 +178,7 @@ class CheckCommandDiagnosticTests(unittest.TestCase):
     def test_check_aggregates_diagnostics_across_files(self) -> None:
         runner = CliRunner()
         with runner.isolated_filesystem():
-            Path("test_a.yaml").write_text(
+            Path("tc_a.yaml").write_text(
                 """
 config:
   name: A
@@ -194,7 +194,7 @@ steps:
 """.strip(),
                 encoding="utf-8",
             )
-            Path("test_b.yaml").write_text(
+            Path("tc_b.yaml").write_text(
                 """
 config:
   name: B
@@ -207,7 +207,7 @@ steps:
 """.strip(),
                 encoding="utf-8",
             )
-            Path("test_ok.yaml").write_text(
+            Path("tc_ok.yaml").write_text(
                 """
 config:
   name: OK
@@ -224,12 +224,12 @@ steps:
 
         self.assertEqual(result.exit_code, 2)
         out = result.output
-        self.assertIn("FAIL test_a.yaml", out)
+        self.assertIn("FAIL tc_a.yaml", out)
         self.assertIn("DRUN-YAML-004 request.json is not supported", out)
         self.assertIn("DRUN-YAML-007 Invalid check syntax: body.id", out)
-        self.assertIn("FAIL test_b.yaml", out)
+        self.assertIn("FAIL tc_b.yaml", out)
         self.assertIn("DRUN-YAML-011 Step cannot combine", out)
-        self.assertIn("OK test_ok.yaml", out)
+        self.assertIn("OK tc_ok.yaml", out)
         self.assertIn("Checked 3 file(s): 1 OK, 2 failed, 3 error(s).", out)
 
     def test_check_limits_diagnostics_per_file(self) -> None:
@@ -247,12 +247,12 @@ steps:
         id: {idx}
 """.rstrip()
                 )
-            Path("test_many.yaml").write_text(
+            Path("tc_many.yaml").write_text(
                 "config:\n  name: Many\nsteps:\n" + "\n\n".join(steps),
                 encoding="utf-8",
             )
 
-            result = runner.invoke(cli.app, ["check", "test_many.yaml"])
+            result = runner.invoke(cli.app, ["check", "tc_many.yaml"])
 
         self.assertEqual(result.exit_code, 2)
         self.assertEqual(result.output.count("DRUN-YAML-004"), 5)
@@ -265,7 +265,7 @@ class RunCommandDiagnosticTests(unittest.TestCase):
         runner = CliRunner()
         with runner.isolated_filesystem():
             Path(".env").write_text("BASE_URL=https://example.test\n", encoding="utf-8")
-            Path("test_bad.yaml").write_text(
+            Path("tc_bad.yaml").write_text(
                 """
 config:
   name: Bad URL
@@ -278,7 +278,7 @@ steps:
                 encoding="utf-8",
             )
 
-            result = runner.invoke(cli.app, ["run", "test_bad.yaml"])
+            result = runner.invoke(cli.app, ["run", "tc_bad.yaml"])
 
         self.assertEqual(result.exit_code, 2)
         self.assertIn("DRUN-YAML-003 Invalid request field: request.url", result.output)

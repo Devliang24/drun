@@ -37,8 +37,8 @@ steps:
 ```
 
 ```bash
-drun check testcases/test_user_detail.yaml
-drun run testcases/test_user_detail.yaml -env dev
+drun check tcases/tc_user_detail.yaml
+drun run tcases/tc_user_detail.yaml -env dev
 ```
 
 ## 模板表达式与严格渲染
@@ -159,7 +159,7 @@ steps:
 ```
 
 ```bash
-drun run testcases/test_upload_avatar.yaml -env dev
+drun run tcases/tc_upload_avatar.yaml -env dev
 ```
 
 `request.files` 常见可用形态：

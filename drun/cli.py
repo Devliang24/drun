@@ -20,7 +20,7 @@ from drun.commands.run import run_cases
 from drun.commands.tags import run_tags
 from drun.extensions import get_importer, require_exporter, require_importer, resolve_exporter
 from drun.utils.naming import derive_case_name, sanitize_var_name
-from drun.loader.collector import discover
+from drun.loader.collector import InvalidTestPathError, discover
 from drun.loader.yaml_loader import load_yaml_file
 from drun.loader.env import load_environment
 from drun.models.case import Case
@@ -710,7 +710,7 @@ def convert_auto(
     )
     if not any_option:
         typer.echo(
-            "[CONVERT] No options provided. Bare conversion is not supported. Place options after INFILE, e.g.:\n  drun convert my.curl -outfile testcases/from_curl.yaml"
+            "[CONVERT] No options provided. Bare conversion is not supported. Place options after INFILE, e.g.:\n  drun convert my.curl -outfile tcases/tc_from_curl.yaml"
         )
         raise typer.Exit(code=2)
 
@@ -1027,9 +1027,11 @@ def export_curl(
     files: List[str] = []
     p = Path(path)
     if p.is_dir():
-        from drun.loader.collector import discover
-
-        files = discover([path])
+        try:
+            files = discover([path])
+        except InvalidTestPathError as exc:
+            typer.echo(str(exc))
+            raise typer.Exit(code=2)
     else:
         files = [path]
 
@@ -1118,7 +1120,7 @@ def export_curl(
 
 @app.command("tags", add_help_option=False)
 def list_tags(
-    path: str = typer.Argument("testcases", help="要扫描的文件或目录"),
+    path: str = typer.Argument("tcases", help="要扫描的文件或目录"),
 ) -> None:
     """列出所有测试用例使用的标签"""
     run_tags(path)
@@ -1683,7 +1685,7 @@ def quick(
 def r(
     path: str = typer.Argument(
         ...,
-        help="运行目标（文件/目录；支持 <path>:<case[,case]>）。例: testcases:登录",
+        help="运行目标（文件/目录；支持 <path>:<case[,case]>）。例: tcases:登录",
     ),
     k: Optional[str] = typer.Option(
         None, "-k", help='标签过滤表达式。例: -k "smoke and not slow"', metavar=""
@@ -1890,12 +1892,23 @@ def init_project(
         target_dir = Path.cwd()
 
     # 检查是否已存在关键文件
-    key_files = ["testcases", ".env", "Dhook.py", ".gitignore"]
+    key_files = ["tcases", "tsuites", ".env", "Dhook.py", ".gitignore"]
+    legacy_files = ["testcases", "testsuites"]
     existing_files = [f for f in key_files if (target_dir / f).exists()]
+    existing_legacy_files = [f for f in legacy_files if (target_dir / f).exists()]
 
-    if existing_files and not force:
+    if existing_legacy_files:
         typer.echo(
-            f"[WARNING] Directory already contains Drun project files: {', '.join(existing_files)}"
+            f"[WARNING] Legacy Drun directories detected: {', '.join(existing_legacy_files)}"
+        )
+        typer.echo(
+            "They are no longer supported and will not be modified. Use tcases/ and tsuites/."
+        )
+
+    if (existing_files or existing_legacy_files) and not force:
+        all_existing = existing_files + existing_legacy_files
+        typer.echo(
+            f"[WARNING] Directory already contains Drun project files: {', '.join(all_existing)}"
         )
         typer.echo(
             "Use -force to overwrite existing files. Existing files will be kept otherwise."
@@ -1913,8 +1926,8 @@ def init_project(
 
     # Create directory structure
     dirs_to_create = {
-        "testcases": "Test cases",
-        "testsuites": "Test suites",
+        "tcases": "Test cases",
+        "tsuites": "Test suites",
         "data": "Test data",
         "converts": "Format conversion",
         "reports": "Reports output",
@@ -1944,22 +1957,22 @@ def init_project(
         existed_before = file_path.exists()
         if existed_before and not force:
             skipped_files.append(rel_path)
-            typer.echo(f"[SKIP] {rel_path} exists, use --force to overwrite")
+            typer.echo(f"[SKIP] {rel_path} exists, use -force to overwrite")
             return
         file_path.write_text(content, encoding="utf-8")
         if existed_before and force:
             overwritten_files.append(rel_path)
 
     # Test cases
-    _write_template("testcases/test_demo.yaml", scaffolds.DEMO_TESTCASE)
-    _write_template("testcases/test_api_health.yaml", scaffolds.HEALTH_TESTCASE)
-    _write_template("testcases/test_import_users.yaml", scaffolds.CSV_DATA_TESTCASE)
+    _write_template("tcases/tc_demo.yaml", scaffolds.DEMO_TESTCASE)
+    _write_template("tcases/tc_api_health.yaml", scaffolds.HEALTH_TESTCASE)
+    _write_template("tcases/tc_import_users.yaml", scaffolds.CSV_DATA_TESTCASE)
 
     # Test data
     _write_template("data/users.csv", scaffolds.CSV_USERS_SAMPLE)
 
     # Test suites
-    _write_template("testsuites/testsuite_smoke.yaml", scaffolds.DEMO_TESTSUITE)
+    _write_template("tsuites/ts_smoke.yaml", scaffolds.DEMO_TESTSUITE)
 
     # Format conversion sample
     _write_template("converts/sample.curl", scaffolds.SAMPLE_CURL)
@@ -1979,12 +1992,12 @@ def init_project(
     project_name = name if name else "."
 
     tree_entries = [
-        ("├── ", "testcases/", ""),
-        ("│   ├── ", "test_demo.yaml", "HTTP demo"),
-        ("│   ├── ", "test_api_health.yaml", "Health check"),
-        ("│   └── ", "test_import_users.yaml", "CSV data-driven"),
-        ("├── ", "testsuites/", ""),
-        ("│   └── ", "testsuite_smoke.yaml", "Smoke test suite"),
+        ("├── ", "tcases/", "Test cases"),
+        ("│   ├── ", "tc_demo.yaml", "HTTP demo"),
+        ("│   ├── ", "tc_api_health.yaml", "Health check"),
+        ("│   └── ", "tc_import_users.yaml", "CSV data-driven"),
+        ("├── ", "tsuites/", "Test suites"),
+        ("│   └── ", "ts_smoke.yaml", "Smoke test suite"),
         ("├── ", "data/", ""),
         ("│   └── ", "users.csv", "Sample CSV data"),
         ("├── ", "converts/", ""),
@@ -2043,8 +2056,9 @@ def init_project(
     typer.echo("Quick start:")
     if name:
         typer.echo(f"  cd {name}")
-    typer.echo("  drun run testcases -env dev")
-    typer.echo("  drun run testsuite_smoke -env dev")
+    typer.echo("  drun run tcases -env dev")
+    typer.echo("  drun run tc_demo -env dev")
+    typer.echo("  drun run ts_smoke -env dev")
     typer.echo("")
     typer.echo("Docs: https://github.com/Devliang24/drun")
 

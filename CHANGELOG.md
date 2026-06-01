@@ -4,7 +4,24 @@ All notable changes to this project will be documented in this file.
 
 > Historical note: entries mentioning the scoring system are retained for release history only. The current CLI does not expose a `drun score` command.
 
-## [7.2.19] - 2026-04-26
+## [8.0.0] - 2026-06-01
+
+### BREAKING CHANGE: New test layout and naming convention
+
+- **Directories renamed**:
+  - `testcases/` → `tcases/`
+  - `testsuites/` → `tsuites/`
+- **File prefix renamed**:
+  - `test_*.yaml` → `tc_*.yaml` (case files)
+  - `suite_*.yaml` / `testsuite_*.yaml` → `ts_*.yaml` (suite files)
+- **No backward compatibility**: Legacy directory names trigger explicit errors. `drun run testcases` will fail with a clear message.
+- **Invoke targets**: `invoke: test_login` → `invoke: tc_login` enforced at YAML validation time.
+- **Collector enforcement**: Files under `tcases/` without `tc_` prefix, or `tsuites/` without `ts_` prefix, are rejected immediately.
+- **Type checking**: `tc_*.yaml` files must not contain `caseflow`; `ts_*.yaml` files must not contain `steps`.
+- **Invoke resolution**: `resolve_invoke_path` searches only under `tcases/`. Source-aware resolution uses project root derived from the calling file's location.
+- **Output plan**: `tcases/` / `tsuites/` recognized as scaffold markers for project output layout.
+- **Scaffold**: `drun init` creates `tcases/` and `tsuites/` directories with `tc_*` and `ts_*` files.
+- **README / site / skill docs**: Fully updated to new naming.
 
 ### Fixed
 - HTML 报告面板的复制按钮改为无边框图标按钮，并保留复制成功、失败和手动复制状态反馈。

@@ -14,7 +14,7 @@
 
 适用：查询详情、健康检查、只读接口。
 
-`testcases/test_user_detail.yaml`
+`tcases/tc_user_detail.yaml`
 
 ```yaml
 config:
@@ -38,15 +38,15 @@ steps:
 运行：
 
 ```bash
-drun check testcases/test_user_detail.yaml
-drun run testcases/test_user_detail.yaml -env dev -secrets mask
+drun check tcases/tc_user_detail.yaml
+drun run tcases/tc_user_detail.yaml -env dev -secrets mask
 ```
 
 ## POST JSON 创建资源
 
 适用：创建用户、创建订单、提交表单类 JSON 接口。
 
-`testcases/test_create_user.yaml`
+`tcases/tc_create_user.yaml`
 
 ```yaml
 config:
@@ -73,15 +73,15 @@ steps:
 运行：
 
 ```bash
-drun check testcases/test_create_user.yaml
-drun run testcases/test_create_user.yaml -env dev -secrets mask
+drun check tcases/tc_create_user.yaml
+drun run tcases/tc_create_user.yaml -env dev -secrets mask
 ```
 
 ## 登录提取 token
 
 适用：登录接口调试，或作为后续 Case 的前置认证步骤。
 
-`testcases/test_login.yaml`
+`tcases/tc_login.yaml`
 
 ```yaml
 config:
@@ -107,15 +107,15 @@ steps:
 运行：
 
 ```bash
-drun check testcases/test_login.yaml
-drun run testcases/test_login.yaml -env dev -secrets mask
+drun check tcases/tc_login.yaml
+drun run tcases/tc_login.yaml -env dev -secrets mask
 ```
 
 ## 登录后查询当前用户
 
 适用：一个 Case 内串联多个 Request Step，并复用前一步 `extract` 的变量。
 
-`testcases/test_login_and_me.yaml`
+`tcases/tc_login_and_me.yaml`
 
 ```yaml
 config:
@@ -149,15 +149,15 @@ steps:
 运行：
 
 ```bash
-drun check testcases/test_login_and_me.yaml
-drun run testcases/test_login_and_me.yaml -env dev -secrets mask
+drun check tcases/tc_login_and_me.yaml
+drun run tcases/tc_login_and_me.yaml -env dev -secrets mask
 ```
 
 ## 文件上传 multipart
 
 适用：上传头像、附件、音频、图片等 multipart 接口。普通表单字段放 `request.data`，文件字段放 `request.files`。
 
-`testcases/test_upload_avatar.yaml`
+`tcases/tc_upload_avatar.yaml`
 
 ```yaml
 config:
@@ -186,15 +186,15 @@ steps:
 运行：
 
 ```bash
-drun check testcases/test_upload_avatar.yaml
-drun run testcases/test_upload_avatar.yaml -env dev -secrets mask
+drun check tcases/tc_upload_avatar.yaml
+drun run tcases/tc_upload_avatar.yaml -env dev -secrets mask
 ```
 
 ## 下载二进制并保存
 
 适用：下载图片、音频、压缩包或模型生成文件。
 
-`testcases/test_download_file.yaml`
+`tcases/tc_download_file.yaml`
 
 ```yaml
 config:
@@ -220,15 +220,15 @@ steps:
 运行：
 
 ```bash
-drun check testcases/test_download_file.yaml
-drun run testcases/test_download_file.yaml -env dev -secrets mask
+drun check tcases/tc_download_file.yaml
+drun run tcases/tc_download_file.yaml -env dev -secrets mask
 ```
 
 ## 轮询接口
 
 适用：异步任务状态查询。`repeat` 负责重复 Request Step，`sleep` 需要单独 Step。
 
-`testcases/test_poll_order.yaml`
+`tcases/tc_poll_order.yaml`
 
 ```yaml
 config:
@@ -257,15 +257,15 @@ steps:
 运行：
 
 ```bash
-drun check testcases/test_poll_order.yaml
-drun run testcases/test_poll_order.yaml -env dev -secrets mask
+drun check tcases/tc_poll_order.yaml
+drun run tcases/tc_poll_order.yaml -env dev -secrets mask
 ```
 
 ## CSV 参数化
 
 适用：使用 CSV 数据批量执行同一个 Case。
 
-`testcases/test_login_csv.yaml`
+`tcases/tc_login_csv.yaml`
 
 ```yaml
 config:
@@ -293,8 +293,8 @@ steps:
 运行：
 
 ```bash
-drun check testcases/test_login_csv.yaml
-drun run testcases/test_login_csv.yaml -env dev -secrets mask
+drun check tcases/tc_login_csv.yaml
+drun run tcases/tc_login_csv.yaml -env dev -secrets mask
 ```
 
 注意：CSV 参数化当前不支持 `rows`、`where` 或 `filter` 之类的按行过滤 DSL。
@@ -303,7 +303,7 @@ drun run testcases/test_login_csv.yaml -env dev -secrets mask
 
 适用：把登录、查询资料等拆成多个 Case，再用 suite 编排。
 
-`testsuites/testsuite_login_flow.yaml`
+`tsuites/ts_login_flow.yaml`
 
 ```yaml
 config:
@@ -321,8 +321,8 @@ caseflow:
 运行：
 
 ```bash
-drun check testsuites/testsuite_login_flow.yaml
-drun run testsuites/testsuite_login_flow.yaml -env dev -secrets mask
+drun check tsuites/ts_login_flow.yaml
+drun run tsuites/ts_login_flow.yaml -env dev -secrets mask
 ```
 
 ## drun q 快速调试并保存 YAML
@@ -336,13 +336,13 @@ drun q https://api.example.com/api/login \
   -d '{"username":"alice","password":"secret"}' \
   -check 'status_code=200' \
   -extract 'token=$.data.token' \
-  -save-yaml testcases/test_login_from_q.yaml \
+  -save-yaml tcases/tc_login_from_q.yaml \
   -secrets mask
 ```
 
 保存后建议继续执行：
 
 ```bash
-drun check testcases/test_login_from_q.yaml
-drun run testcases/test_login_from_q.yaml -env dev -secrets mask
+drun check tcases/tc_login_from_q.yaml
+drun run tcases/tc_login_from_q.yaml -env dev -secrets mask
 ```

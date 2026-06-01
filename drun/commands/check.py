@@ -4,7 +4,7 @@ from pathlib import Path
 
 import typer
 
-from drun.loader.collector import discover
+from drun.loader.collector import AmbiguousTestTargetError, InvalidTestPathError, discover
 from drun.loader.yaml_loader import collect_yaml_diagnostics, load_yaml_file
 from drun.utils.errors import Diagnostic
 
@@ -17,7 +17,11 @@ def _format_check_diagnostic(diag, *, indent: str = "  ") -> str:
 
 
 def run_check(path: str) -> None:
-    files = discover([path])
+    try:
+        files = discover([path])
+    except (InvalidTestPathError, AmbiguousTestTargetError) as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2)
     if not files:
         typer.echo("No YAML test files found.")
         raise typer.Exit(code=2)

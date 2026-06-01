@@ -32,7 +32,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["drun*"]
-exclude = ["spec*", "testcases*", "testsuites*"]
+exclude = ["spec*", "tcases*", "tsuites*", "testcases*", "testsuites*"]
 
 [tool.setuptools.package-data]
 "drun.server" = ["templates/*.html"]

@@ -7,7 +7,7 @@ from typing import List
 import typer
 import yaml
 
-from drun.loader.collector import discover
+from drun.loader.collector import AmbiguousTestTargetError, InvalidTestPathError, discover
 
 
 class _YamlDumper(yaml.SafeDumper):
@@ -16,7 +16,11 @@ class _YamlDumper(yaml.SafeDumper):
 
 
 def run_fix(paths: List[str], only_spacing: bool, only_hooks: bool) -> None:
-    files = discover(paths)
+    try:
+        files = discover(paths)
+    except (InvalidTestPathError, AmbiguousTestTargetError) as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2)
     if not files:
         typer.echo("No YAML test files found.")
         raise typer.Exit(code=2)

@@ -26,7 +26,7 @@
 
 脚手架项目模式：
 
-- 运行路径位于一个包含 `testcases/` 或 `testsuites/`，且同时带 `.env` 或 `Dhook.py` 的项目根下
+- 运行路径位于一个包含 `tcases/` 或 `tsuites/`，且同时带 `.env` 或 `Dhook.py` 的项目根下
 - 默认输出：
   - `logs/<system>-<timestamp>.log`
   - `reports/<system>-<timestamp>.html`
@@ -35,11 +35,11 @@
 ## 命令示例
 
 ```bash
-drun run testsuites/testsuite_login_flow.yaml -env dev -report reports/login.json
-drun run testsuites/testsuite_login_flow.yaml -env dev -allure-results allure-results
-drun run testsuites/testsuite_login_flow.yaml -env dev -snippet curl
-drun run testsuites/testsuite_login_flow.yaml -env dev -snippet python -snippet-output snippets/manual
-drun run /tmp/test_upload.yaml -env dev -html reports/upload.html -snippet-output snippets/upload
+drun run tsuites/ts_login_flow.yaml -env dev -report reports/login.json
+drun run tsuites/ts_login_flow.yaml -env dev -allure-results allure-results
+drun run tsuites/ts_login_flow.yaml -env dev -snippet curl
+drun run tsuites/ts_login_flow.yaml -env dev -snippet python -snippet-output snippets/manual
+drun run /tmp/tc_upload.yaml -env dev -html reports/upload.html -snippet-output snippets/upload
 ```
 
 ## JSON / HTML / Allure
@@ -144,7 +144,7 @@ drun server -host 127.0.0.1 -reports-dir reports -headless
 ## 文件上传与报告输出的组合示例
 
 ```bash
-drun run testcases/test_upload_avatar.yaml \
+drun run tcases/tc_upload_avatar.yaml \
   -env dev \
   -report reports/upload.json \
   -allure-results allure-results \

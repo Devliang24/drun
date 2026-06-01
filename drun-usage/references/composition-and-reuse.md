@@ -6,7 +6,7 @@
 
 把登录、查询资料、下单等场景拆成单独 case 文件，再用 `caseflow` 组织。
 
-`testcases/test_login.yaml`
+`tcases/tc_login.yaml`
 
 ```yaml
 config:
@@ -28,7 +28,7 @@ steps:
       - eq: [status_code, 200]
 ```
 
-`testcases/test_profile.yaml`
+`tcases/tc_profile.yaml`
 
 ```yaml
 config:
@@ -46,7 +46,7 @@ steps:
       - eq: [status_code, 200]
 ```
 
-`testsuites/testsuite_login_flow.yaml`
+`tsuites/ts_login_flow.yaml`
 
 ```yaml
 config:
@@ -66,7 +66,7 @@ caseflow:
 ```
 
 ```bash
-drun run testsuites/testsuite_login_flow.yaml -env dev -persist-env .env.runtime
+drun run tsuites/ts_login_flow.yaml -env dev -persist-env .env.runtime
 ```
 
 ## `invoke` 与变量传递

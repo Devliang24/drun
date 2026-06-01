@@ -211,27 +211,27 @@ class SummaryFormattingTests(unittest.TestCase):
 class RunPathCaseSelectorParseTests(unittest.TestCase):
     def test_parse_single_case_selector(self) -> None:
         target, selected = _parse_run_target_with_case_selector(
-            "test_channel_token_flow:获取渠道 token"
+            "tc_channel_token_flow:获取渠道 token"
         )
-        self.assertEqual(target, "test_channel_token_flow")
+        self.assertEqual(target, "tc_channel_token_flow")
         self.assertEqual(selected, ["获取渠道 token"])
 
     def test_parse_multi_case_selector_deduplicates_names(self) -> None:
         target, selected = _parse_run_target_with_case_selector(
-            "test_channel_token_flow:Case C, Case A,Case C, Case A "
+            "tc_channel_token_flow:Case C, Case A,Case C, Case A "
         )
-        self.assertEqual(target, "test_channel_token_flow")
+        self.assertEqual(target, "tc_channel_token_flow")
         self.assertEqual(selected, ["Case C", "Case A"])
 
     def test_parse_case_selector_rejects_empty_names(self) -> None:
         with self.assertRaises(ValueError):
-            _parse_run_target_with_case_selector("test_channel_token_flow:Case A,")
+            _parse_run_target_with_case_selector("tc_channel_token_flow:Case A,")
 
         with self.assertRaises(ValueError):
-            _parse_run_target_with_case_selector("test_channel_token_flow: , ")
+            _parse_run_target_with_case_selector("tc_channel_token_flow: , ")
 
         with self.assertRaises(ValueError):
-            _parse_run_target_with_case_selector("test_channel_token_flow:")
+            _parse_run_target_with_case_selector("tc_channel_token_flow:")
 
 
 class RunOutputPlanTests(unittest.TestCase):
@@ -240,7 +240,7 @@ class RunOutputPlanTests(unittest.TestCase):
     ) -> None:
         with TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
-            target = tmpdir / "test_tts.yaml"
+            target = tmpdir / "tc_tts.yaml"
             target.write_text("config:\n  name: Demo\nsteps: []\n", encoding="utf-8")
 
             plan = _build_run_output_plan(
@@ -257,7 +257,7 @@ class RunOutputPlanTests(unittest.TestCase):
 
             self.assertTrue(plan.temporary_single_file)
             self.assertIsNone(plan.scaffold_root)
-            self.assertEqual(plan.log_path, "test_tts-20260327-101010.log")
+            self.assertEqual(plan.log_path, "tc_tts-20260327-101010.log")
             self.assertIsNone(plan.html_path)
             self.assertFalse(plan.generate_snippets)
             self.assertIsNone(plan.snippet_output)
@@ -267,8 +267,8 @@ class RunOutputPlanTests(unittest.TestCase):
     ) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp) / "demo-project"
-            testcase_dir = project / "testcases"
-            testsuite_dir = project / "testsuites"
+            testcase_dir = project / "tcases"
+            testsuite_dir = project / "tsuites"
             subdir = project / "workbench"
             testcase_dir.mkdir(parents=True)
             testsuite_dir.mkdir()
@@ -277,11 +277,11 @@ class RunOutputPlanTests(unittest.TestCase):
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
             (project / "Dhook.py").write_text("", encoding="utf-8")
-            target = testcase_dir / "test_login.yaml"
+            target = testcase_dir / "tc_login.yaml"
             target.write_text("config:\n  name: Demo\nsteps: []\n", encoding="utf-8")
 
             plan = _build_run_output_plan(
-                "../testcases/test_login.yaml",
+                "../tcases/tc_login.yaml",
                 [target],
                 ts="20260327-101010",
                 system_name="My Test System",
@@ -317,7 +317,7 @@ class RunOutputPlanTests(unittest.TestCase):
     def test_build_output_plan_respects_explicit_outputs(self) -> None:
         with TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
-            target = tmpdir / "test_tts.yaml"
+            target = tmpdir / "tc_tts.yaml"
             target.write_text("config:\n  name: Demo\nsteps: []\n", encoding="utf-8")
 
             plan = _build_run_output_plan(
@@ -347,7 +347,7 @@ class RunOutputsIntegrationTests(unittest.TestCase):
             (tmpdir / "demo.env").write_text(
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
-            target = tmpdir / "test_temp.yaml"
+            target = tmpdir / "tc_temp.yaml"
             target.write_text(
                 """config:
   name: Temporary File
@@ -381,7 +381,7 @@ steps:
                         ):
                             with self.assertRaises(typer.Exit) as ctx:
                                 run_cases(
-                                    path="test_temp.yaml",
+                                    path="tc_temp.yaml",
                                     k=None,
                                     vars=[],
                                     failfast=False,
@@ -408,7 +408,7 @@ steps:
                 logging.shutdown()
 
             self.assertEqual(ctx.exception.exit_code, 1)
-            log_files = list(tmpdir.glob("test_temp-*.log"))
+            log_files = list(tmpdir.glob("tc_temp-*.log"))
             self.assertEqual(len(log_files), 1)
             self.assertFalse((tmpdir / "logs").exists())
             self.assertFalse((tmpdir / "reports").exists())
@@ -427,8 +427,8 @@ steps:
     ) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp) / "demo-project"
-            testcase_dir = project / "testcases"
-            testsuite_dir = project / "testsuites"
+            testcase_dir = project / "tcases"
+            testsuite_dir = project / "tsuites"
             subdir = project / "scratch"
             testcase_dir.mkdir(parents=True)
             testsuite_dir.mkdir()
@@ -437,7 +437,7 @@ steps:
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
             (project / "Dhook.py").write_text("", encoding="utf-8")
-            target = testcase_dir / "test_login.yaml"
+            target = testcase_dir / "tc_login.yaml"
             target.write_text(
                 """config:
   name: Scaffold File
@@ -460,7 +460,7 @@ steps:
                     patch("drun.commands.run.get_functions_for", return_value={}),
                 ):
                     run_cases(
-                        path="../testcases/test_login.yaml",
+                        path="../tcases/tc_login.yaml",
                         k=None,
                         vars=[],
                         failfast=False,
@@ -502,8 +502,8 @@ steps:
     ) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp) / "demo-project"
-            testcase_dir = project / "testcases"
-            testsuite_dir = project / "testsuites"
+            testcase_dir = project / "tcases"
+            testsuite_dir = project / "tsuites"
             testcase_dir.mkdir(parents=True)
             testsuite_dir.mkdir()
             (project / ".env").write_text(
@@ -511,7 +511,7 @@ steps:
             )
             (project / "Dhook.py").write_text("", encoding="utf-8")
 
-            good = testcase_dir / "case_good.yaml"
+            good = testcase_dir / "tc_case_good.yaml"
             good.write_text(
                 """config:
   name: Passed Case
@@ -525,7 +525,7 @@ steps:
 """,
                 encoding="utf-8",
             )
-            broken = testcase_dir / "case_broken.yaml"
+            broken = testcase_dir / "tc_case_broken.yaml"
             broken.write_text(
                 """config:
   name: Broken Case
@@ -543,7 +543,7 @@ steps:
 """,
                 encoding="utf-8",
             )
-            broken_two = testcase_dir / "case_broken_two.yaml"
+            broken_two = testcase_dir / "tc_case_broken_two.yaml"
             broken_two.write_text(
                 """config:
   name: Another Broken Case
@@ -567,7 +567,7 @@ steps:
                 ):
                     with self.assertRaises(typer.Exit) as ctx:
                         run_cases(
-                            path="testcases",
+                            path="tcases",
                             k=None,
                             vars=[],
                             failfast=False,
@@ -628,14 +628,14 @@ class RunCaseSelectorExecutionTests(unittest.TestCase):
     def test_run_cases_single_case_selector_runs_only_target_case(self) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp)
-            testcases = project / "testcases"
-            testsuites = project / "testsuites"
-            testcases.mkdir(parents=True)
-            testsuites.mkdir()
+            tcases = project / "tcases"
+            tsuites = project / "tsuites"
+            tcases.mkdir(parents=True)
+            tsuites.mkdir()
             (project / ".env").write_text(
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
-            case_a = testcases / "test_case_a.yaml"
+            case_a = tcases / "tc_case_a.yaml"
             case_a.write_text(
                 """config:
   name: Case A
@@ -648,7 +648,7 @@ steps:
 """,
                 encoding="utf-8",
             )
-            case_b = testcases / "test_case_b.yaml"
+            case_b = tcases / "tc_case_b.yaml"
             case_b.write_text(
                 """config:
   name: Case B
@@ -671,7 +671,7 @@ steps:
                     patch("drun.commands.run.get_functions_for", return_value={}),
                 ):
                     run_cases(
-                        path="testcases:Case B",
+                        path="tcases:Case B",
                         k=None,
                         vars=[],
                         failfast=False,
@@ -702,14 +702,14 @@ steps:
     def test_run_cases_multi_case_selector_runs_in_source_order(self) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp)
-            testcases = project / "testcases"
-            testsuites = project / "testsuites"
-            testcases.mkdir(parents=True)
-            testsuites.mkdir()
+            tcases = project / "tcases"
+            tsuites = project / "tsuites"
+            tcases.mkdir(parents=True)
+            tsuites.mkdir()
             (project / ".env").write_text(
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
-            case_a = testcases / "test_case_a.yaml"
+            case_a = tcases / "tc_case_a.yaml"
             case_a.write_text(
                 """config:
   name: Case A
@@ -722,7 +722,7 @@ steps:
 """,
                 encoding="utf-8",
             )
-            case_b = testcases / "test_case_b.yaml"
+            case_b = tcases / "tc_case_b.yaml"
             case_b.write_text(
                 """config:
   name: Case B
@@ -735,7 +735,7 @@ steps:
 """,
                 encoding="utf-8",
             )
-            case_c = testcases / "test_case_c.yaml"
+            case_c = tcases / "tc_case_c.yaml"
             case_c.write_text(
                 """config:
   name: Case C
@@ -758,7 +758,7 @@ steps:
                     patch("drun.commands.run.get_functions_for", return_value={}),
                 ):
                     run_cases(
-                        path="testcases:Case C,Case A",
+                        path="tcases:Case C,Case A",
                         k=None,
                         vars=[],
                         failfast=False,
@@ -789,14 +789,14 @@ steps:
     def test_run_cases_selector_matches_all_duplicate_case_names(self) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp)
-            testcases = project / "testcases"
-            testsuites = project / "testsuites"
-            testcases.mkdir(parents=True)
-            testsuites.mkdir()
+            tcases = project / "tcases"
+            tsuites = project / "tsuites"
+            tcases.mkdir(parents=True)
+            tsuites.mkdir()
             (project / ".env").write_text(
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
-            case_a = testcases / "test_case_a.yaml"
+            case_a = tcases / "tc_case_a.yaml"
             case_a.write_text(
                 """config:
   name: Case A
@@ -809,7 +809,7 @@ steps:
 """,
                 encoding="utf-8",
             )
-            case_a_dup = testcases / "test_case_a_dup.yaml"
+            case_a_dup = tcases / "tc_case_a_dup.yaml"
             case_a_dup.write_text(
                 """config:
   name: Case A
@@ -832,7 +832,7 @@ steps:
                     patch("drun.commands.run.get_functions_for", return_value={}),
                 ):
                     run_cases(
-                        path="testcases:Case A",
+                        path="tcases:Case A",
                         k=None,
                         vars=[],
                         failfast=False,
@@ -863,14 +863,14 @@ steps:
     def test_run_cases_selector_no_match_fails_with_available_case_names(self) -> None:
         with TemporaryDirectory() as tmp:
             project = Path(tmp)
-            testcases = project / "testcases"
-            testsuites = project / "testsuites"
-            testcases.mkdir(parents=True)
-            testsuites.mkdir()
+            tcases = project / "tcases"
+            tsuites = project / "tsuites"
+            tcases.mkdir(parents=True)
+            tsuites.mkdir()
             (project / ".env").write_text(
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
-            case_a = testcases / "test_case_a.yaml"
+            case_a = tcases / "tc_case_a.yaml"
             case_a.write_text(
                 """config:
   name: Case A
@@ -883,7 +883,7 @@ steps:
 """,
                 encoding="utf-8",
             )
-            case_b = testcases / "test_case_b.yaml"
+            case_b = tcases / "tc_case_b.yaml"
             case_b.write_text(
                 """config:
   name: Case B
@@ -908,7 +908,7 @@ steps:
                 ):
                     with self.assertRaises(typer.Exit) as ctx:
                         run_cases(
-                            path="testcases:Case Z",
+                            path="tcases:Case Z",
                             k=None,
                             vars=[],
                             failfast=False,

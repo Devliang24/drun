@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 
-from drun.loader.collector import resolve_invoke_path
+from drun.loader.collector import find_project_root, resolve_invoke_path
 from drun.loader.yaml_loader import expand_parameters, load_yaml_file
 from drun.models.report import StepResult
 from drun.models.step import Step
@@ -27,6 +27,7 @@ def execute_invoke_step(
     repeat_index: int | None = None,
     repeat_no: int | None = None,
     repeat_total: int | None = None,
+    source: str | Path | None = None,
 ) -> List[StepResult]:
     t0 = time.perf_counter()
     invoke_path = step.invoke
@@ -35,7 +36,8 @@ def execute_invoke_step(
         runner.log.info(f"[STEP] Step {step_idx} Start: {rendered_step_name}")
         runner.log.info(f"[INVOKE] Loading testcase: {invoke_path}")
 
-    resolved_path = resolve_invoke_path(invoke_path, Path.cwd())
+    base_dir = find_project_root(Path(source)) if source else None
+    resolved_path = resolve_invoke_path(invoke_path, base_dir or Path.cwd())
     if resolved_path is None:
         error_msg = f"Cannot find testcase for invoke: {invoke_path}"
         if runner.log:

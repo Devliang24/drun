@@ -182,7 +182,7 @@ def build_run_summary_text(report: RunReport) -> str:
 
 
 def has_scaffold_markers(root: Path) -> bool:
-    has_case_dirs = (root / "testcases").is_dir() or (root / "testsuites").is_dir()
+    has_case_dirs = (root / "tcases").is_dir() or (root / "tsuites").is_dir()
     has_project_files = (root / ".env").exists() or (root / "Dhook.py").exists()
     return has_case_dirs and has_project_files
 

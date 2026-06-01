@@ -14,7 +14,7 @@ drun q https://api.example.com/api/login \
   -check 'status_code=200' \
   -extract 'token=$.data.token' \
   -max-body 4096 \
-  -save-yaml testcases/test_login_from_q.yaml \
+  -save-yaml tcases/tc_login_from_q.yaml \
   -secrets mask
 ```
 
@@ -29,7 +29,7 @@ drun q https://api.example.com/api/login \
 - `-extract 'token=$.data.token'`
 - `-max-body 4096`
 - `-o body.json`
-- `-save-yaml testcases/test_xxx.yaml`
+- `-save-yaml tcases/tc_xxx.yaml`
 - `-v`
 
 边界：
@@ -43,19 +43,19 @@ drun q https://api.example.com/api/login \
 ### cURL
 
 ```bash
-drun convert sample.curl -outfile testcases/from_curl.yaml -placeholders on -redact Authorization,Cookie
+drun convert sample.curl -outfile tcases/from_curl.yaml -placeholders on -redact Authorization,Cookie
 ```
 
 ### HAR
 
 ```bash
-drun convert traffic.har -output-mode split -outfile testcases/imported.yaml
+drun convert traffic.har -output-mode split -outfile tcases/imported.yaml
 ```
 
 ### Postman
 
 ```bash
-drun convert collection.json -postman-env env.json -output-mode split -outfile testcases/postman.yaml -suite-out testsuites/postman_flow.yaml
+drun convert collection.json -postman-env env.json -output-mode split -outfile tcases/postman.yaml -suite-out tsuites/postman_flow.yaml
 ```
 
 实现边界：
@@ -72,7 +72,7 @@ drun convert collection.json -postman-env env.json -output-mode split -outfile t
 ```bash
 drun convert-openapi spec/openapi/ecommerce_api.json \
   -output-mode split \
-  -outfile testcases/ecommerce.yaml \
+  -outfile tcases/ecommerce.yaml \
   -tags orders,payment \
   -placeholders on
 ```
@@ -87,7 +87,7 @@ drun convert-openapi spec/openapi/ecommerce_api.json \
 ## `drun export curl`：从现有 case 反推可复现请求
 
 ```bash
-drun export curl testcases/test_login.yaml \
+drun export curl tcases/tc_login.yaml \
   -steps 1 \
   -layout multiline \
   -shell sh \
@@ -99,9 +99,9 @@ drun export curl testcases/test_login.yaml \
 可选写法：
 
 ```bash
-drun export curl testcases/test_upload.yaml -layout oneline
-drun export curl testcases/test_login.yaml -shell ps
-drun export curl testcases -case-name 登录 -steps 1,3-4
+drun export curl tcases/tc_upload.yaml -layout oneline
+drun export curl tcases/tc_login.yaml -shell ps
+drun export curl tcases -case-name 登录 -steps 1,3-4
 ```
 
 边界：

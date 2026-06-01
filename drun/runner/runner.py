@@ -443,6 +443,7 @@ class Runner:
         repeat_index: int | None = None,
         repeat_no: int | None = None,
         repeat_total: int | None = None,
+        source: str | None = None,
     ) -> List[StepResult]:
         return execute_invoke_step(
             runner=self,
@@ -459,6 +460,7 @@ class Runner:
             repeat_index=repeat_index,
             repeat_no=repeat_no,
             repeat_total=repeat_total,
+            source=source,
         )
 
     def _format_repeat_step_name(self, step_name: str, repeat_index: int, repeat_total: int) -> str:
@@ -689,6 +691,7 @@ class Runner:
                             envmap=envmap,
                             client=client,
                             params=params,
+                            source=source,
                         )
                     )
                     lifecycle_results = lifecycle_result.results

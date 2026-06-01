@@ -7,17 +7,17 @@
 `drun run` 支持文件、目录、简写文件名，以及 `<path>:<case[,case]>` 形式的 case 选择器。
 
 ```bash
-drun run testcases -env dev
+drun run tcases -env dev
 drun run test_login -env dev
-drun run testcases/test_login.yaml -env dev
-drun run testsuites/testsuite_login_flow.yaml -env dev
-drun run testcases:登录,查询资料 -env dev
-drun run testcases -env dev -k "smoke and not slow"
+drun run tcases/tc_login.yaml -env dev
+drun run tsuites/ts_login_flow.yaml -env dev
+drun run tcases:登录,查询资料 -env dev
+drun run tcases -env dev -k "smoke and not slow"
 ```
 
 说明：
 
-- `test_login` 这类无扩展名写法会优先在 `testcases/`、`testsuites/` 里搜索
+- `test_login` 这类无扩展名写法会优先在 `tcases/`、`tsuites/` 里搜索
 - `:case1,case2` 按 case 名精确匹配
 - case 选择器只负责过滤；实际执行顺序仍按文件发现顺序和源文件内 case 顺序，不按 `:case2,case1` 的书写顺序重排
 - 选择器未命中时，错误信息会回显 `requested=[...] available=[...]`
@@ -63,13 +63,13 @@ steps:
 ```
 
 ```bash
-drun run testcases/test_login.yaml -env dev
-drun run testcases/test_login.yaml -env-file .env.local
-drun run testcases/test_login.yaml -env dev -vars tenant=blue
-drun run testcases/test_login.yaml -env dev -failfast
-drun run testcases/test_login.yaml -env dev -persist-env .env.runtime
-drun run testcases/test_login.yaml -env dev -secrets mask -response-headers
-drun run testcases/test_login.yaml -env dev -log-level DEBUG -httpx-logs -log-file logs/debug.log
+drun run tcases/tc_login.yaml -env dev
+drun run tcases/tc_login.yaml -env-file .env.local
+drun run tcases/tc_login.yaml -env dev -vars tenant=blue
+drun run tcases/tc_login.yaml -env dev -failfast
+drun run tcases/tc_login.yaml -env dev -persist-env .env.runtime
+drun run tcases/tc_login.yaml -env dev -secrets mask -response-headers
+drun run tcases/tc_login.yaml -env dev -log-level DEBUG -httpx-logs -log-file logs/debug.log
 ```
 
 ## `-vars`、`-failfast`、`-persist-env`
@@ -91,8 +91,8 @@ drun run testcases/test_login.yaml -env dev -log-level DEBUG -httpx-logs -log-fi
 
 ## 实战建议
 
-- 单接口调试时优先 `testcases/test_xxx.yaml`
-- 多文件链路优先 `testsuites/testsuite_xxx.yaml`
+- 单接口调试时优先 `tcases/tc_xxx.yaml`
+- 多文件链路优先 `tsuites/ts_xxx.yaml`
 - 如果只是补一个 `base_url`，可以直接 `-vars base_url=https://api.example.com`
 - 如果 `.env` 缺失，但你明确想走 YAML 环境或 OS 环境，仍然可以使用 `-env dev`
 - 需要排查 token 是否过期时，优先用 `-secrets mask -response-headers`，避免把真实 token 写进日志

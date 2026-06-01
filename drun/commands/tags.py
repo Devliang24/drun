@@ -5,12 +5,16 @@ from typing import Dict, List
 
 import typer
 
-from drun.loader.collector import discover
+from drun.loader.collector import AmbiguousTestTargetError, InvalidTestPathError, discover
 from drun.loader.yaml_loader import load_yaml_file
 
 
 def run_tags(path: str) -> None:
-    files = discover([path])
+    try:
+        files = discover([path])
+    except (InvalidTestPathError, AmbiguousTestTargetError) as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2)
     if not files:
         typer.echo(f"No YAML test files found at: {path}")
         pth = Path(path)
@@ -33,12 +37,13 @@ def run_tags(path: str) -> None:
                             break
             elif pth.is_dir():
                 hints.append(
-                    "Provide a YAML file or a directory containing YAML tests under testcases/ or testsuites/."
+                    "Provide a YAML file or a directory containing YAML tests under tcases/ or tsuites/."
                 )
         hints.append("Examples:")
-        hints.append("  drun run testcases")
-        hints.append("  drun run testcases/test_hello.yaml")
-        hints.append("  drun run testsuites/testsuite_smoke.yaml")
+        hints.append("  drun run tcases")
+        hints.append("  drun run tc_demo")
+        hints.append("  drun run tcases/tc_hello.yaml")
+        hints.append("  drun run ts_smoke")
         for h in hints:
             typer.echo(h)
         raise typer.Exit(code=2)

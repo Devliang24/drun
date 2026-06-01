@@ -76,17 +76,17 @@ def _build_case(name: str) -> Case:
 class StepInvokeCaseSelectionValidationTests(unittest.TestCase):
     def test_caseflow_loader_accepts_invoke_case_selection_fields(self) -> None:
         with TemporaryDirectory() as tmp:
-            suite_file = Path(tmp) / "testsuite.yaml"
+            suite_file = Path(tmp) / "ts_suite.yaml"
             suite_file.write_text(
                 """
 config:
   name: Selective Suite
 caseflow:
   - name: single match
-    invoke: test_channel_token_flow
+    invoke: tc_channel_token_flow
     invoke_case_name: 获取渠道 token
   - name: multiple matches
-    invoke: test_channel_token_flow
+    invoke: tc_channel_token_flow
     invoke_case_names:
       - 获取渠道 token
       - 刷新渠道 token
@@ -106,7 +106,7 @@ caseflow:
         with self.assertRaises(ValueError):
             Step(
                 name="invalid invoke selector",
-                invoke="test_target",
+                invoke="tc_target",
                 invoke_case_name="Case A",
                 invoke_case_names=["Case B"],
             )
@@ -121,30 +121,54 @@ caseflow:
 
     def test_invoke_case_name_must_be_non_empty_string(self) -> None:
         with self.assertRaises(ValueError):
-            Step(name="invalid invoke selector", invoke="test_target", invoke_case_name="   ")
+            Step(name="invalid invoke selector", invoke="tc_target", invoke_case_name="   ")
 
     def test_invoke_case_names_entries_must_be_non_empty_strings(self) -> None:
         with self.assertRaises(ValueError):
-            Step(name="invalid invoke selector", invoke="test_target", invoke_case_names=["Case A", ""])
+            Step(name="invalid invoke selector", invoke="tc_target", invoke_case_names=["Case A", ""])
 
     def test_invoke_case_names_are_trimmed_and_deduplicated(self) -> None:
         step = Step(
             name="valid invoke selector",
-            invoke="test_target",
+            invoke="tc_target",
             invoke_case_names=[" Case A ", "Case B", "Case A", "Case B "],
         )
         self.assertEqual(step.invoke_case_names, ["Case A", "Case B"])
 
 
-class InvokeCaseSelectionExecutionTests(unittest.TestCase):
+    @patch("drun.runner.invoke.resolve_invoke_path")
+    @patch("drun.runner.invoke.load_yaml_file")
+    def test_invoke_resolution_uses_source_project_root(self, mock_load, mock_resolve) -> None:
+        mock_resolve.return_value = Path("/tmp/project/tcases/tc_child.yaml")
+        mock_load.return_value = ([_build_case("Case A")], {})
+        runner = _FakeRunner()
+        ctx = _FakeCtx()
+        step = Step(name="Invoke child", invoke="tc_child")
+
+        execute_invoke_step(
+            runner=runner,
+            step=step,
+            step_idx=1,
+            rendered_step_name=step.name,
+            variables={},
+            global_vars={},
+            funcs={},
+            envmap={},
+            ctx=ctx,
+            params={},
+            source="/tmp/project/tsuites/ts_smoke.yaml",
+        )
+
+        mock_resolve.assert_called_once_with("tc_child", Path("/tmp/project"))
+
     @patch("drun.runner.invoke.resolve_invoke_path")
     @patch("drun.runner.invoke.load_yaml_file")
     def test_invoke_case_name_runs_only_selected_case(self, mock_load, mock_resolve) -> None:
-        mock_resolve.return_value = Path("/tmp/testcases/test_channel_token_flow.yaml")
+        mock_resolve.return_value = Path("/tmp/tcases/tc_channel_token_flow.yaml")
         mock_load.return_value = ([_build_case("Case A"), _build_case("Case B"), _build_case("Case C")], {})
         runner = _FakeRunner()
         ctx = _FakeCtx()
-        step = Step(name="Invoke selected case", invoke="test_channel_token_flow", invoke_case_name="Case B")
+        step = Step(name="Invoke selected case", invoke="tc_channel_token_flow", invoke_case_name="Case B")
 
         results = execute_invoke_step(
             runner=runner,
@@ -165,13 +189,13 @@ class InvokeCaseSelectionExecutionTests(unittest.TestCase):
     @patch("drun.runner.invoke.resolve_invoke_path")
     @patch("drun.runner.invoke.load_yaml_file")
     def test_invoke_case_names_run_in_source_order(self, mock_load, mock_resolve) -> None:
-        mock_resolve.return_value = Path("/tmp/testcases/test_channel_token_flow.yaml")
+        mock_resolve.return_value = Path("/tmp/tcases/tc_channel_token_flow.yaml")
         mock_load.return_value = ([_build_case("Case A"), _build_case("Case B"), _build_case("Case C")], {})
         runner = _FakeRunner()
         ctx = _FakeCtx()
         step = Step(
             name="Invoke multiple selected cases",
-            invoke="test_channel_token_flow",
+            invoke="tc_channel_token_flow",
             invoke_case_names=["Case C", "Case A"],
         )
 
@@ -193,11 +217,11 @@ class InvokeCaseSelectionExecutionTests(unittest.TestCase):
     @patch("drun.runner.invoke.resolve_invoke_path")
     @patch("drun.runner.invoke.load_yaml_file")
     def test_invoke_case_name_no_match_fails_with_available_names(self, mock_load, mock_resolve) -> None:
-        mock_resolve.return_value = Path("/tmp/testcases/test_channel_token_flow.yaml")
+        mock_resolve.return_value = Path("/tmp/tcases/tc_channel_token_flow.yaml")
         mock_load.return_value = ([_build_case("Case A"), _build_case("Case B")], {})
         runner = _FakeRunner()
         ctx = _FakeCtx()
-        step = Step(name="Invoke selected case", invoke="test_channel_token_flow", invoke_case_name="Case Z")
+        step = Step(name="Invoke selected case", invoke="tc_channel_token_flow", invoke_case_name="Case Z")
 
         results = execute_invoke_step(
             runner=runner,
@@ -221,11 +245,11 @@ class InvokeCaseSelectionExecutionTests(unittest.TestCase):
     @patch("drun.runner.invoke.resolve_invoke_path")
     @patch("drun.runner.invoke.load_yaml_file")
     def test_invoke_without_case_selector_keeps_backward_compatibility(self, mock_load, mock_resolve) -> None:
-        mock_resolve.return_value = Path("/tmp/testcases/test_channel_token_flow.yaml")
+        mock_resolve.return_value = Path("/tmp/tcases/tc_channel_token_flow.yaml")
         mock_load.return_value = ([_build_case("Case A"), _build_case("Case B")], {})
         runner = _FakeRunner()
         ctx = _FakeCtx()
-        step = Step(name="Invoke default case", invoke="test_channel_token_flow")
+        step = Step(name="Invoke default case", invoke="tc_channel_token_flow")
 
         execute_invoke_step(
             runner=runner,
@@ -245,13 +269,13 @@ class InvokeCaseSelectionExecutionTests(unittest.TestCase):
     @patch("drun.runner.invoke.resolve_invoke_path")
     @patch("drun.runner.invoke.load_yaml_file")
     def test_invoke_case_names_respect_failfast(self, mock_load, mock_resolve) -> None:
-        mock_resolve.return_value = Path("/tmp/testcases/test_channel_token_flow.yaml")
+        mock_resolve.return_value = Path("/tmp/tcases/tc_channel_token_flow.yaml")
         mock_load.return_value = ([_build_case("Case A"), _build_case("Case B"), _build_case("Case C")], {})
         runner = _FakeRunner(failfast=True, fail_case_names=["Case B"])
         ctx = _FakeCtx()
         step = Step(
             name="Invoke selected cases with failfast",
-            invoke="test_channel_token_flow",
+            invoke="tc_channel_token_flow",
             invoke_case_names=["Case A", "Case B", "Case C"],
         )
 
@@ -273,11 +297,11 @@ class InvokeCaseSelectionExecutionTests(unittest.TestCase):
     @patch("drun.runner.invoke.resolve_invoke_path")
     @patch("drun.runner.invoke.load_yaml_file")
     def test_invoke_case_name_matches_all_duplicates_and_warns(self, mock_load, mock_resolve) -> None:
-        mock_resolve.return_value = Path("/tmp/testcases/test_channel_token_flow.yaml")
+        mock_resolve.return_value = Path("/tmp/tcases/tc_channel_token_flow.yaml")
         mock_load.return_value = ([_build_case("Case A"), _build_case("Case A"), _build_case("Case B")], {})
         runner = _FakeRunner()
         ctx = _FakeCtx()
-        step = Step(name="Invoke duplicate cases", invoke="test_channel_token_flow", invoke_case_name="Case A")
+        step = Step(name="Invoke duplicate cases", invoke="tc_channel_token_flow", invoke_case_name="Case A")
 
         execute_invoke_step(
             runner=runner,
@@ -300,11 +324,11 @@ class InvokeCaseSelectionExecutionTests(unittest.TestCase):
     @patch("drun.runner.invoke.resolve_invoke_path")
     @patch("drun.runner.invoke.load_yaml_file")
     def test_invoke_repeat_prefixes_child_step_names(self, mock_load, mock_resolve) -> None:
-        mock_resolve.return_value = Path("/tmp/testcases/test_channel_token_flow.yaml")
+        mock_resolve.return_value = Path("/tmp/tcases/tc_channel_token_flow.yaml")
         mock_load.return_value = ([_build_case("Case A")], {})
         runner = _FakeRunner()
         ctx = _FakeCtx()
-        step = Step(name="Invoke flow", invoke="test_channel_token_flow")
+        step = Step(name="Invoke flow", invoke="tc_channel_token_flow")
 
         results = execute_invoke_step(
             runner=runner,

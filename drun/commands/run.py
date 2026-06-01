@@ -18,7 +18,7 @@ from drun.commands.run_outputs import (
     write_report_artifacts,
     write_snippet_artifacts,
 )
-from drun.loader.collector import discover, match_tags
+from drun.loader.collector import AmbiguousTestTargetError, InvalidTestPathError, discover, match_tags
 from drun.loader.env import load_environment
 from drun.loader.hooks import get_functions_for
 from drun.loader.yaml_loader import (
@@ -194,9 +194,9 @@ def run_cases(
         typer.echo("Examples:")
         typer.echo("  drun run demo -env dev")
         typer.echo("  drun run demo -env-file ./demo.env")
-        typer.echo("  drun run test_smoke.yaml")
-        typer.echo("  drun run testcases -env uat")
-        typer.echo("  drun run testsuites -env prod")
+        typer.echo("  drun run tc_smoke.yaml")
+        typer.echo("  drun run tcases -env uat")
+        typer.echo("  drun run tsuites -env prod")
         raise typer.Exit(code=2)
 
     ts = time.strftime("%Y%m%d-%H%M%S")
@@ -223,7 +223,11 @@ def run_cases(
         global_vars[k2] = v2
         global_vars[k2.lower()] = v2
 
-    files = discover([path])
+    try:
+        files = discover([path])
+    except (InvalidTestPathError, AmbiguousTestTargetError) as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=2)
     if not files:
         typer.echo(f"No YAML test files found at: {path}")
         pth = Path(path)
@@ -249,12 +253,12 @@ def run_cases(
                             break
             elif pth.is_dir():
                 hints.append(
-                    "Provide a YAML file or a directory containing YAML tests under testcases/ or testsuites/."
+                    "Provide a YAML file or a directory containing YAML tests under tcases/ or tsuites/."
                 )
-        hints.append("Examples:")
-        hints.append("  drun run testcases")
-        hints.append("  drun run testcases/test_hello.yaml")
-        hints.append("  drun run testsuites/testsuite_smoke.yaml")
+        hints.append("  drun run tcases")
+        hints.append("  drun run tc_demo")
+        hints.append("  drun run tcases/tc_hello.yaml")
+        hints.append("  drun run ts_smoke")
         for h in hints:
             typer.echo(h)
         raise typer.Exit(code=2)
