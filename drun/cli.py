@@ -152,7 +152,7 @@ def _looks_like_subcommand_help(args: List[str]) -> bool:
     return False
 
 
-def _iter_visible_leaf_commands(
+def _iter_visible_commands(
     group: click.Group, prefix: str = ""
 ) -> List[Tuple[str, click.Command]]:
     entries: List[Tuple[str, click.Command]] = []
@@ -160,10 +160,9 @@ def _iter_visible_leaf_commands(
         if getattr(command, "hidden", False):
             continue
         full_name = f"{prefix}{name}".strip()
+        entries.append((full_name, command))
         if isinstance(command, click.Group):
-            entries.extend(_iter_visible_leaf_commands(command, prefix=f"{full_name} "))
-        else:
-            entries.append((full_name, command))
+            entries.extend(_iter_visible_commands(command, prefix=f"{full_name} "))
     return entries
 
 
@@ -223,7 +222,7 @@ class _DrunRootGroup(typer.core.TyperGroup):
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         super().format_help(ctx, formatter)
 
-        expanded_entries = _iter_visible_leaf_commands(self)
+        expanded_entries = _iter_visible_commands(self)
         if not expanded_entries:
             return
 
@@ -258,6 +257,12 @@ export_app = typer.Typer(
     context_settings=_CLI_CONTEXT_SETTINGS,
 )
 app.add_typer(export_app, name="export")
+
+
+@export_app.callback()
+def export_main() -> None:
+    """导出测试用例到其他格式"""
+    pass
 
 
 @app.callback()

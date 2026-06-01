@@ -38,6 +38,13 @@ class CliHelpWidthTests(unittest.TestCase):
         self.assertIn("max_content_width", cli.app.info.context_settings)
         self.assertEqual(cli.app.info.context_settings, cli.export_app.info.context_settings)
 
+    def test_export_group_has_callback_for_help_collection(self) -> None:
+        from typer.main import get_command
+
+        click_app = get_command(cli.app)
+        export_command = click_app.commands["export"]
+        self.assertIsNotNone(export_command.callback)
+
     def test_root_help_lists_q_not_quick(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli.app, ["--help"])
@@ -80,6 +87,7 @@ class CliHelpWidthTests(unittest.TestCase):
         self.assertIn("drun init [NAME]", out)
         self.assertIn("-force", out)
         self.assertIn("-ci", out)
+        self.assertIn("drun export", out)
         self.assertIn("drun export curl", out)
         self.assertIn("drun export curl PATH", out)
         self.assertIn("-case-name", out)
