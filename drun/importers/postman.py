@@ -6,18 +6,10 @@ import re
 from urllib.parse import urlparse, parse_qsl
 
 from .base import ImportedCase, ImportedStep
+from drun.utils.naming import sanitize_var_name as _sanitize_var_name
 
 
 _PM_PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Za-z0-9_.\-]+)\s*\}\}")
-
-
-def _sanitize_var_name(name: str) -> str:
-    s = re.sub(r"[^A-Za-z0-9_]", "_", str(name or "").strip())
-    if not s:
-        s = "var"
-    if s[0].isdigit():
-        s = f"v_{s}"
-    return s
 
 
 def _replace_placeholders(text: str, name_map: Dict[str, str]) -> str:

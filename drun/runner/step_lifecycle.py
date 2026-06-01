@@ -7,25 +7,23 @@ from typing import Any, Dict, List, Optional
 from drun.loader.yaml_loader import format_variables_multiline
 from drun.models.report import StepResult
 from drun.models.step import Step
+from drun.runner.execution_context import ExecutionContext
+from drun.runner.protocols import RunnerProtocol
 from drun.runner.request_projection import (
     finalize_request_projection,
     render_request_for_setup,
 )
+from drun.runner.retry import retry_execute
 from drun.runner.step_outcome import StepOutcomeContext, process_step_outcome
 from drun.templating.context import VarContext
 from drun.utils.mask import mask_body, mask_headers
 
 
 @dataclass
-class StepLifecycleContext:
-    step: Step
+class StepLifecycleContext(ExecutionContext):
     step_idx: int
     case_name: str
-    ctx: VarContext
-    global_vars: Dict[str, Any]
     rendered_locals: Dict[str, Any]
-    funcs: Dict[str, Any] | None = None
-    envmap: Dict[str, Any] | None = None
     client: Any | None = None
     params: Dict[str, Any] | None = None
 
@@ -37,7 +35,7 @@ class StepLifecycleResult:
 
 
 class StepLifecycle:
-    def __init__(self, runner: Any) -> None:
+    def __init__(self, runner: RunnerProtocol) -> None:
         self.runner = runner
 
     def execute(self, context: StepLifecycleContext) -> StepLifecycleResult:
@@ -630,21 +628,12 @@ class StepLifecycle:
                 step=step,
             )
 
-            last_error: Optional[str] = None
-            attempt = 0
-            resp_obj: Optional[Dict[str, Any]] = None
-            while attempt <= max(step.retry, 0):
-                try:
-                    resp_obj = client.request(req_rendered)
-                    last_error = None
-                    break
-                except Exception as e:
-                    last_error = str(e)
-                    if attempt >= step.retry:
-                        break
-                    backoff = min(step.retry_backoff * (2 ** attempt), 2.0)
-                    time.sleep(backoff)
-                    attempt += 1
+            resp_obj, last_error = retry_execute(
+                execute_fn=client.request,
+                request=req_rendered,
+                retry=step.retry,
+                retry_backoff=step.retry_backoff,
+            )
 
             if last_error:
                 if runner.log:

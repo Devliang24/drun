@@ -240,7 +240,7 @@ class CliHelpWidthTests(unittest.TestCase):
         with runner.isolated_filesystem():
             Path("demo.yaml").write_text("config: {}\nsteps: []\n", encoding="utf-8")
             with (
-                patch.object(cli, "_require_exporter", return_value=exporter),
+                patch.object(cli, "require_exporter", return_value=exporter),
                 patch.object(cli, "load_yaml_file", return_value=([case], {})),
                 patch.object(cli, "load_environment", return_value={}),
             ):

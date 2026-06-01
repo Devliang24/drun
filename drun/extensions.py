@@ -128,3 +128,25 @@ def resolve_exporter(format_name: str) -> Optional[ExporterSpec]:
 def list_exporters() -> Tuple[str, ...]:
     _ensure_default_exporters_loaded()
     return tuple(sorted(_EXPORTERS))
+
+
+def require_importer(format_name: str) -> ImporterFunc:
+    """Resolve an importer by format name; exit with code 2 if not found."""
+    import typer
+
+    importer = get_importer(format_name)
+    if importer is None:
+        typer.echo(f"[IMPORT] No importer registered for format: {format_name}")
+        raise typer.Exit(code=2)
+    return importer
+
+
+def require_exporter(format_name: str) -> ExporterSpec:
+    """Resolve an exporter by format name; exit with code 2 if not found."""
+    import typer
+
+    exporter = resolve_exporter(format_name)
+    if exporter is None:
+        typer.echo(f"[EXPORT] No exporter registered for format: {format_name}")
+        raise typer.Exit(code=2)
+    return exporter

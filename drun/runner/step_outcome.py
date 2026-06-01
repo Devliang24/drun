@@ -8,20 +8,17 @@ from typing import Any, Dict, List, Optional
 from drun.models.report import CheckResult
 from drun.models.step import Step
 from drun.runner.checking import evaluate_checks
+from drun.runner.execution_context import ExecutionContext
+from drun.runner.protocols import RunnerProtocol
 from drun.runner.response_capture import capture_step_response
 from drun.templating.context import VarContext
 
 
 @dataclass
-class StepOutcomeContext:
-    step: Step
+class StepOutcomeContext(ExecutionContext):
     resp_obj: Dict[str, Any]
     variables: Dict[str, Any]
-    ctx: VarContext
-    global_vars: Dict[str, Any]
     repeat_index: int
-    funcs: Dict[str, Any] | None = None
-    envmap: Dict[str, Any] | None = None
 
 
 @dataclass
@@ -34,7 +31,7 @@ class StepOutcome:
     error: Optional[str] = None
 
 
-def process_step_outcome(*, runner: Any, context: StepOutcomeContext) -> StepOutcome:
+def process_step_outcome(*, runner: RunnerProtocol, context: StepOutcomeContext) -> StepOutcome:
     step = context.step
     resp_obj = context.resp_obj
 
@@ -93,7 +90,7 @@ def process_step_outcome(*, runner: Any, context: StepOutcomeContext) -> StepOut
 
 def _extract_response_values(
     *,
-    runner: Any,
+    runner: RunnerProtocol,
     step: Step,
     resp_obj: Dict[str, Any],
     variables: Dict[str, Any],
@@ -125,7 +122,7 @@ def _extract_response_values(
 
 def _persist_extracts(
     *,
-    runner: Any,
+    runner: RunnerProtocol,
     extracts: Dict[str, Any],
     context: StepOutcomeContext,
 ) -> None:
@@ -164,7 +161,7 @@ def _persist_extracts(
 
 def _export_step_data(
     *,
-    runner: Any,
+    runner: RunnerProtocol,
     step: Step,
     resp_obj: Dict[str, Any],
     variables: Dict[str, Any],
@@ -208,7 +205,7 @@ def _export_step_data(
 
 def _save_response_body_if_needed(
     *,
-    runner: Any,
+    runner: RunnerProtocol,
     step: Step,
     resp_obj: Dict[str, Any],
     variables: Dict[str, Any],

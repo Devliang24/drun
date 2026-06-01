@@ -5,11 +5,12 @@ from typing import Any, Dict, List, Tuple
 from drun.models.report import CheckResult, to_report_safe
 from drun.models.checks import Check
 from drun.runner.checks import compare
+from drun.runner.protocols import RunnerProtocol
 
 
 def evaluate_checks(
     *,
-    runner: Any,
+    runner: RunnerProtocol,
     check_rules: List[Check],
     variables: Dict[str, Any],
     funcs: Dict[str, Any] | None,

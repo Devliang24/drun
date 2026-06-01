@@ -8,11 +8,12 @@ from drun.loader.collector import resolve_invoke_path
 from drun.loader.yaml_loader import expand_parameters, load_yaml_file
 from drun.models.report import StepResult
 from drun.models.step import Step
+from drun.runner.protocols import RunnerProtocol
 
 
 def execute_invoke_step(
     *,
-    runner: Any,
+    runner: RunnerProtocol,
     step: Step,
     step_idx: int,
     rendered_step_name: str,

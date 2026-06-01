@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
+from drun.runner.protocols import RunnerProtocol
 from drun.utils.mask import mask_body
 
 
@@ -12,14 +13,14 @@ class StepResponseCapture:
     report_response: Dict[str, Any]
 
 
-def capture_step_response(*, runner: Any, resp_obj: Dict[str, Any]) -> StepResponseCapture:
+def capture_step_response(*, runner: RunnerProtocol, resp_obj: Dict[str, Any]) -> StepResponseCapture:
     return StepResponseCapture(
         raw_response=resp_obj,
         report_response=_build_report_response(runner=runner, resp_obj=resp_obj),
     )
 
 
-def _build_report_response(*, runner: Any, resp_obj: Dict[str, Any]) -> Dict[str, Any]:
+def _build_report_response(*, runner: RunnerProtocol, resp_obj: Dict[str, Any]) -> Dict[str, Any]:
     body_masked = resp_obj.get("body")
     if not runner.reveal:
         body_masked = mask_body(body_masked)

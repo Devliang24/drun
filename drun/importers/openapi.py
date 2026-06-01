@@ -4,58 +4,7 @@ from typing import Any, Dict, List, Optional
 import json
 import yaml
 
-from .base import ImportedCase, ImportedStep
-
-
-def _resolve_ref(ref: str, root: Dict[str, Any]) -> Dict[str, Any] | None:
-    if not isinstance(ref, str) or not ref.startswith("#/"):
-        return None
-    parts = ref[2:].split("/")
-    node: Any = root
-    for part in parts:
-        if not isinstance(node, dict):
-            return None
-        node = node.get(part)
-        if node is None:
-            return None
-    if isinstance(node, dict):
-        return node
-    return None
-
-
-def _sample_from_schema(schema: Dict[str, Any] | None, root: Dict[str, Any], depth: int = 0) -> Any:
-    if not schema or depth > 5:
-        return None
-    if "example" in schema:
-        return schema["example"]
-    if "$ref" in schema:
-        resolved = _resolve_ref(schema.get("$ref"), root)
-        if resolved is not None:
-            return _sample_from_schema(resolved, root, depth + 1)
-    schema_type = schema.get("type")
-    if schema_type == "object":
-        props = schema.get("properties") or {}
-        required = schema.get("required") or []
-        result: Dict[str, Any] = {}
-        for key, subschema in props.items():
-            val = _sample_from_schema(subschema, root, depth + 1)
-            if val is None and key in required:
-                val = "string"
-            if val is not None:
-                result[key] = val
-        return result or {}
-    if schema_type == "array":
-        item_schema = schema.get("items") or {}
-        sample_item = _sample_from_schema(item_schema, root, depth + 1)
-        return [sample_item] if sample_item is not None else []
-    if schema_type == "integer":
-        return schema.get("default", 0)
-    if schema_type == "number":
-        return schema.get("default", 0)
-    if schema_type == "boolean":
-        return schema.get("default", True)
-    # string or fallback
-    return schema.get("default") or schema.get("pattern") or "string"
+from .base import ImportedCase, ImportedStep, resolve_schema_ref, sample_from_schema
 
 
 def _load_spec(text: str) -> Dict[str, Any]:
@@ -113,7 +62,7 @@ def parse_openapi(
                 else:
                     schema_obj = appjson.get("schema")
                     if schema_obj:
-                        body = _sample_from_schema(schema_obj, data)
+                        body = sample_from_schema(schema_obj, data)
             steps.append(ImportedStep(name=step_name, method=m, path=path, headers=headers, body=body))
 
     fallback_base = base_url or base_guess or "http://localhost:8000"

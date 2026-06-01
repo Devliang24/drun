@@ -14,10 +14,12 @@ import typer
 import yaml
 
 from drun.commands.check import run_check
+from drun.commands.convert import apply_convert_filters
 from drun.commands.fix import run_fix
 from drun.commands.run import run_cases
 from drun.commands.tags import run_tags
-from drun.extensions import get_importer, resolve_exporter
+from drun.extensions import get_importer, require_exporter, require_importer, resolve_exporter
+from drun.utils.naming import derive_case_name, sanitize_var_name
 from drun.loader.collector import discover
 from drun.loader.yaml_loader import load_yaml_file
 from drun.loader.env import load_environment
@@ -442,108 +444,6 @@ def _dump_case_dict(obj: Dict[str, object]) -> str:
     return _add_step_spacers(raw)
 
 
-def _derive_case_name(base: Optional[str], step_name: Optional[str], idx: int) -> str:
-    label = (step_name or "").strip() or f"Step {idx}"
-    base = (base or "Imported Case").strip() or "Imported Case"
-    combined = f"{base} - {label}"
-    return combined.strip()
-
-
-def _sanitize_var_name(name: str) -> str:
-    import re as _re
-
-    s = _re.sub(r"[^A-Za-z0-9_]", "_", str(name or "").strip())
-    if not s:
-        s = "var"
-    if s[0].isdigit():
-        s = f"v_{s}"
-    return s
-
-
-def _apply_convert_filters(
-    case: Case, *, redact_headers: list[str] | None = None, placeholders: bool = False
-) -> Case:
-    """Mutate case in-place to redact sensitive headers or lift values into variables as placeholders.
-
-    - redact_headers: list of header names (case-insensitive) to mask as '***'.
-    - placeholders: when True, convert sensitive headers into variables and reference via $var in headers.
-    """
-    redact_lc = {h.lower() for h in (redact_headers or [])}
-    default_sensitive = {
-        "authorization",
-        "cookie",
-        "x-api-key",
-        "x-api-token",
-        "api-key",
-        "apikey",
-    }
-    # if placeholders requested but no explicit headers, use default set
-    if placeholders and not redact_lc:
-        redact_lc = set(default_sensitive)
-
-    vars_map = dict(case.config.variables or {})
-
-    for st in case.steps:
-        req = st.request
-        # headers
-        hdrs = dict(req.headers or {})
-        new_hdrs: dict[str, str] = {}
-        for k, v in hdrs.items():
-            kl = str(k).lower()
-            if kl in redact_lc and isinstance(v, str):
-                if placeholders:
-                    # Special handling for Authorization: Bearer <token>
-                    if kl == "authorization" and v.lower().startswith("bearer "):
-                        token_val = v.split(" ", 1)[1]
-                        var_name = "token"
-                        # avoid overwrite existing values with different content
-                        if vars_map.get(var_name) not in (None, token_val):
-                            # ensure unique
-                            i = 2
-                            while f"token{i}" in vars_map:
-                                i += 1
-                            var_name = f"token{i}"
-                        vars_map[var_name] = token_val
-                        new_hdrs[k] = f"Bearer ${var_name}"
-                    else:
-                        var_name = _sanitize_var_name(kl)
-                        vars_map[var_name] = v
-                        new_hdrs[k] = f"${var_name}"
-                else:
-                    new_hdrs[k] = "***"
-            else:
-                new_hdrs[k] = v
-        if new_hdrs:
-            req.headers = new_hdrs
-        # auth
-        if placeholders and req.auth and isinstance(req.auth, dict):
-            if req.auth.get("type") == "bearer":
-                tok = req.auth.get("token")
-                if isinstance(tok, str) and not tok.strip().startswith("$"):
-                    var_name = "token"
-                    if vars_map.get(var_name) not in (None, tok):
-                        i = 2
-                        while f"token{i}" in vars_map:
-                            i += 1
-                        var_name = f"token{i}"
-                    vars_map[var_name] = tok
-                    req.auth["token"] = f"${var_name}"
-            elif req.auth.get("type") == "basic":
-                u = req.auth.get("username")
-                p = req.auth.get("password")
-                if isinstance(u, str) and not u.startswith("$"):
-                    un = "username"
-                    vars_map[un] = u
-                    req.auth["username"] = f"${un}"
-                if isinstance(p, str) and not p.startswith("$"):
-                    pn = "password"
-                    vars_map[pn] = p
-                    req.auth["password"] = f"${pn}"
-
-    case.config.variables = vars_map or {}
-    return case
-
-
 def _make_step_from_imported(imported_step: Any) -> Step:
     req = StepRequest(
         method=imported_step.method,
@@ -569,7 +469,7 @@ def _build_cases_from_import(
     if split_output:
         for idx, imported_step in enumerate(icase.steps, start=1):
             step_obj = _make_step_from_imported(imported_step)
-            case_title = _derive_case_name(icase.name, imported_step.name, idx)
+            case_title = derive_case_name(icase.name, imported_step.name, idx)
             case = Case(
                 config=Config(
                     name=case_title,
@@ -700,22 +600,6 @@ def _write_imported_cases(
         typer.echo(f"[CONVERT] Wrote YAML to {outfile}")
     else:
         typer.echo(text)
-
-
-def _require_importer(format_name: str):
-    importer = get_importer(format_name)
-    if importer is None:
-        typer.echo(f"[CONVERT] No importer registered for format: {format_name}")
-        raise typer.Exit(code=2)
-    return importer
-
-
-def _require_exporter(format_name: str):
-    exporter = resolve_exporter(format_name)
-    if exporter is None:
-        typer.echo(f"[EXPORT] No exporter registered for format: {format_name}")
-        raise typer.Exit(code=2)
-    return exporter
 
 
 # Unified convert entrypoint (auto-detect by suffix)
@@ -899,7 +783,7 @@ def convert_curl(
     base_url: Optional[str] = None,
     split_output: bool = False,
 ) -> None:
-    parse_curl_text = _require_importer("curl")
+    parse_curl_text = require_importer("curl")
 
     # Read input
     if infile == "-":
@@ -930,7 +814,7 @@ def convert_curl(
     redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
     cases = [
         (
-            _apply_convert_filters(
+            apply_convert_filters(
                 case, redact_headers=redact_list, placeholders=placeholders
             ),
             idx,
@@ -959,7 +843,7 @@ def convert_postman(
     suite_out: Optional[str] = None,
     split_output: bool = False,
 ) -> None:
-    parse_postman = _require_importer("postman")
+    parse_postman = require_importer("postman")
 
     text = Path(collection).read_text(encoding="utf-8")
     env_text = None
@@ -982,7 +866,7 @@ def convert_postman(
     redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
     cases = [
         (
-            _apply_convert_filters(
+            apply_convert_filters(
                 case, redact_headers=redact_list, placeholders=placeholders
             ),
             idx,
@@ -1033,7 +917,7 @@ def convert_har(
     exclude_pattern: Optional[str] = None,
     split_output: bool = False,
 ) -> None:
-    parse_har = _require_importer("har")
+    parse_har = require_importer("har")
 
     text = Path(infile).read_text(encoding="utf-8")
     icase = parse_har(
@@ -1057,7 +941,7 @@ def convert_har(
     redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
     cases = [
         (
-            _apply_convert_filters(
+            apply_convert_filters(
                 case, redact_headers=redact_list, placeholders=placeholders
             ),
             idx,
@@ -1113,7 +997,7 @@ def export_curl(
         raise typer.Exit(code=2)
     with_comments = resolved_comments == "on"
 
-    exporter = _require_exporter("curl")
+    exporter = require_exporter("curl")
     step_to_curl = exporter.render_step
     step_placeholders = exporter.describe_placeholders
     out_lines: List[str] = []
@@ -2185,7 +2069,7 @@ def convert_openapi(
     split_output = resolved_output_mode == "split"
     placeholders = resolved_placeholders_mode == "on"
 
-    parse_openapi = _require_importer("openapi")
+    parse_openapi = require_importer("openapi")
     text = Path(spec).read_text(encoding="utf-8")
     tag_list = [t.strip() for t in (tags or "").split(",") if t.strip()]
     icase = parse_openapi(
@@ -2198,7 +2082,7 @@ def convert_openapi(
     redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
     cases = [
         (
-            _apply_convert_filters(
+            apply_convert_filters(
                 case, redact_headers=redact_list, placeholders=placeholders
             ),
             idx,

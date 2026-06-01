@@ -5,6 +5,7 @@ from typing import Any, Dict
 
 from drun.models.report import to_report_safe
 from drun.models.step import Step
+from drun.runner.protocols import RunnerProtocol
 from drun.utils.curl import to_curl
 from drun.utils.mask import mask_body, mask_headers
 
@@ -18,7 +19,7 @@ class RequestProjection:
 
 def render_request_for_setup(
     *,
-    runner: Any,
+    runner: RunnerProtocol,
     step: Step,
     variables: Dict[str, Any],
     funcs: Dict[str, Any] | None,
@@ -30,7 +31,7 @@ def render_request_for_setup(
 
 def finalize_request_projection(
     *,
-    runner: Any,
+    runner: RunnerProtocol,
     rendered_request: Dict[str, Any],
     variables: Dict[str, Any],
     response_url: str | None = None,
@@ -81,7 +82,7 @@ def _build_report_request(request: Dict[str, Any]) -> Dict[str, Any]:
 
 def _build_curl(
     *,
-    runner: Any,
+    runner: RunnerProtocol,
     runtime_request: Dict[str, Any],
     response_url: str | None,
 ) -> str:

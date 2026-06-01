@@ -105,10 +105,21 @@ _ALLOWED_CMPOPS = {
     ast.LtE: op.le,
     ast.Gt: op.gt,
     ast.GtE: op.ge,
+    ast.In: lambda a, b: a in b,
+    ast.NotIn: lambda a, b: a not in b,
 }
 
 
 def _safe_eval(node: ast.AST, ctx: Dict[str, Any]) -> Any:
+    # Security design note:
+    # The template engine evaluates expressions written by the YAML author
+    # (not untrusted end-user input).  The `ctx` dict contains only safe
+    # built-in functions (now, uuid, ENV, …) and user-controlled variables
+    # (strings, numbers, dicts, lists).  Attribute chains on constants
+    # (e.g. `"".__class__`) are technically traversable but only by the
+    # YAML author who already has full control over the process.
+    # Operator whitelist: BinOp, UnaryOp, BoolOp, Compare, Call, Attribute,
+    # Subscript, Slice, Dict, List, Tuple, IfExp.
     if isinstance(node, ast.Expression):
         return _safe_eval(node.body, ctx)
     if isinstance(node, ast.Constant):
@@ -175,6 +186,10 @@ def _safe_eval(node: ast.AST, ctx: Dict[str, Any]) -> Any:
         return [_safe_eval(elt, ctx) for elt in node.elts]
     if isinstance(node, ast.Tuple):
         return tuple(_safe_eval(elt, ctx) for elt in node.elts)
+    if isinstance(node, ast.IfExp):
+        # Ternary: <body> if <test> else <orelse>
+        test = _safe_eval(node.test, ctx)
+        return _safe_eval(node.body, ctx) if test else _safe_eval(node.orelse, ctx)
     raise ValueError("Unsupported expression in template")
 
 
