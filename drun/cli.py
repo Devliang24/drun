@@ -217,6 +217,10 @@ def _collect_command_help_rows(
         )
         if desc_part:
             command_header = f"{command_header}  {desc_part}"
+    elif not argument_rows and getattr(command, "help", None):
+        # Commands with no arguments (groups or option-only commands) get
+        # their help text appended so the line is not empty.
+        command_header = f"{command_header}  {command.help.strip()}"
     return command_header, option_rows
 
 
