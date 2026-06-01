@@ -54,7 +54,7 @@ python -m drun.cli --version
 
 ## GSD 工作流（强制）
 
-本仓库**强制使用 GSD（Get Shit Done）工作流**进行所有非平凡改动。`.pi/` 目录是项目级 pi 配置，已提交到仓库，pi 启动时自动加载。
+本仓库**强制使用 GSD（Get Shit Done）工作流**进行所有非平凡改动。GSD 是 **pi agent 全局能力**，装在 `~/.pi/agent/` 下，所有使用 pi 的项目都能用，不只限本仓库。
 
 **工作流三步走：**
 
@@ -71,6 +71,22 @@ python -m drun.cli --version
 | `/skill:gsd-review` 或 `/review` | 审查代码 |
 | `/gsd:state` | 查看 `.planning/STATE.md` 项目状态 |
 
+**GSD 文件在哪（user-level）：**
+
+- skills: `~/.pi/agent/skills/gsd-{plan,execute,review}/`
+- prompts: `~/.pi/agent/prompts/{plan,execute,review}.md`
+- extension: `~/.pi/agent/extensions/gsd-state.ts`
+
+**在新机器上启用 GSD：**
+
+```bash
+mkdir -p ~/.pi/agent/{skills,prompts,extensions}
+# 从 gsd-pi 安装包获取（详见 gsd-pi 仓库 README），
+# 或从已有机器复制上面 3 类文件即可。
+```
+
+pi 启动时会自动从 `~/.pi/agent/` 发现并加载这些 skills。
+
 **强制范围：**
 
 - 任何涉及 ≥ 2 个文件、≥ 1 个新接口、≥ 1 个新测试文件的改动
@@ -83,4 +99,4 @@ python -m drun.cli --version
 - 单文件文档补全
 - 紧急 hotfix（事后补 plan）
 
-**禁止跳过规划直接执行复杂任务。** PI 启动时已自动加载 GSD skills，不需要额外安装。
+**禁止跳过规划直接执行复杂任务。**
