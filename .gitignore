@@ -22,3 +22,9 @@ build/
 .vscode/
 .idea/
 .DS_Store
+.qoder/
+
+# GSD (Get Shit Done) workflow artifacts
+# Per-session planning state — recreated every time /skill:gsd-plan
+# is invoked. Not for version control; lives in each developer's tree.
+.planning/

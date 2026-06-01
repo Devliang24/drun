@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(ls /Users/liang/ai-work/drun/drun/*.py | sort)",
-      "Bash(gh repo view gsd-build/get-shit-done --json name,description,url,primaryLanguage,languages,stargazerCount,forkCount 2>/dev/null || echo \"Need to fetch via web\")",
-      "WebFetch(*)"
-    ]
-  }
-}
