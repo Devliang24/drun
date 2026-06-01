@@ -66,23 +66,22 @@ python -m drun.cli --version
 
 | 命令 | 作用 |
 |------|------|
-| `/skill:gsd-plan` 或 `/plan` | 规划任务 |
-| `/skill:gsd-execute` 或 `/execute` | 执行计划 |
-| `/skill:gsd-review` 或 `/review` | 审查代码 |
+| `/skill:gsd-plan` | 规划任务 |
+| `/skill:gsd-execute` | 执行计划 |
+| `/skill:gsd-review` | 审查代码 |
 | `/gsd:state` | 查看 `.planning/STATE.md` 项目状态 |
 
 **GSD 文件在哪（user-level）：**
 
 - skills: `~/.pi/agent/skills/gsd-{plan,execute,review}/`
-- prompts: `~/.pi/agent/prompts/{plan,execute,review}.md`
 - extension: `~/.pi/agent/extensions/gsd-state.ts`
 
 **在新机器上启用 GSD：**
 
 ```bash
-mkdir -p ~/.pi/agent/{skills,prompts,extensions}
+mkdir -p ~/.pi/agent/{skills,extensions}
 # 从 gsd-pi 安装包获取（详见 gsd-pi 仓库 README），
-# 或从已有机器复制上面 3 类文件即可。
+# 或从已有机器复制上面 2 类文件即可。
 ```
 
 pi 启动时会自动从 `~/.pi/agent/` 发现并加载这些 skills。
