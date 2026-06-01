@@ -51,3 +51,36 @@ python -m drun.cli --version
 
 ## 安全与配置提示
 不要提交 `.env`、本地日志、报告目录或其他生成文件；这些路径已在 `.gitignore` 中处理。测试、文档和截图中不要暴露真实密钥，YAML 示例和变更说明统一使用脱敏值。
+
+## GSD 工作流（强制）
+
+本仓库**强制使用 GSD（Get Shit Done）工作流**进行所有非平凡改动。`.pi/` 目录是项目级 pi 配置，已提交到仓库，pi 启动时自动加载。
+
+**工作流三步走：**
+
+1. **规划** — 在 pi 中输入 `/skill:gsd-plan <任务>`，按 5 步流程（读上下文 → 研究 → 拆解 → 自检 → 审批）输出 `.planning/phases/PLAN-*.md`
+2. **执行** — 审批后输入 `/skill:gsd-execute`，逐任务执行，每个任务一个原子 conventional commit
+3. **审查** — 完成后输入 `/skill:gsd-review`，按 Bug/安全/质量/测试/性能五维度审查
+
+**可用命令：**
+
+| 命令 | 作用 |
+|------|------|
+| `/skill:gsd-plan` 或 `/plan` | 规划任务 |
+| `/skill:gsd-execute` 或 `/execute` | 执行计划 |
+| `/skill:gsd-review` 或 `/review` | 审查代码 |
+| `/gsd:state` | 查看 `.planning/STATE.md` 项目状态 |
+
+**强制范围：**
+
+- 任何涉及 ≥ 2 个文件、≥ 1 个新接口、≥ 1 个新测试文件的改动
+- 任何 refactor、new feature、breaking change
+- 任何需要 review 的 PR
+
+**豁免范围：**
+
+- 单行 typo 修复
+- 单文件文档补全
+- 紧急 hotfix（事后补 plan）
+
+**禁止跳过规划直接执行复杂任务。** PI 启动时已自动加载 GSD skills，不需要额外安装。
