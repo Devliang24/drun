@@ -1,18 +1,18 @@
 # Execution And Env
 
-适用于设计 `drun run` 命令、解释运行目标写法、环境加载优先级、`-vars`、`-failfast`、`-persist-env`、日志和排障参数。
+适用于设计 `drun r` 命令、解释运行目标写法、环境加载优先级、`-vars`、`-failfast`、`-persist-env`、日志和排障参数。
 
 ## 运行目标写法
 
-`drun run` 支持文件、目录、简写文件名，以及 `<path>:<case[,case]>` 形式的 case 选择器。
+`drun r` 支持文件、目录、简写文件名，以及 `<path>:<case[,case]>` 形式的 case 选择器。
 
 ```bash
-drun run tcases -env dev
-drun run test_login -env dev
-drun run tcases/tc_login.yaml -env dev
-drun run tsuites/ts_login_flow.yaml -env dev
-drun run tcases:登录,查询资料 -env dev
-drun run tcases -env dev -k "smoke and not slow"
+drun r tcases -env dev
+drun r test_login -env dev
+drun r tcases/tc_login.yaml -env dev
+drun r tsuites/ts_login_flow.yaml -env dev
+drun r tcases:登录,查询资料 -env dev
+drun r tcases -env dev -k "smoke and not slow"
 ```
 
 说明：
@@ -63,13 +63,13 @@ steps:
 ```
 
 ```bash
-drun run tcases/tc_login.yaml -env dev
-drun run tcases/tc_login.yaml -env-file .env.local
-drun run tcases/tc_login.yaml -env dev -vars tenant=blue
-drun run tcases/tc_login.yaml -env dev -failfast
-drun run tcases/tc_login.yaml -env dev -persist-env .env.runtime
-drun run tcases/tc_login.yaml -env dev -secrets mask -response-headers
-drun run tcases/tc_login.yaml -env dev -log-level DEBUG -httpx-logs -log-file logs/debug.log
+drun r tcases/tc_login.yaml -env dev
+drun r tcases/tc_login.yaml -env-file .env.local
+drun r tcases/tc_login.yaml -env dev -vars tenant=blue
+drun r tcases/tc_login.yaml -env dev -failfast
+drun r tcases/tc_login.yaml -env dev -persist-env .env.runtime
+drun r tcases/tc_login.yaml -env dev -secrets mask -response-headers
+drun r tcases/tc_login.yaml -env dev -log-level DEBUG -httpx-logs -log-file logs/debug.log
 ```
 
 ## `-vars`、`-failfast`、`-persist-env`

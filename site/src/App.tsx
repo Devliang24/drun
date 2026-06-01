@@ -161,7 +161,7 @@ function HomePage() {
     {
       icon: CheckCircle2,
       title: '先发现作者错误再执行请求',
-      text: 'drun check 聚合 YAML 诊断，输出稳定错误码、文件位置、Path、hint 和短示例，把常见写法错误提前拦住。',
+      text: 'drun c 聚合 YAML 诊断，输出稳定错误码、文件位置、Path、hint 和短示例，把常见写法错误提前拦住。',
     },
     {
       icon: FileJson2,
@@ -180,7 +180,7 @@ function HomePage() {
     {
       step: '02',
       title: '检查 DSL',
-      text: '用 drun check 批量发现字段写错、参数位置错误和无效组合。',
+      text: '用 drun c 批量发现字段写错、参数位置错误和无效组合。',
       icon: CheckCircle2,
     },
     {
@@ -201,7 +201,7 @@ function HomePage() {
     { icon: Terminal, title: '请求建模', text: 'method、path、headers、body、data、files、auth、stream' },
     { icon: Repeat2, title: '数据驱动', text: 'config.parameters、CSV、product、zip' },
     { icon: GitBranch, title: '链路编排', text: 'caseflow、invoke、invoke_case_name(s)、repeat、sleep' },
-    { icon: ServerCog, title: '环境运行', text: 'drun run、drun check、-env、-vars、-failfast、-persist-env' },
+    { icon: ServerCog, title: '环境运行', text: 'drun r、drun c、-env、-vars、-failfast、-persist-env' },
     { icon: FileJson2, title: '报告输出', text: 'HTML、JSON、Allure、curl snippet、保存响应体、CSV 导出' },
     { icon: Wrench, title: '调试迁移', text: 'drun q、cURL / HAR / Postman / OpenAPI 转 YAML、export curl' },
   ];
@@ -211,7 +211,7 @@ function HomePage() {
       <section className="product-hero">
         <div className="hero-backdrop" aria-hidden="true">
           <div className="backdrop-panel">
-            <span>$ drun check tcases</span>
+            <span>$ drun c tcases</span>
             <strong>Checked 8 file(s): 8 OK</strong>
           </div>
           <div className="backdrop-panel accent">
@@ -232,7 +232,7 @@ function HomePage() {
             </p>
             <div className="hero-command" aria-label="快速开始命令">
               <span>$</span>
-              <code>pip install drun && drun init api-tests</code>
+              <code>pip install drun && drun i api-tests</code>
             </div>
             <div className="hero-actions">
               <a className="primary-button" href={href('/docs/getting-started')}>
@@ -256,7 +256,7 @@ function HomePage() {
               <span>请求、变量、检查</span>
             </div>
             <div>
-              <strong>drun check</strong>
+              <strong>drun c</strong>
               <span>稳定错误码与修复建议</span>
             </div>
             <div>

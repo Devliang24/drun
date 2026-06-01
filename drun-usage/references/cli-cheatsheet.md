@@ -6,34 +6,34 @@
 
 ```bash
 drun --help
-drun check tcases
-drun run tcases -env dev
+drun c tcases
+drun r tcases -env dev
 ```
 
 ## 运行 Case 或 suite
 
 ```bash
-drun run tcases/tc_login.yaml -env dev -secrets mask
-drun run tsuites/ts_login_flow.yaml -env dev -secrets mask
-drun run tcases -env dev -k "smoke and not slow" -secrets mask
-drun run tcases:登录,查询资料 -env dev -secrets mask
+drun r tcases/tc_login.yaml -env dev -secrets mask
+drun r tsuites/ts_login_flow.yaml -env dev -secrets mask
+drun r tcases -env dev -k "smoke and not slow" -secrets mask
+drun r tcases:登录,查询资料 -env dev -secrets mask
 ```
 
 排障时常用：
 
 ```bash
-drun run tcases/tc_login.yaml -env dev -failfast -secrets mask
-drun run tcases/tc_login.yaml -env dev -log-level DEBUG -httpx-logs -secrets mask
-drun run tcases/tc_login.yaml -env dev -response-headers -secrets mask
+drun r tcases/tc_login.yaml -env dev -failfast -secrets mask
+drun r tcases/tc_login.yaml -env dev -log-level DEBUG -httpx-logs -secrets mask
+drun r tcases/tc_login.yaml -env dev -response-headers -secrets mask
 ```
 
 ## 环境与变量
 
 ```bash
-drun run tcases/tc_login.yaml -env dev -secrets mask
-drun run tcases/tc_login.yaml -env-file .env.local -secrets mask
-drun run tcases/tc_login.yaml -vars tenant=blue -secrets mask
-drun run tcases/tc_login.yaml -env dev -persist-env .env.runtime -secrets mask
+drun r tcases/tc_login.yaml -env dev -secrets mask
+drun r tcases/tc_login.yaml -env-file .env.local -secrets mask
+drun r tcases/tc_login.yaml -vars tenant=blue -secrets mask
+drun r tcases/tc_login.yaml -env dev -persist-env .env.runtime -secrets mask
 ```
 
 ## 单接口调试
@@ -58,30 +58,30 @@ drun q https://api.example.com/api/login \
 ## 转换与导出
 
 ```bash
-drun convert sample.curl -outfile tcases/from_curl.yaml -placeholders on -redact Authorization,Cookie
-drun convert traffic.har -output-mode split -outfile tcases/imported.yaml
-drun convert-openapi spec/openapi.json -output-mode split -outfile tcases/api.yaml -placeholders on
-drun export curl tcases/tc_login.yaml -steps 1 -redact Authorization,Cookie
-drun export curl tcases/tc_upload.yaml -layout multiline -shell sh -redact Authorization,Cookie
+drun o sample.curl -outfile tcases/from_curl.yaml -placeholders on -redact Authorization,Cookie
+drun o traffic.har -output-mode split -outfile tcases/imported.yaml
+drun w spec/openapi.json -output-mode split -outfile tcases/api.yaml -placeholders on
+drun e curl tcases/tc_login.yaml -steps 1 -redact Authorization,Cookie
+drun e curl tcases/tc_upload.yaml -layout multiline -shell sh -redact Authorization,Cookie
 ```
 
 ## 报告与查看
 
 ```bash
-drun run tcases/tc_login.yaml -env dev -report reports/login.json -secrets mask
-drun run tcases/tc_login.yaml -env dev -html reports/login.html -secrets mask
-drun run tcases/tc_login.yaml -env dev -allure-results allure-results -secrets mask
-drun run tcases/tc_login.yaml -env dev -snippet curl -secrets mask
-drun server -reports-dir reports
-drun server -host 127.0.0.1 -port 8080 -reports-dir reports
+drun r tcases/tc_login.yaml -env dev -report reports/login.json -secrets mask
+drun r tcases/tc_login.yaml -env dev -html reports/login.html -secrets mask
+drun r tcases/tc_login.yaml -env dev -allure-results allure-results -secrets mask
+drun r tcases/tc_login.yaml -env dev -snippet curl -secrets mask
+drun s -reports-dir reports
+drun s -host 127.0.0.1 -port 8080 -reports-dir reports
 ```
 
 ## 选择建议
 
-- 先验证 YAML 作者错误：`drun check`
-- 执行已有 Case 或 suite：`drun run`
+- 先验证 YAML 作者错误：`drun c`
+- 执行已有 Case 或 suite：`drun r`
 - 单接口临时调试：`drun q`
-- 从已有 cURL / HAR / Postman 迁移：`drun convert`
-- 从 OpenAPI 生成骨架：`drun convert-openapi`
-- 从 Case 反推可复现请求：`drun export curl`
-- 查看 HTML 报告：`drun server`
+- 从已有 cURL / HAR / Postman 迁移：`drun o`
+- 从 OpenAPI 生成骨架：`drun w`
+- 从 Case 反推可复现请求：`drun e curl`
+- 查看 HTML 报告：`drun s`

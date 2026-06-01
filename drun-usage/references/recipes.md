@@ -7,7 +7,7 @@
 - 敏感值使用 `${ENV(...)}`，不要写真实 token、Cookie 或密码。
 - YAML 请求字段用 `request.path` 和 `request.body`。
 - `extract` / `check` 与 `request` 同级，不要缩进到 `request` 下。
-- 生成 YAML 后，默认给出 `drun check` 和 `drun run` 命令。
+- 生成 YAML 后，默认给出 `drun c` 和 `drun r` 命令。
 - 涉及敏感信息的运行示例默认使用 `-secrets mask`。
 
 ## 单接口 GET
@@ -38,8 +38,8 @@ steps:
 运行：
 
 ```bash
-drun check tcases/tc_user_detail.yaml
-drun run tcases/tc_user_detail.yaml -env dev -secrets mask
+drun c tcases/tc_user_detail.yaml
+drun r tcases/tc_user_detail.yaml -env dev -secrets mask
 ```
 
 ## POST JSON 创建资源
@@ -73,8 +73,8 @@ steps:
 运行：
 
 ```bash
-drun check tcases/tc_create_user.yaml
-drun run tcases/tc_create_user.yaml -env dev -secrets mask
+drun c tcases/tc_create_user.yaml
+drun r tcases/tc_create_user.yaml -env dev -secrets mask
 ```
 
 ## 登录提取 token
@@ -107,8 +107,8 @@ steps:
 运行：
 
 ```bash
-drun check tcases/tc_login.yaml
-drun run tcases/tc_login.yaml -env dev -secrets mask
+drun c tcases/tc_login.yaml
+drun r tcases/tc_login.yaml -env dev -secrets mask
 ```
 
 ## 登录后查询当前用户
@@ -149,8 +149,8 @@ steps:
 运行：
 
 ```bash
-drun check tcases/tc_login_and_me.yaml
-drun run tcases/tc_login_and_me.yaml -env dev -secrets mask
+drun c tcases/tc_login_and_me.yaml
+drun r tcases/tc_login_and_me.yaml -env dev -secrets mask
 ```
 
 ## 文件上传 multipart
@@ -186,8 +186,8 @@ steps:
 运行：
 
 ```bash
-drun check tcases/tc_upload_avatar.yaml
-drun run tcases/tc_upload_avatar.yaml -env dev -secrets mask
+drun c tcases/tc_upload_avatar.yaml
+drun r tcases/tc_upload_avatar.yaml -env dev -secrets mask
 ```
 
 ## 下载二进制并保存
@@ -220,8 +220,8 @@ steps:
 运行：
 
 ```bash
-drun check tcases/tc_download_file.yaml
-drun run tcases/tc_download_file.yaml -env dev -secrets mask
+drun c tcases/tc_download_file.yaml
+drun r tcases/tc_download_file.yaml -env dev -secrets mask
 ```
 
 ## 轮询接口
@@ -257,8 +257,8 @@ steps:
 运行：
 
 ```bash
-drun check tcases/tc_poll_order.yaml
-drun run tcases/tc_poll_order.yaml -env dev -secrets mask
+drun c tcases/tc_poll_order.yaml
+drun r tcases/tc_poll_order.yaml -env dev -secrets mask
 ```
 
 ## CSV 参数化
@@ -293,8 +293,8 @@ steps:
 运行：
 
 ```bash
-drun check tcases/tc_login_csv.yaml
-drun run tcases/tc_login_csv.yaml -env dev -secrets mask
+drun c tcases/tc_login_csv.yaml
+drun r tcases/tc_login_csv.yaml -env dev -secrets mask
 ```
 
 注意：CSV 参数化当前不支持 `rows`、`where` 或 `filter` 之类的按行过滤 DSL。
@@ -321,8 +321,8 @@ caseflow:
 运行：
 
 ```bash
-drun check tsuites/ts_login_flow.yaml
-drun run tsuites/ts_login_flow.yaml -env dev -secrets mask
+drun c tsuites/ts_login_flow.yaml
+drun r tsuites/ts_login_flow.yaml -env dev -secrets mask
 ```
 
 ## drun q 快速调试并保存 YAML
@@ -343,6 +343,6 @@ drun q https://api.example.com/api/login \
 保存后建议继续执行：
 
 ```bash
-drun check tcases/tc_login_from_q.yaml
-drun run tcases/tc_login_from_q.yaml -env dev -secrets mask
+drun c tcases/tc_login_from_q.yaml
+drun r tcases/tc_login_from_q.yaml -env dev -secrets mask
 ```

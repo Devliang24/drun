@@ -21,7 +21,7 @@
 | `config.headers` | 默认请求头。 |
 | `config.timeout` | 默认超时时间。 |
 | `config.verify` | TLS 校验开关。 |
-| `config.tags` | 标签列表，可配合 `drun run -k` 过滤。 |
+| `config.tags` | 标签列表，可配合 `drun r -k` 过滤。 |
 | `config.setup_hooks` | Case 级 setup hooks。 |
 | `config.teardown_hooks` | Case 级 teardown hooks。 |
 

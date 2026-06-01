@@ -38,24 +38,24 @@ drun q https://api.example.com/api/login \
 - `-save-yaml` 生成的是单 case 骨架，复杂复用还要再手工整理
 - 退出码：`0` 表示请求和检查通过，`1` 表示检查失败，`2` 表示参数或请求错误
 
-## `drun convert`：从 cURL / HAR / Postman 迁移
+## `drun o`：从 cURL / HAR / Postman 迁移
 
 ### cURL
 
 ```bash
-drun convert sample.curl -outfile tcases/from_curl.yaml -placeholders on -redact Authorization,Cookie
+drun o sample.curl -outfile tcases/from_curl.yaml -placeholders on -redact Authorization,Cookie
 ```
 
 ### HAR
 
 ```bash
-drun convert traffic.har -output-mode split -outfile tcases/imported.yaml
+drun o traffic.har -output-mode split -outfile tcases/imported.yaml
 ```
 
 ### Postman
 
 ```bash
-drun convert collection.json -postman-env env.json -output-mode split -outfile tcases/postman.yaml -suite-out tsuites/postman_flow.yaml
+drun o collection.json -postman-env env.json -output-mode split -outfile tcases/postman.yaml -suite-out tsuites/postman_flow.yaml
 ```
 
 实现边界：
@@ -67,10 +67,10 @@ drun convert collection.json -postman-env env.json -output-mode split -outfile t
 - `-into` 适合把导入结果并到已有 case 文件
 - `-suite-out` 当前只在 Postman 转换链路里可用，用来额外生成 `caseflow`
 
-## `drun convert-openapi`：从规范快速起骨架
+## `drun w`：从规范快速起骨架
 
 ```bash
-drun convert-openapi spec/openapi/ecommerce_api.json \
+drun w spec/openapi/ecommerce_api.json \
   -output-mode split \
   -outfile tcases/ecommerce.yaml \
   -tags orders,payment \
@@ -84,10 +84,10 @@ drun convert-openapi spec/openapi/ecommerce_api.json \
 - `-base-url` 不传时，优先取 spec `servers[0].url`，再退化到 `http://localhost:8000`
 - 生成结果更适合“起手骨架”，检查、提取、鉴权通常还需要手补
 
-## `drun export curl`：从现有 case 反推可复现请求
+## `drun e curl`：从现有 case 反推可复现请求
 
 ```bash
-drun export curl tcases/tc_login.yaml \
+drun e curl tcases/tc_login.yaml \
   -steps 1 \
   -layout multiline \
   -shell sh \
@@ -99,9 +99,9 @@ drun export curl tcases/tc_login.yaml \
 可选写法：
 
 ```bash
-drun export curl tcases/tc_upload.yaml -layout oneline
-drun export curl tcases/tc_login.yaml -shell ps
-drun export curl tcases -case-name 登录 -steps 1,3-4
+drun e curl tcases/tc_upload.yaml -layout oneline
+drun e curl tcases/tc_login.yaml -shell ps
+drun e curl tcases -case-name 登录 -steps 1,3-4
 ```
 
 边界：

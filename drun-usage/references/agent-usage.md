@@ -70,7 +70,7 @@ Codex 环境的 skill 发现目录可能随版本和配置变化。如果当前 
 如果当前环境不会自动发现 skills，就在项目 `AGENTS.md` 或用户提示中显式要求：
 
 ```text
-当用户提到 drun YAML、drun run、drun check、drun q、drun convert 或 drun 排障时，请先读取 drun-usage/SKILL.md，并按其中 reference 执行。
+当用户提到 drun YAML、drun r、drun c、drun q、drun o 或 drun 排障时，请先读取 drun-usage/SKILL.md，并按其中 reference 执行。
 ```
 
 ## 通用 Agent 使用方式
@@ -78,7 +78,7 @@ Codex 环境的 skill 发现目录可能随版本和配置变化。如果当前 
 任何不能自动发现 skill 的 Agent，都可以用显式提示触发：
 
 ```text
-请先读取 drun-usage/SKILL.md。然后帮我写一个 drun YAML，并给出 drun check 和 drun run 命令。
+请先读取 drun-usage/SKILL.md。然后帮我写一个 drun YAML，并给出 drun c 和 drun r 命令。
 ```
 
 排障时可以这样说：
@@ -92,6 +92,6 @@ Codex 环境的 skill 发现目录可能随版本和配置变化。如果当前 
 1. 用户描述接口、请求体和期望结果。
 2. Agent 读取 `drun-usage/SKILL.md` 和必要 reference。
 3. Agent 生成完整 YAML。
-4. Agent 给出 `drun check` 命令。
-5. Agent 给出 `drun run` 命令。
+4. Agent 给出 `drun c` 命令。
+5. Agent 给出 `drun r` 命令。
 6. 如果运行失败，用户把错误贴回 Agent，Agent 按 troubleshooting 和 anti-patterns 修复。

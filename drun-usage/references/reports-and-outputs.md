@@ -4,14 +4,14 @@
 
 ## 输出类型总览
 
-- 日志：`drun run` 总会产生日志文件
+- 日志：`drun r` 总会产生日志文件
 - JSON 报告：显式传 `-report`
 - HTML 报告：项目模式默认生成；临时单文件模式默认不生成，除非传 `-html`
 - Allure：显式传 `-allure-results`
 - 代码片段：项目模式默认生成；临时单文件模式默认不生成，除非传 `-snippet-output`
 - 响应体保存：YAML step 里写 `response.save_body_to`
 - 响应数组导出 CSV：YAML step 里写 `export.csv`
-- 报告 Web 查看：`drun server`
+- 报告 Web 查看：`drun s`
 
 ## 临时单文件 vs 脚手架项目
 
@@ -35,11 +35,11 @@
 ## 命令示例
 
 ```bash
-drun run tsuites/ts_login_flow.yaml -env dev -report reports/login.json
-drun run tsuites/ts_login_flow.yaml -env dev -allure-results allure-results
-drun run tsuites/ts_login_flow.yaml -env dev -snippet curl
-drun run tsuites/ts_login_flow.yaml -env dev -snippet python -snippet-output snippets/manual
-drun run /tmp/tc_upload.yaml -env dev -html reports/upload.html -snippet-output snippets/upload
+drun r tsuites/ts_login_flow.yaml -env dev -report reports/login.json
+drun r tsuites/ts_login_flow.yaml -env dev -allure-results allure-results
+drun r tsuites/ts_login_flow.yaml -env dev -snippet curl
+drun r tsuites/ts_login_flow.yaml -env dev -snippet python -snippet-output snippets/manual
+drun r /tmp/tc_upload.yaml -env dev -html reports/upload.html -snippet-output snippets/upload
 ```
 
 ## JSON / HTML / Allure
@@ -127,9 +127,9 @@ steps:
 ## 报告服务
 
 ```bash
-drun server
-drun server -port 8080
-drun server -host 127.0.0.1 -reports-dir reports -headless
+drun s
+drun s -port 8080
+drun s -host 127.0.0.1 -reports-dir reports -headless
 ```
 
 说明：
@@ -144,7 +144,7 @@ drun server -host 127.0.0.1 -reports-dir reports -headless
 ## 文件上传与报告输出的组合示例
 
 ```bash
-drun run tcases/tc_upload_avatar.yaml \
+drun r tcases/tc_upload_avatar.yaml \
   -env dev \
   -report reports/upload.json \
   -allure-results allure-results \

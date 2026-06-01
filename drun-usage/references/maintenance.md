@@ -10,7 +10,7 @@
 - YAML DSL 字段、字段位置、默认值、兼容 alias 或废弃字段变化。
 - `check`、`extract`、`caseflow`、`invoke`、`invoke_case_name`、`invoke_case_names`、`repeat`、`sleep` 行为变化。
 - Request Step 的 `request.files`、`request.auth`、`request.stream`、`response.save_body_to`、`export.csv` 行为变化。
-- 报告、JSON、HTML、Allure、snippet、`drun server` 输出或目录行为变化。
+- 报告、JSON、HTML、Allure、snippet、`drun s` 输出或目录行为变化。
 - YAML 诊断错误码、错误提示、hint、example 或修复建议变化。
 - `drun q`、`convert`、`convert-openapi`、`export curl` 行为变化。
 

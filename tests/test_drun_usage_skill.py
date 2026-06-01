@@ -67,13 +67,13 @@ class DrunUsageSkillTests(unittest.TestCase):
         )
 
         for expected in (
-            "drun check",
-            "drun run",
+            "drun c",
+            "drun r",
             "drun q",
-            "drun convert",
-            "drun convert-openapi",
-            "drun export curl",
-            "drun server",
+            "drun o",
+            "drun w",
+            "drun e curl",
+            "drun s",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, cheatsheet)
@@ -117,7 +117,7 @@ class DrunUsageSkillTests(unittest.TestCase):
     def test_recipes_include_safe_executable_commands(self) -> None:
         recipes = (SKILL_DIR / "references" / "recipes.md").read_text(encoding="utf-8")
 
-        for expected in ("drun check", "drun run", "-secrets mask", "${ENV("):
+        for expected in ("drun c", "drun r", "-secrets mask", "${ENV("):
             with self.subTest(expected=expected):
                 self.assertIn(expected, recipes)
 

@@ -91,10 +91,10 @@ steps:
     check:
       - eq: [status_code, 201]`;
 
-export const homeCli = `$ drun check tcases
+export const homeCli = `$ drun c tcases
 Checked 8 file(s): 8 OK
 
-$ drun run tcases -env dev
+$ drun r tcases -env dev
 [RUN] files: 8 | cases: 6
 [CASE] passed: 6 | failed: 0
 [STEP] passed: 18 | failed: 0`;
@@ -110,9 +110,9 @@ export const agentSkillContent: AgentSkillContent = {
   triggerScenarios: [
     { title: '编写或改写 YAML', text: '单接口 Case、文件上传、登录链路、参数化和 caseflow 编排。' },
     { title: '解释高级 DSL', text: 'invoke、invoke_case_name(s)、repeat、sleep、hooks、request.files、response.save_body_to。' },
-    { title: '设计运行命令', text: 'drun run、drun q、环境加载、-vars、-persist-env、报告和 snippet 输出。' },
+    { title: '设计运行命令', text: 'drun r、drun q、环境加载、-vars、-persist-env、报告和 snippet 输出。' },
     { title: '转换与迁移', text: '从 cURL、HAR、Postman、OpenAPI 起步，转换后补 check、extract 和环境变量。' },
-    { title: '排障与修复', text: '分析 drun check / drun run 输出，定位 YAML path，给出修复后的片段。' },
+    { title: '排障与修复', text: '分析 drun c / drun r 输出，定位 YAML path，给出修复后的片段。' },
     { title: '报告与复现', text: '解释 JSON、HTML、Allure、snippet、server 和响应体保存的使用方式。' },
   ],
   agentTools: [
@@ -128,8 +128,8 @@ export const agentSkillContent: AgentSkillContent = {
       prompt: `请使用 drun-usage skill，基于下面接口信息生成可运行的 Drun YAML。
 
 请同时输出：
-- drun check 命令
-- drun run 命令
+- drun c 命令
+- drun r 命令
 - 关键字段解释
 - 常见坑和修复建议`,
       notes: ['适合一次性得到 YAML、CLI 和排障建议。', '如果结果偏泛化，补一句“只使用 Drun 当前支持的 DSL”。'],
@@ -199,12 +199,12 @@ export const agentSkillContent: AgentSkillContent = {
 要求：
 - 用 invoke 调用独立 case
 - 保留登录后 token 复用
-- 给出 drun check 和 drun run 命令`,
+- 给出 drun c 和 drun r 命令`,
     },
     {
       title: '排查 check / run 错误',
-      when: '拿到 drun check 或 drun run 报错，需要定位和修复时使用。',
-      prompt: `请使用 drun-usage skill，分析下面这个 drun check 报错。
+      when: '拿到 drun c 或 drun r 报错，需要定位和修复时使用。',
+      prompt: `请使用 drun-usage skill，分析下面这个 drun c 报错。
 
 请输出：
 - YAML path
@@ -226,7 +226,7 @@ export const agentSkillContent: AgentSkillContent = {
     {
       title: '生成运行与报告命令',
       when: '需要一次性确定环境变量、报告、snippet 等运行参数时使用。',
-      prompt: `请使用 drun-usage skill，帮我设计一条 drun run 命令。
+      prompt: `请使用 drun-usage skill，帮我设计一条 drun r 命令。
 
 要求：
 - 使用 dev 环境
@@ -254,8 +254,8 @@ export const agentSkillContent: AgentSkillContent = {
 
 示例输出会优先落到：
 - tcases/tc_login.yaml
-- drun check tcases/tc_login.yaml
-- drun run tcases/tc_login.yaml -env dev`,
+- drun c tcases/tc_login.yaml
+- drun r tcases/tc_login.yaml -env dev`,
   },
 };
 
@@ -286,10 +286,10 @@ export const docPages: ArticlePage[] = [
           title: '安装与初始化',
           language: 'bash',
           code: `pip install drun
-drun init myproject
+drun i myproject
 cd myproject
-drun check tcases
-drun run tcases -env dev`,
+drun c tcases
+drun r tcases -env dev`,
         },
       },
       {
@@ -324,12 +324,12 @@ steps:
       {
         id: 'command',
         title: '运行命令',
-        body: ['建议先跑 `drun check` 清理 YAML 作者错误，再跑 `drun run`。'],
+        body: ['建议先跑 `drun c` 清理 YAML 作者错误，再跑 `drun r`。'],
         code: {
           language: 'bash',
-          code: `drun check tcases/tc_login.yaml
-drun run tcases/tc_login.yaml -env dev
-drun run test_login -env dev`,
+          code: `drun c tcases/tc_login.yaml
+drun r tcases/tc_login.yaml -env dev
+drun r test_login -env dev`,
         },
       },
       {
@@ -348,15 +348,15 @@ drun run test_login -env dev`,
         code: {
           title: '创建环境文件',
           language: 'bash',
-          code: `drun init demo-api
+          code: `drun i demo-api
 cd demo-api
 cat > .env.dev <<'EOF'
 BASE_URL=https://api.example.com
 API_KEY=demo-token
 EOF
 
-drun check tcases/tc_login.yaml
-drun run tcases/tc_login.yaml -env dev`,
+drun c tcases/tc_login.yaml
+drun r tcases/tc_login.yaml -env dev`,
         },
       },
       {
@@ -443,9 +443,9 @@ steps:
         body: ['单文件调试时可直接指定 YAML 文件；稳定后再放进目录批量运行。'],
         code: {
           language: 'bash',
-          code: `drun check tcases/tc_user_api.yaml
-drun run tcases/tc_user_api.yaml -env dev
-drun run tcases -env dev -k smoke`,
+          code: `drun c tcases/tc_user_api.yaml
+drun r tcases/tc_user_api.yaml -env dev
+drun r tcases -env dev -k smoke`,
         },
       },
       {
@@ -539,8 +539,8 @@ drun run tcases -env dev -k smoke`,
         body: ['上传场景建议先单文件运行，确认本地路径和环境变量都正确。'],
         code: {
           language: 'bash',
-          code: `drun check tcases/tc_upload_avatar.yaml
-drun run tcases/tc_upload_avatar.yaml -env dev -snippet curl`,
+          code: `drun c tcases/tc_upload_avatar.yaml
+drun r tcases/tc_upload_avatar.yaml -env dev -snippet curl`,
         },
       },
       {
@@ -640,8 +640,8 @@ steps:
         body: ['命令行变量适合覆盖一次性参数，环境文件适合长期配置。'],
         code: {
           language: 'bash',
-          code: `drun run tcases/tc_order.yaml -env dev
-drun run tcases/tc_order.yaml -env dev -vars sku=SKU-002`,
+          code: `drun r tcases/tc_order.yaml -env dev
+drun r tcases/tc_order.yaml -env dev -vars sku=SKU-002`,
         },
       },
       {
@@ -660,7 +660,7 @@ Hint: extract token before using $token, or pass it with -vars token=...`,
         body: [
           '不要在示例里提交真实 `.env` 密钥。',
           '使用 `$token` 前必须先通过 `extract` 或 `-vars` 提供它。',
-          '表达式拼写错误会在严格渲染阶段暴露，先跑 `drun check` 再运行。',
+          '表达式拼写错误会在严格渲染阶段暴露，先跑 `drun c` 再运行。',
         ],
         kind: 'warning',
       },
@@ -724,7 +724,7 @@ Hint: extract token before using $token, or pass it with -vars token=...`,
         body: ['调试提取失败时，先输出 JSON 报告，查看响应体和 StepResult。'],
         code: {
           language: 'bash',
-          code: `drun run tcases/tc_user_detail.yaml -env dev -report reports/user-detail.json`,
+          code: `drun r tcases/tc_user_detail.yaml -env dev -report reports/user-detail.json`,
         },
       },
       {
@@ -815,8 +815,8 @@ steps:
         body: ['参数化用例建议先跑 `check`，尤其是 CSV 路径和变量名。'],
         code: {
           language: 'bash',
-          code: `drun check tcases/tc_orders.yaml
-drun run tcases/tc_orders.yaml -env dev`,
+          code: `drun c tcases/tc_orders.yaml
+drun r tcases/tc_orders.yaml -env dev`,
         },
       },
       {
@@ -899,11 +899,11 @@ caseflow:
       {
         id: 'command',
         title: '运行命令',
-        body: ['套件文件和普通 Case 一样用 `drun run` 执行。'],
+        body: ['套件文件和普通 Case 一样用 `drun r` 执行。'],
         code: {
           language: 'bash',
-          code: `drun check tsuites/smoke.yaml
-drun run tsuites/smoke.yaml -env dev -failfast`,
+          code: `drun c tsuites/smoke.yaml
+drun r tsuites/smoke.yaml -env dev -failfast`,
         },
       },
       {
@@ -961,7 +961,7 @@ caseflow:
     id: 'execution-env',
     path: '/docs/execution-env',
     title: '运行与环境',
-    description: '掌握 `drun run`、`drun check`、环境文件、CLI 变量和运行控制参数。',
+    description: '掌握 `drun r`、`drun c`、环境文件、CLI 变量和运行控制参数。',
     icon: ServerCog,
     sections: [
       {
@@ -975,9 +975,9 @@ caseflow:
         body: ['目标可以是单个 YAML、目录，或省略 `.yaml` 的文件名。'],
         code: {
           language: 'bash',
-          code: `drun check tcases
-drun run tcases -env dev
-drun run test_login -env dev`,
+          code: `drun c tcases
+drun r tcases -env dev
+drun r test_login -env dev`,
         },
       },
       {
@@ -986,7 +986,7 @@ drun run test_login -env dev`,
         body: ['用 `-vars` 临时覆盖变量，用 `-failfast` 在首个失败处停下，用 `-persist-env` 写回提取变量。'],
         code: {
           language: 'bash',
-          code: `drun run tcases -env dev \\
+          code: `drun r tcases -env dev \\
   -vars tenant=blue region=cn \\
   -failfast \\
   -persist-env`,
@@ -998,14 +998,14 @@ drun run test_login -env dev`,
         body: ['日常建议把检查和运行拆成两个命令，CI 中也更容易定位 YAML 作者错误。'],
         code: {
           language: 'bash',
-          code: `drun check tcases
-drun run tcases -env test -report reports/result.json -html reports/report.html`,
+          code: `drun c tcases
+drun r tcases -env test -report reports/result.json -html reports/report.html`,
         },
       },
       {
         id: 'output',
         title: '预期输出',
-        body: ['`drun check` 聚合输出 YAML 问题；`drun run` 执行真实请求并输出运行摘要。'],
+        body: ['`drun c` 聚合输出 YAML 问题；`drun r` 执行真实请求并输出运行摘要。'],
         code: {
           language: 'text',
           code: `Checked 8 file(s): 8 OK, 0 failed, 0 error(s).
@@ -1043,9 +1043,9 @@ drun run tcases -env test -report reports/result.json -html reports/report.html`
         body: ['HTML 给人看，JSON 给自动化系统消费，snippet 给失败复现。'],
         code: {
           language: 'bash',
-          code: `drun run tcases -env dev -html reports/report.html
-drun run tcases -env dev -report reports/result.json
-drun run tcases -env dev -snippet curl`,
+          code: `drun r tcases -env dev -html reports/report.html
+drun r tcases -env dev -report reports/result.json
+drun r tcases -env dev -snippet curl`,
         },
       },
       {
@@ -1081,7 +1081,7 @@ drun run tcases -env dev -snippet curl`,
         body: ['如果要接入 Allure，输出 Allure results 目录，再由 CI 负责生成最终报告。'],
         code: {
           language: 'bash',
-          code: `drun run tcases -env dev \\
+          code: `drun r tcases -env dev \\
   -html reports/report.html \\
   -report reports/result.json \\
   -allure-results allure-results \\
@@ -1139,12 +1139,12 @@ drun q https://api.example.com/users -X POST -d '{"name":"alice"}'`,
         body: ['从已有资产转换后，通常还要补充 `extract`、`check`、环境变量和 caseflow。'],
         code: {
           language: 'bash',
-          code: `drun convert sample.curl -outfile converts/sample.yaml
-drun convert api.har -outfile converts/api.yaml
-drun convert-openapi spec/openapi/ecommerce_api.json \\
+          code: `drun o sample.curl -outfile converts/sample.yaml
+drun o api.har -outfile converts/api.yaml
+drun w spec/openapi/ecommerce_api.json \\
   -output-mode split \\
   -outfile converts/ecommerce.yaml
-drun export curl tcases/tc_user_api.yaml -outfile request.curl`,
+drun e curl tcases/tc_user_api.yaml -outfile request.curl`,
         },
       },
       {
@@ -1153,8 +1153,8 @@ drun export curl tcases/tc_user_api.yaml -outfile request.curl`,
         body: ['转换完成后先检查 YAML，再单文件运行。'],
         code: {
           language: 'bash',
-          code: `drun check converts/ecommerce.yaml
-drun run converts/ecommerce.yaml -env dev`,
+          code: `drun c converts/ecommerce.yaml
+drun r converts/ecommerce.yaml -env dev`,
         },
       },
       {
@@ -1173,14 +1173,14 @@ Checked 1 file(s): 1 OK, 0 failed, 0 error(s).`,
         body: ['迁移流程是“先转换，再检查，再补检查”。转换产物能帮你起步，但最终测试资产需要替换真实密钥、补充变量和业务检查。'],
         code: {
           language: 'bash',
-          code: `drun convert sample.curl -outfile converts/sample.yaml
-drun convert-openapi spec/openapi/ecommerce_api.json \\
+          code: `drun o sample.curl -outfile converts/sample.yaml
+drun w spec/openapi/ecommerce_api.json \\
   -output-mode split \\
   -outfile converts/ecommerce.yaml
 
-drun check converts/ecommerce.yaml
-drun run converts/ecommerce.yaml -env dev
-drun export curl tcases/tc_user_api.yaml -outfile request.curl`,
+drun c converts/ecommerce.yaml
+drun r converts/ecommerce.yaml -env dev
+drun e curl tcases/tc_user_api.yaml -outfile request.curl`,
         },
       },
       {
@@ -1205,7 +1205,7 @@ drun export curl tcases/tc_user_api.yaml -outfile request.curl`,
       {
         id: 'when',
         title: '适用场景',
-        body: ['当 `drun check` 或 `drun run` 发现 YAML/DSL 作者错误时，根据错误码、文件位置、Path、hint 和 example 快速修正。'],
+        body: ['当 `drun c` 或 `drun r` 发现 YAML/DSL 作者错误时，根据错误码、文件位置、Path、hint 和 example 快速修正。'],
       },
       {
         id: 'minimal',
@@ -1289,8 +1289,8 @@ check:
         body: ['日常先批量检查目录；运行时仍保持首个阻断错误快速退出。'],
         code: {
           language: 'bash',
-          code: `drun check tcases
-drun run tcases -env dev`,
+          code: `drun c tcases
+drun r tcases -env dev`,
         },
       },
       {
@@ -1313,10 +1313,10 @@ Checked 8 file(s): 6 OK, 2 failed, 3 error(s).`,
       {
         id: 'practice',
         title: '完整练习：用 check 修作者错误',
-        body: ['团队批量写 YAML 后，先用 `drun check` 清掉字段写错、缩进错误和旧 DSL 写法，再运行真实请求。'],
+        body: ['团队批量写 YAML 后，先用 `drun c` 清掉字段写错、缩进错误和旧 DSL 写法，再运行真实请求。'],
         code: {
           language: 'text',
-          code: `$ drun check tcases
+          code: `$ drun c tcases
 FAIL tcases/tc_a.yaml
   DRUN-YAML-003 Invalid request field: request.url
   DRUN-YAML-004 request.json is not supported
@@ -1326,7 +1326,7 @@ FAIL tcases/tc_b.yaml
 
 Checked 10 file(s): 8 OK, 2 failed, 3 error(s).
 
-$ drun check tcases
+$ drun c tcases
 Checked 10 file(s): 10 OK, 0 failed, 0 error(s).`,
         },
       },
@@ -1353,7 +1353,7 @@ export const docGroups: DocGroup[] = [
 export const featureCards = [
   { title: '用户指南', text: '从安装到实战链路，按用户学习路径组织。', icon: BookOpen },
   { title: 'YAML DSL', text: '用可读 YAML 描述请求、变量、检查和编排。', icon: Code2 },
-  { title: '诊断排障', text: 'drun check 输出稳定错误码、定位、hint 和示例。', icon: Bug },
+  { title: '诊断排障', text: 'drun c 输出稳定错误码、定位、hint 和示例。', icon: Bug },
   { title: '报告输出', text: 'HTML、JSON、Allure、snippet 和响应体保存。', icon: FileJson2 },
 ];
 

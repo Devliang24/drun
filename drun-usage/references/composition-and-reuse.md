@@ -66,7 +66,7 @@ caseflow:
 ```
 
 ```bash
-drun run tsuites/ts_login_flow.yaml -env dev -persist-env .env.runtime
+drun r tsuites/ts_login_flow.yaml -env dev -persist-env .env.runtime
 ```
 
 ## `invoke` 与变量传递

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 > Historical note: entries mentioning the scoring system are retained for release history only. The current CLI does not expose a `drun score` command.
 
+## [8.1.0] - 2026-06-01
+
+### BREAKING CHANGE: All CLI subcommands are now single-letter
+
+| Long name (v8.0) | Single letter (v8.1) |
+|------------------|------------------------|
+| `init`           | `i` |
+| `run`            | `r` |
+| `check`          | `c` |
+| `fix`            | `f` |
+| `tags`           | `t` |
+| `q`              | `q` (unchanged) |
+| `convert`        | `o` |
+| `convert-openapi`| `w` |
+| `export curl`    | `e` (or `e curl`) |
+| `server`         | `s` |
+
+- No backward compatibility. Long names are no longer registered.
+- `drun e` defaults to `drun e curl` (export curl).
+
 ## [8.0.0] - 2026-06-01
 
 ### BREAKING CHANGE: New test layout and naming convention

@@ -4,7 +4,7 @@
 
 ## YAML 诊断错误码
 
-`drun check` 会聚合输出 YAML/DSL 作者错误；`drun run` 遇到第一个阻断性 YAML 错误仍会快速停止。诊断使用稳定错误码 `DRUN-YAML-xxx`，并尽量输出文件行号、YAML path、修复建议和最小示例。
+`drun c` 会聚合输出 YAML/DSL 作者错误；`drun r` 遇到第一个阻断性 YAML 错误仍会快速停止。诊断使用稳定错误码 `DRUN-YAML-xxx`，并尽量输出文件行号、YAML path、修复建议和最小示例。
 
 | 错误码 | 含义 | 常见处理方向 |
 | --- | --- | --- |
@@ -118,7 +118,7 @@ steps:
       - eq: [status_code, 200]
 ```
 
-### `drun check` 多文件聚合
+### `drun c` 多文件聚合
 
 优化前：
 
@@ -139,7 +139,7 @@ FAIL tcases/tc_b.yaml
 Checked 8 file(s): 6 OK, 2 failed, 3 error(s).
 ```
 
-修正：先用 `drun check tcases` 批量清理 YAML 作者错误，再执行 `drun run`。
+修正：先用 `drun c tcases` 批量清理 YAML 作者错误，再执行 `drun r`。
 
 ## 环境未命中
 
@@ -357,6 +357,6 @@ Legacy inline suite ('cases:') is not supported
 正确示例：
 
 ```bash
-drun convert sample.curl -outfile tcases/from_curl.yaml
-drun convert traffic.har -output-mode split -outfile tcases/imported.yaml
+drun o sample.curl -outfile tcases/from_curl.yaml
+drun o traffic.har -output-mode split -outfile tcases/imported.yaml
 ```

@@ -41,7 +41,7 @@ uv pip install drun
 ### 1. 初始化项目
 
 ```bash
-drun init myproject
+drun i myproject
 cd myproject
 ```
 
@@ -108,10 +108,10 @@ steps:
 ### 4. 执行测试
 
 ```bash
-drun run tcases/tc_user_api.yaml -env dev
-drun run test_user_api -env dev
-drun run tcases -env dev -k "smoke and not slow"
-drun run test_user_api -env dev -html reports/report.html
+drun r tcases/tc_user_api.yaml -env dev
+drun r test_user_api -env dev
+drun r tcases -env dev -k "smoke and not slow"
+drun r test_user_api -env dev -html reports/report.html
 ```
 
 说明：
@@ -206,29 +206,29 @@ steps:
 ### 运行与调试
 
 ```bash
-drun run PATH -env dev
+drun r PATH -env dev
 drun q https://api.example.com/ping
 drun q https://api.example.com/users -X POST -d '{"name":"alice"}'
-drun tags tcases
-drun check tcases
-drun fix tcases
+drun t tcases
+drun c tcases
+drun f tcases
 ```
 
-`drun check` 会聚合输出 YAML/DSL 作者错误，并带有稳定错误码（如 `DRUN-YAML-003`）、定位、修复建议和最小示例；`drun run` 遇到阻断性 YAML 错误时仍会快速停止。
+`drun c` 会聚合输出 YAML/DSL 作者错误，并带有稳定错误码（如 `DRUN-YAML-003`）、定位、修复建议和最小示例；`drun r` 遇到阻断性 YAML 错误时仍会快速停止。
 
 ### 格式转换
 
 ```bash
-drun convert sample.curl -outfile out.yaml
-drun convert-openapi spec/openapi/ecommerce_api.json -output-mode split -outfile converted/ecommerce.yaml
-drun export curl tcases/tc_user_api.yaml -outfile request.curl
+drun o sample.curl -outfile out.yaml
+drun w spec/openapi/ecommerce_api.json -output-mode split -outfile converted/ecommerce.yaml
+drun e curl tcases/tc_user_api.yaml -outfile request.curl
 ```
 
 ### 报告服务
 
 ```bash
-drun server
-drun server -port 8080
+drun s
+drun s -port 8080
 ```
 
 启动后可浏览测试报告列表并查看详情页。
@@ -243,8 +243,8 @@ drun server -port 8080
 示例：
 
 ```bash
-drun run tcases -env dev -html reports/report.html
-drun run tcases -env dev -allure-results allure-results
+drun r tcases -env dev -html reports/report.html
+drun r tcases -env dev -allure-results allure-results
 allure serve allure-results
 ```
 
@@ -275,7 +275,7 @@ python -m drun.cli --version
 
 - 生成 `drun` YAML 用例
 - 解释 `invoke`、`invoke_case_name`、`invoke_case_names`、`repeat`、`sleep`
-- 设计 `drun run`、`drun q`、`convert`、`convert-openapi`、`export curl`
+- 设计 `drun r`、`drun q`、`convert`、`convert-openapi`、`export curl`
 - 解释 HTML / JSON / Allure / snippet / `server`
 - 根据报错做 `drun` 排障
 
@@ -318,13 +318,13 @@ Read drun-usage/SKILL.md first, then generate a drun YAML case for file upload a
 ```
 
 ```text
-Read drun-usage/references/debug-convert-export.md and give me a drun convert-openapi command for this spec.
+Read drun-usage/references/debug-convert-export.md and give me a drun w command for this spec.
 ```
 
 ### 使用建议
 
 - 需要“直接产出可运行 YAML 和命令”时，优先显式提 `drun-usage`
-- 只问单个 DSL 点时，可以直接说“解释 drun repeat”或“解释 drun export curl”
+- 只问单个 DSL 点时，可以直接说“解释 drun repeat”或“解释 drun e curl”
 - 如果改动了 `drun` 的 CLI、DSL、报告输出或排障行为，记得同步更新 `drun-usage/`
 
 ## 适用场景
