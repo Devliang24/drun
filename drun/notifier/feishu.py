@@ -8,13 +8,13 @@ from typing import Optional
 
 import httpx
 
-from .base import Notifier, NotifyContext
+from .base import BestEffortNotifier, NotifyContext, resolve_report_url
 from .format import build_summary_text, build_text_message
 from drun.models.report import RunReport
 from drun.utils.config import get_env_clean
 
 
-class FeishuNotifier(Notifier):
+class FeishuNotifier(BestEffortNotifier):
     def __init__(self, *, webhook: str, secret: Optional[str] = None, mentions: Optional[str] = None, timeout: float = 6.0, style: str = "text") -> None:
         self.webhook = webhook
         self.secret = secret
@@ -42,9 +42,7 @@ class FeishuNotifier(Notifier):
         text = build_summary_text(report, html_path=ctx.html_path, log_path=ctx.log_path, topn=ctx.topn)
         if self.mentions:
             text = f"提醒: {self.mentions}\n\n" + text
-        report_url = get_env_clean("REPORT_URL")
-        if (not report_url) and ctx.html_path and (ctx.html_path.startswith("http://") or ctx.html_path.startswith("https://")):
-            report_url = ctx.html_path
+        report_url = resolve_report_url(ctx)
         elements = [
             {"tag": "div", "text": {"tag": "lark_md", "content": text}},
         ]
@@ -69,17 +67,16 @@ class FeishuNotifier(Notifier):
         }
         return {"msg_type": "interactive", "card": card}
 
-    def send(self, report: RunReport, ctx: NotifyContext) -> None:  # pragma: no cover - integration
+    def _send(self, report: RunReport, ctx: NotifyContext) -> None:
         if not self.webhook:
             return
-        try:
-            if self.style == "card":
-                payload = self._card_payload(report, ctx)
-            else:
-                text = build_text_message(report, html_path=ctx.html_path, log_path=ctx.log_path, topn=ctx.topn)
-                if self.mentions:
-                    text = f"提醒: {self.mentions}\n" + text
-                payload = {"msg_type": "text", "content": {"text": text}}
-            self._send_json(payload)
-        except Exception:
-            return
+        if self.style == "card":
+            payload = self._card_payload(report, ctx)
+        else:
+            text = build_text_message(
+                report, html_path=ctx.html_path, log_path=ctx.log_path, topn=ctx.topn
+            )
+            if self.mentions:
+                text = f"提醒: {self.mentions}\n" + text
+            payload = {"msg_type": "text", "content": {"text": text}}
+        self._send_json(payload)

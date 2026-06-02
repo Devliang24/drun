@@ -8,13 +8,13 @@ from typing import List, Optional
 
 import httpx
 
-from .base import Notifier, NotifyContext
+from .base import BestEffortNotifier, NotifyContext, resolve_report_url
 from .format import build_text_message, build_markdown_message
 from drun.models.report import RunReport
 from drun.utils.config import get_env_clean, get_system_name
 
 
-class DingTalkNotifier(Notifier):
+class DingTalkNotifier(BestEffortNotifier):
     def __init__(
         self,
         *,
@@ -55,40 +55,44 @@ class DingTalkNotifier(Notifier):
         with httpx.Client(timeout=self.timeout) as client:
             _ = client.post(url, json=payload, headers=headers)
 
-    def send(self, report: RunReport, ctx: NotifyContext) -> None:  # pragma: no cover - integration
+    def _send(self, report: RunReport, ctx: NotifyContext) -> None:
         if not self.webhook:
             return
-        try:
-            # 获取报告 URL（优先使用 REPORT_URL 环境变量）
-            report_url = get_env_clean("REPORT_URL")
-            if not report_url and ctx.html_path:
-                # 如果 html_path 是 HTTP URL，直接使用
-                if ctx.html_path.startswith("http://") or ctx.html_path.startswith("https://"):
-                    report_url = ctx.html_path
-            
-            # 构建消息内容 - 根据 style 选择不同的格式
-            html_path_display = report_url if report_url else ctx.html_path
-            
-            if self.style == "markdown":
-                # 使用 Markdown 格式
-                text = build_markdown_message(report, html_path=html_path_display, log_path=ctx.log_path, topn=ctx.topn)
-                # 如果有额外的报告 URL，添加链接（避免重复）
-                if report_url and not html_path_display:
-                    text = text + f"[📊 查看详细报告]({report_url})\n\n"
-            else:
-                # 使用纯文本格式
-                text = build_text_message(report, html_path=html_path_display, log_path=ctx.log_path, topn=ctx.topn)
-            
-            at_block = {
-                "atMobiles": self.at_mobiles,
-                "isAtAll": self.at_all,
+        # 获取报告 URL（优先使用 REPORT_URL 环境变量）
+        report_url = resolve_report_url(ctx)
+
+        # 构建消息内容 - 根据 style 选择不同的格式
+        html_path_display = report_url if report_url else ctx.html_path
+
+        if self.style == "markdown":
+            # 使用 Markdown 格式
+            text = build_markdown_message(
+                report,
+                html_path=html_path_display,
+                log_path=ctx.log_path,
+                topn=ctx.topn,
+            )
+        else:
+            # 使用纯文本格式
+            text = build_text_message(
+                report,
+                html_path=html_path_display,
+                log_path=ctx.log_path,
+                topn=ctx.topn,
+            )
+
+        at_block = {
+            "atMobiles": self.at_mobiles,
+            "isAtAll": self.at_all,
+        }
+        if self.style == "markdown":
+            system_name = get_system_name()
+            title = get_env_clean("DINGTALK_TITLE") or f"{system_name} 测试结果"
+            payload = {
+                "msgtype": "markdown",
+                "markdown": {"title": title, "text": text},
+                "at": at_block,
             }
-            if self.style == "markdown":
-                system_name = get_system_name()
-                title = get_env_clean("DINGTALK_TITLE") or f"{system_name} 测试结果"
-                payload = {"msgtype": "markdown", "markdown": {"title": title, "text": text}, "at": at_block}
-            else:
-                payload = {"msgtype": "text", "text": {"content": text}, "at": at_block}
-            self._send_json(payload)
-        except Exception:
-            return
+        else:
+            payload = {"msgtype": "text", "text": {"content": text}, "at": at_block}
+        self._send_json(payload)
