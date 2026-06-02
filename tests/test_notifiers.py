@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 from drun.models.report import CaseInstanceResult, RunReport, StepResult
 from drun.notifier import DingTalkNotifier, EmailNotifier, FeishuNotifier, NotifyContext
+from drun.notifier.emailer import _build_html_body
 
 
 def _sample_report() -> RunReport:
@@ -131,6 +132,41 @@ class FeishuNotifierTests(unittest.TestCase):
 
 
 class EmailNotifierTests(unittest.TestCase):
+    def test_build_html_body_escapes_failures_and_includes_paths(self) -> None:
+        report = RunReport(
+            summary={
+                "total": 1,
+                "passed": 0,
+                "failed": 1,
+                "skipped": 0,
+                "duration_ms": 2500.0,
+            },
+            cases=[
+                CaseInstanceResult(
+                    name="<case&>",
+                    status="failed",
+                    steps=[
+                        StepResult(
+                            name="<step>",
+                            status="failed",
+                            error="bad <token>",
+                        )
+                    ],
+                )
+            ],
+        )
+        html = _build_html_body(
+            report,
+            NotifyContext(html_path="reports/<r>.html", log_path="logs/<run>.log"),
+        )
+
+        self.assertIn("总 1 | 通过 0 | 失败 1 | 跳过 0 | 2.5s", html)
+        self.assertIn("&lt;case&amp;&gt;", html)
+        self.assertIn("&lt;step&gt;", html)
+        self.assertIn("bad &lt;token&gt;", html)
+        self.assertIn("reports/&lt;r&gt;.html", html)
+        self.assertIn("logs/&lt;run&gt;.log", html)
+
     def test_missing_config_does_not_send(self) -> None:
         notifier = EmailNotifier(smtp_host="", mail_from="", mail_to="")
         with patch("drun.notifier.emailer.smtplib.SMTP_SSL") as smtp_cls:

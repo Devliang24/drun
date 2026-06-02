@@ -5,12 +5,40 @@ import os
 import smtplib
 import ssl
 from email.message import EmailMessage
+from html import escape as _esc
 from typing import Optional
 
 from .base import Notifier, NotifyContext
-from .format import build_summary_text, build_text_message
+from .format import build_text_message, collect_failures
 from drun.models.report import RunReport
 from drun.utils.config import get_system_name
+
+
+def _build_html_body(report: RunReport, ctx: NotifyContext) -> str:
+    s = report.summary or {}
+    total = s.get("total", 0)
+    passed = s.get("passed", 0)
+    failed = s.get("failed", 0)
+    skipped = s.get("skipped", 0)
+    dur = f"{(s.get('duration_ms', 0.0) or 0.0)/1000.0:.1f}s"
+    system_name = get_system_name()
+
+    fails = []
+    for name, step, msg_txt in collect_failures(report, topn=ctx.topn):
+        fails.append(f"<li><b>{_esc(name)}</b>: {_esc(step)} → {_esc(str(msg_txt))}</li>")
+
+    html_lines = [
+        "<html><body>",
+        f"<h3>{_esc(system_name)} 测试结果</h3>",
+        f"<p>总 {total} | 通过 {passed} | 失败 {failed} | 跳过 {skipped} | {dur}</p>",
+        "<ul>" + ("".join(fails) or "<li>无失败</li>") + "</ul>",
+    ]
+    if ctx.html_path:
+        html_lines.append(f"<p>报告: {_esc(ctx.html_path)}</p>")
+    if ctx.log_path:
+        html_lines.append(f"<p>日志: {_esc(ctx.log_path)}</p>")
+    html_lines.append("</body></html>")
+    return "\n".join(html_lines)
 
 
 class EmailNotifier(Notifier):
@@ -55,31 +83,7 @@ class EmailNotifier(Notifier):
         msg.set_content(body)
         # HTML alternative
         if self.html_body:
-            from html import escape as _esc
-            s = report.summary or {}
-            total = s.get("total", 0)
-            passed = s.get("passed", 0)
-            failed = s.get("failed", 0)
-            skipped = s.get("skipped", 0)
-            dur = f"{(s.get('duration_ms', 0.0) or 0.0)/1000.0:.1f}s"
-            # Build simple HTML
-            fails = []
-            from .format import collect_failures
-            system_name = get_system_name()
-            for name, step, msg_txt in collect_failures(report, topn=ctx.topn):
-                fails.append(f"<li><b>{_esc(name)}</b>: {_esc(step)} → {_esc(str(msg_txt))}</li>")
-            html_lines = [
-                "<html><body>",
-                f"<h3>{_esc(system_name)} 测试结果</h3>",
-                f"<p>总 {total} | 通过 {passed} | 失败 {failed} | 跳过 {skipped} | {dur}</p>",
-                "<ul>" + ("".join(fails) or "<li>无失败</li>") + "</ul>",
-            ]
-            if ctx.html_path:
-                html_lines.append(f"<p>报告: {_esc(ctx.html_path)}</p>")
-            if ctx.log_path:
-                html_lines.append(f"<p>日志: {_esc(ctx.log_path)}</p>")
-            html_lines.append("</body></html>")
-            msg.add_alternative("\n".join(html_lines), subtype="html")
+            msg.add_alternative(_build_html_body(report, ctx), subtype="html")
 
         if self.attach_html and ctx.html_path and os.path.isfile(ctx.html_path):
             ctype, _ = mimetypes.guess_type(ctx.html_path)
