@@ -602,6 +602,130 @@ class Runner:
             raise ValueError(f"Step '{step.name}' sleep must be >= 0.")
         return sleep_ms
 
+    def _prepare_context(
+        self,
+        case: Case,
+        global_vars: Dict[str, Any],
+        params: Dict[str, Any],
+        funcs: Dict[str, Any] | None,
+        envmap: Dict[str, Any] | None,
+    ) -> tuple[VarContext, HTTPClient]:
+        """Build merged variable context and HTTP client for a case run."""
+        base_vars_raw: Dict[str, Any] = {**(case.config.variables or {}), **(params or {})}
+        rendered_base = {**global_vars}
+        for key, value in base_vars_raw.items():
+            if key not in global_vars:
+                rendered_base[key] = self._render(value, rendered_base, funcs, envmap)
+        ctx = VarContext(rendered_base)
+        client = self._build_client(case)
+        return ctx, client
+
+    def _execute_setup_hooks(
+        self,
+        case: Case,
+        ctx: VarContext,
+        global_vars: Dict[str, Any],
+        funcs: Dict[str, Any] | None,
+        envmap: Dict[str, Any] | None,
+        name: str,
+    ) -> List[StepResult]:
+        """Run suite- and case-level setup hooks, updating ctx in-place."""
+        results: List[StepResult] = []
+        try:
+            # suite-level
+            if getattr(case, "suite_setup_hooks", None):
+                base_vars = ctx.get_merged(global_vars)
+                new_vars_suite = self._run_setup_hooks(
+                    case.suite_setup_hooks,
+                    funcs=funcs,
+                    req={},
+                    variables=base_vars,
+                    envmap=envmap,
+                    meta={
+                        "case_name": case.config.name or name,
+                        "step_variables": base_vars,
+                        "session_variables": base_vars,
+                        "session_env": envmap or {},
+                    },
+                )
+                for k, v in (new_vars_suite or {}).items():
+                    ctx.set_base(k, v)
+                    if self.log:
+                        self.log.info(f"[HOOK] suite set var: {k} = {v!r}")
+            # case-level
+            if getattr(case, "setup_hooks", None):
+                base_vars = ctx.get_merged(global_vars)
+                new_vars_case = self._run_setup_hooks(
+                    case.setup_hooks,
+                    funcs=funcs,
+                    req={},
+                    variables=base_vars,
+                    envmap=envmap,
+                    meta={
+                        "case_name": case.config.name or name,
+                        "step_variables": base_vars,
+                        "session_variables": base_vars,
+                        "session_env": envmap or {},
+                    },
+                )
+                for k, v in (new_vars_case or {}).items():
+                    ctx.set_base(k, v)
+                    if self.log:
+                        self.log.info(f"[HOOK] case set var: {k} = {v!r}")
+        except Exception as e:
+            results.append(StepResult(name="case setup hooks", status="failed", error=f"{e}"))
+            raise
+        return results
+
+    def _execute_teardown_hooks(
+        self,
+        case: Case,
+        ctx: VarContext,
+        global_vars: Dict[str, Any],
+        funcs: Dict[str, Any] | None,
+        envmap: Dict[str, Any] | None,
+        last_resp_obj: Dict[str, Any] | None,
+        name: str,
+    ) -> List[StepResult]:
+        """Run suite- and case-level teardown hooks (best-effort)."""
+        results: List[StepResult] = []
+        try:
+            if getattr(case, "teardown_hooks", None):
+                session_vars = ctx.get_merged(global_vars)
+                _ = self._run_teardown_hooks(
+                    case.teardown_hooks,
+                    funcs=funcs,
+                    resp=last_resp_obj or {},
+                    variables=session_vars,
+                    envmap=envmap,
+                    meta={
+                        "case_name": case.config.name or name,
+                        "step_response": last_resp_obj or {},
+                        "step_variables": session_vars,
+                        "session_variables": session_vars,
+                        "session_env": envmap or {},
+                    },
+                )
+            if getattr(case, "suite_teardown_hooks", None):
+                session_vars = ctx.get_merged(global_vars)
+                _ = self._run_teardown_hooks(
+                    case.suite_teardown_hooks,
+                    funcs=funcs,
+                    resp=last_resp_obj or {},
+                    variables=session_vars,
+                    envmap=envmap,
+                    meta={
+                        "case_name": case.config.name or name,
+                        "step_response": last_resp_obj or {},
+                        "step_variables": session_vars,
+                        "session_variables": session_vars,
+                        "session_env": envmap or {},
+                    },
+                )
+        except Exception as e:
+            results.append(StepResult(name="case teardown hooks", status="failed", error=f"{e}"))
+        return results
+
     def run_case(self, case: Case, global_vars: Dict[str, Any], params: Dict[str, Any], *, funcs: Dict[str, Any] | None = None, envmap: Dict[str, Any] | None = None, source: str | None = None) -> CaseInstanceResult:
         name = case.config.name or "Unnamed Case"
         t0 = time.perf_counter()
@@ -609,68 +733,11 @@ class Runner:
         status = "passed"
         last_resp_obj: Dict[str, Any] | None = None
 
-        # Evaluate case-level variables once to fix values across steps
-        # global_vars (from invoke) take precedence over case.config.variables
-        base_vars_raw: Dict[str, Any] = {**(case.config.variables or {}), **(params or {})}
-        # Resolve sequentially so variables can reference earlier ones
-        # Use global_vars as initial context so invoke-passed variables are available
-        rendered_base = {**global_vars}
-        for key, value in base_vars_raw.items():
-            # Only render if not already set by global_vars (invoke takes precedence)
-            if key not in global_vars:
-                rendered_base[key] = self._render(value, rendered_base, funcs, envmap)
-            # else: keep the value from global_vars
-        ctx = VarContext(rendered_base)
-        client = self._build_client(case)
+        ctx, client = self._prepare_context(case, global_vars, params, funcs, envmap)
         step_lifecycle = StepLifecycle(self)
 
         try:
-            # Suite + Case setup hooks
-            try:
-                # suite-level
-                if getattr(case, "suite_setup_hooks", None):
-                    base_vars = ctx.get_merged(global_vars)
-                    new_vars_suite = self._run_setup_hooks(
-                        case.suite_setup_hooks,
-                        funcs=funcs,
-                        req={},
-                        variables=base_vars,
-                        envmap=envmap,
-                        meta={
-                            "case_name": case.config.name or name,
-                            "step_variables": base_vars,
-                            "session_variables": base_vars,
-                            "session_env": envmap or {},
-                        },
-                    )
-                    for k, v in (new_vars_suite or {}).items():
-                        ctx.set_base(k, v)
-                        if self.log:
-                            self.log.info(f"[HOOK] suite set var: {k} = {v!r}")
-                # case-level
-                if getattr(case, "setup_hooks", None):
-                    base_vars = ctx.get_merged(global_vars)
-                    new_vars_case = self._run_setup_hooks(
-                        case.setup_hooks,
-                        funcs=funcs,
-                        req={},
-                        variables=base_vars,
-                        envmap=envmap,
-                        meta={
-                            "case_name": case.config.name or name,
-                            "step_variables": base_vars,
-                            "session_variables": base_vars,
-                            "session_env": envmap or {},
-                        },
-                    )
-                    for k, v in (new_vars_case or {}).items():
-                        ctx.set_base(k, v)
-                        if self.log:
-                            self.log.info(f"[HOOK] case set var: {k} = {v!r}")
-            except Exception as e:
-                status = "failed"
-                steps_results.append(StepResult(name="case setup hooks", status="failed", error=f"{e}"))
-                raise
+            steps_results.extend(self._execute_setup_hooks(case, ctx, global_vars, funcs, envmap, name))
 
             for step_idx, step in enumerate(case.steps, 1):
                 base_variables = ctx.get_merged(global_vars)
@@ -709,47 +776,13 @@ class Runner:
                 ctx.pop()
 
         finally:
-            # Suite + Case teardown hooks (best-effort)
-            try:
-                if getattr(case, "teardown_hooks", None):
-                    session_vars = ctx.get_merged(global_vars)
-                    _ = self._run_teardown_hooks(
-                        case.teardown_hooks,
-                        funcs=funcs,
-                        resp=last_resp_obj or {},
-                        variables=session_vars,
-                        envmap=envmap,
-                        meta={
-                            "case_name": case.config.name or name,
-                            "step_response": last_resp_obj or {},
-                            "step_variables": session_vars,
-                            "session_variables": session_vars,
-                            "session_env": envmap or {},
-                        },
-                    )
-                if getattr(case, "suite_teardown_hooks", None):
-                    session_vars = ctx.get_merged(global_vars)
-                    _ = self._run_teardown_hooks(
-                        case.suite_teardown_hooks,
-                        funcs=funcs,
-                        resp=last_resp_obj or {},
-                        variables=session_vars,
-                        envmap=envmap,
-                        meta={
-                            "case_name": case.config.name or name,
-                            "step_response": last_resp_obj or {},
-                            "step_variables": session_vars,
-                            "session_variables": session_vars,
-                            "session_env": envmap or {},
-                        },
-                    )
-            except Exception as e:
-                steps_results.append(StepResult(name="case teardown hooks", status="failed", error=f"{e}"))
+            steps_results.extend(
+                self._execute_teardown_hooks(case, ctx, global_vars, funcs, envmap, last_resp_obj, name)
+            )
             client.close()
 
         total_ms = (time.perf_counter() - t0) * 1000.0
 
-        # Final validation: ensure if any step failed, the case is marked as failed
         if any(sr.status == "failed" for sr in steps_results):
             status = "failed"
 
