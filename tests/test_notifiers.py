@@ -51,7 +51,7 @@ class DingTalkNotifierTests(unittest.TestCase):
         client.__exit__ = Mock(return_value=None)
         client.post.return_value = Mock()
 
-        with patch.dict(os.environ, {"REPORT_URL": "https://reports.example/run/1"}, clear=False), \
+        with patch.dict(os.environ, {"REPORT_URL": "https://reports.example/run/1"}, clear=True), \
             patch("drun.notifier.dingtalk.time.time", return_value=1700000000.0), \
             patch("drun.notifier.dingtalk.httpx.Client", return_value=client):
             DingTalkNotifier(
@@ -95,7 +95,7 @@ class FeishuNotifierTests(unittest.TestCase):
         client.__exit__ = Mock(return_value=None)
         client.post.return_value = Mock()
 
-        with patch.dict(os.environ, {}, clear=False), \
+        with patch.dict(os.environ, {}, clear=True), \
             patch("drun.notifier.feishu.get_env_clean", side_effect=lambda key, default=None: default), \
             patch("drun.notifier.feishu.time.time", return_value=1700000000.0), \
             patch("drun.notifier.feishu.httpx.Client", return_value=client):
