@@ -7,43 +7,20 @@ import shutil
 import sys
 from importlib import metadata as _im
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import click
 import typer
-import yaml
 
 from drun.commands.check import run_check
 from drun.commands.convert import apply_convert_filters, convert_curl, convert_har, convert_postman
 from drun.commands.fix import run_fix
 from drun.commands.run import run_cases
 from drun.commands.tags import run_tags
-from drun.commands.yaml_dump import (
-    add_step_spacers as _add_step_spacers,
-    build_cases_from_import as _build_cases_from_import,
-    dump_case_dict as _dump_case_dict,
-    make_step_from_imported as _make_step_from_imported,
-    resolve_output_paths as _resolve_output_paths,
-    to_yaml_case_dict as _to_yaml_case_dict,
-    write_caseflow as _write_caseflow,
-    write_imported_cases as _write_imported_cases,
-    _FlowSeq,
-    _YamlDumper,
-    _flow_seq_representer,
-)
-from drun.extensions import get_importer, require_exporter, require_importer, resolve_exporter
-from drun.loader.collector import InvalidTestPathError, discover
-from drun.loader.env import load_environment
-from drun.loader.yaml_loader import load_yaml_file
-from drun.models.case import Case
-from drun.models.checks import Check
-from drun.models.config import Config
-from drun.models.request import StepRequest
-from drun.models.step import Step
-from drun.runner.runner import Runner
+from drun.commands.yaml_dump import build_cases_from_import, write_imported_cases
+from drun.extensions import require_importer
 
-
-
+from drun.commands.quick import quick
 
 
 def _get_drun_version() -> str:
@@ -338,10 +315,6 @@ def main(
     pass
 
 
-# Importers / exporters (lazy optional imports inside functions where needed)
-
-
-
 # Unified convert entrypoint (auto-detect by suffix)
 @app.command("o", add_help_option=False)
 def convert_auto(
@@ -610,8 +583,6 @@ def _run_impl(
         snippet_lang=snippet_lang,
     )
 
-
-from drun.commands.quick import quick
 
 quick = app.command("q", add_help_option=False)(quick)
 
@@ -1046,7 +1017,7 @@ def convert_openapi(
     if not icase.steps:
         typer.echo("[CONVERT] No operations detected in OpenAPI spec.")
         return
-    cases = _build_cases_from_import(icase, split_output=split_output)
+    cases = build_cases_from_import(icase, split_output=split_output)
     redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
     cases = [
         (
@@ -1057,7 +1028,7 @@ def convert_openapi(
         )
         for case, idx in cases
     ]
-    _write_imported_cases(
+    write_imported_cases(
         cases,
         outfile=outfile,
         into=None,

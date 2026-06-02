@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 import drun.cli as cli
+import drun.commands.convert as convert_mod
 from tests.cli_runner import CliRunner
 
 
@@ -208,7 +209,7 @@ class ExportGroupDispatchTests(unittest.TestCase):
                 "config:\n  name: Demo\n  base_url: https://example.test\nsteps: []\n",
                 encoding="utf-8",
             )
-            with patch("drun.cli.load_yaml_file") as mock_load:
+            with patch.object(convert_mod, "load_yaml_file") as mock_load:
                 mock_load.return_value = ([], {})
                 result = runner.invoke(
                     cli.app, ["e", "curl", "tc_demo.yaml", "-outfile", "out.curl"]
