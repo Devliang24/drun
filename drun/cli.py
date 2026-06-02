@@ -536,54 +536,6 @@ def list_tags(
     run_tags(path)
 
 
-def _run_impl(
-    path: str,
-    k: Optional[str],
-    vars: List[str],
-    failfast: bool,
-    report: Optional[str],
-    html: Optional[str],
-    allure_results: Optional[str],
-    log_level: str,
-    env: Optional[str],
-    env_file: Optional[str],
-    persist_env: Optional[str],
-    log_file: Optional[str],
-    httpx_logs: bool,
-    reveal_secrets: bool,
-    response_headers: bool,
-    notify: Optional[str],
-    notify_only: Optional[str],
-    notify_attach_html: bool,
-    no_snippet: bool,
-    snippet_output: Optional[str],
-    snippet_lang: str,
-):
-    return run_cases(
-        path=path,
-        k=k,
-        vars=vars,
-        failfast=failfast,
-        report=report,
-        html=html,
-        allure_results=allure_results,
-        log_level=log_level,
-        env=env,
-        env_file=env_file,
-        persist_env=persist_env,
-        log_file=log_file,
-        httpx_logs=httpx_logs,
-        reveal_secrets=reveal_secrets,
-        response_headers=response_headers,
-        notify=notify,
-        notify_only=notify_only,
-        notify_attach_html=notify_attach_html,
-        no_snippet=no_snippet,
-        snippet_output=snippet_output,
-        snippet_lang=snippet_lang,
-    )
-
-
 quick = app.command("q", add_help_option=False)(quick)
 
 
@@ -696,28 +648,28 @@ def r(
         "all" if snippet_mode == "off" else snippet_mode
     )
 
-    return _run_impl(
-        path,
-        k,
-        vars,
-        failfast,
-        report,
-        html,
-        allure_results,
-        log_level,
-        env,
-        env_file,
-        persist_env,
-        log_file,
-        httpx_logs,
-        resolved_reveal_secrets,
-        response_headers,
-        notify,
-        notify_only,
-        notify_attach_html,
-        resolved_no_snippet,
-        snippet_output,
-        resolved_snippet_lang,
+    return run_cases(
+        path=path,
+        k=k,
+        vars=vars,
+        failfast=failfast,
+        report=report,
+        html=html,
+        allure_results=allure_results,
+        log_level=log_level,
+        env=env,
+        env_file=env_file,
+        persist_env=persist_env,
+        log_file=log_file,
+        httpx_logs=httpx_logs,
+        reveal_secrets=resolved_reveal_secrets,
+        response_headers=response_headers,
+        notify=notify,
+        notify_only=notify_only,
+        notify_attach_html=notify_attach_html,
+        no_snippet=resolved_no_snippet,
+        snippet_output=snippet_output,
+        snippet_lang=resolved_snippet_lang,
     )
 
 

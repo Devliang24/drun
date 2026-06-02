@@ -161,40 +161,40 @@ class CliHelpWidthTests(unittest.TestCase):
 
     def test_run_accepts_single_dash_env_option(self) -> None:
         runner = CliRunner()
-        with patch.object(cli, "_run_impl", return_value=None) as run_impl:
+        with patch.object(cli, "run_cases", return_value=None) as run_cases:
             result = runner.invoke(cli.app, ["r", "demo", "-env", "dev"])
         self.assertEqual(result.exit_code, 0)
-        run_impl.assert_called_once()
-        self.assertEqual(run_impl.call_args.args[8], "dev")
+        run_cases.assert_called_once()
+        self.assertEqual(run_cases.call_args.kwargs["env"], "dev")
 
     def test_run_rejects_double_dash_env_option(self) -> None:
         runner = CliRunner()
-        with patch.object(cli, "_run_impl", return_value=None) as run_impl:
+        with patch.object(cli, "run_cases", return_value=None) as run_cases:
             result = runner.invoke(cli.app, ["r", "demo", "--env", "dev"])
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("No such option: --env", result.output)
-        run_impl.assert_not_called()
+        run_cases.assert_not_called()
 
     def test_run_maps_snippet_and_secrets_modes(self) -> None:
         runner = CliRunner()
-        with patch.object(cli, "_run_impl", return_value=None) as run_impl:
+        with patch.object(cli, "run_cases", return_value=None) as run_cases:
             result = runner.invoke(
                 cli.app,
                 ["r", "demo", "-secrets", "mask", "-snippet", "off"],
             )
         self.assertEqual(result.exit_code, 0)
-        run_impl.assert_called_once()
-        self.assertFalse(run_impl.call_args.args[13])  # reveal_secrets
-        self.assertTrue(run_impl.call_args.args[18])  # no_snippet
-        self.assertEqual(run_impl.call_args.args[20], "all")  # snippet_lang
+        run_cases.assert_called_once()
+        self.assertFalse(run_cases.call_args.kwargs["reveal_secrets"])
+        self.assertTrue(run_cases.call_args.kwargs["no_snippet"])
+        self.assertEqual(run_cases.call_args.kwargs["snippet_lang"], "all")
 
     def test_run_rejects_invalid_snippet_mode(self) -> None:
         runner = CliRunner()
-        with patch.object(cli, "_run_impl", return_value=None) as run_impl:
+        with patch.object(cli, "run_cases", return_value=None) as run_cases:
             result = runner.invoke(cli.app, ["r", "demo", "-snippet", "java"])
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("Invalid -snippet value", result.output)
-        run_impl.assert_not_called()
+        run_cases.assert_not_called()
 
     def test_q_supports_d_at_file_and_rejects_legacy_data_file_option(self) -> None:
         runner = CliRunner()
