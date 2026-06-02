@@ -8,48 +8,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import typer
-import yaml
 
-
-# ── YAML dump helpers (needed for -save-yaml; shared with cli.py / yaml_dump.py) ──
-
-class _FlowSeq(list):
-    """Sequence rendered in flow-style YAML (e.g., [a, b])."""
-
-
-class _YamlDumper(yaml.SafeDumper):
-    """Custom dumper ensuring sequence indentation matches project style."""
-
-    def increase_indent(self, flow: bool = False, indentless: bool = False):
-        return super().increase_indent(flow, False)
-
-
-def _flow_seq_representer(dumper: yaml.Dumper, value: _FlowSeq):
-    return dumper.represent_sequence("tag:yaml.org,2002:seq", value, flow_style=True)
-
-
-_YamlDumper.add_representer(_FlowSeq, _flow_seq_representer)
-
-
-def _add_step_spacers(text: str) -> str:
-    lines = text.splitlines()
-    out: List[str] = []
-    prev_step = False
-    for line in lines:
-        if line.startswith("steps:") and out and out[-1] != "":
-            out.append("")
-        if line.startswith("  - name:"):
-            if prev_step and out and out[-1] != "":
-                out.append("")
-            prev_step = True
-        out.append(line)
-    return "\n".join(out)
-
-
-def _dump_case_dict(obj: Dict[str, object]) -> str:
-    raw = yaml.dump(obj, Dumper=_YamlDumper, allow_unicode=True, sort_keys=False)
-    return _add_step_spacers(raw)
-
+from drun.commands.yaml_dump import _FlowSeq, dump_case_dict as _dump_case_dict
 
 # ── Quick command helpers ──
 
