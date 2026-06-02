@@ -14,7 +14,7 @@ import typer
 import yaml
 
 from drun.commands.check import run_check
-from drun.commands.convert import apply_convert_filters
+from drun.commands.convert import apply_convert_filters, convert_curl, convert_har, convert_postman
 from drun.commands.fix import run_fix
 from drun.commands.run import run_cases
 from drun.commands.tags import run_tags
@@ -513,190 +513,6 @@ def convert_auto(
 
 
 # Helper for curl conversion
-def convert_curl(
-    infile: str,
-    redact: Optional[str] = None,
-    placeholders: bool = False,
-    outfile: Optional[str] = None,
-    into: Optional[str] = None,
-    case_name: Optional[str] = None,
-    base_url: Optional[str] = None,
-    split_output: bool = False,
-) -> None:
-    parse_curl_text = require_importer("curl")
-
-    # Read input
-    if infile == "-":
-        text = typer.get_text_stream("stdin").read()
-    else:
-        # Enforce .curl suffix for curl files
-        pth = Path(infile)
-        if pth.suffix.lower() != ".curl":
-            typer.echo(
-                f"[CONVERT] Refusing to read '{infile}': curl file must have '.curl' suffix."
-            )
-            raise typer.Exit(code=2)
-        text = pth.read_text(encoding="utf-8")
-
-    icase = parse_curl_text(text, case_name=case_name, base_url=base_url)
-
-    if not icase.steps:
-        typer.echo("[CONVERT] No curl commands detected in input.")
-        return
-
-    if split_output and into:
-        typer.echo(
-            "[CONVERT] -output-mode split cannot be combined with -into; provide -outfile or rely on inferred names."
-        )
-        raise typer.Exit(code=2)
-
-    cases = _build_cases_from_import(icase, split_output=split_output)
-    redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
-    cases = [
-        (
-            apply_convert_filters(
-                case, redact_headers=redact_list, placeholders=placeholders
-            ),
-            idx,
-        )
-        for case, idx in cases
-    ]
-    source_path = None if infile == "-" else infile
-    _write_imported_cases(
-        cases,
-        outfile=outfile,
-        into=into,
-        split_output=split_output,
-        source_path=source_path,
-    )
-
-
-def convert_postman(
-    collection: str,
-    outfile: Optional[str] = None,
-    into: Optional[str] = None,
-    case_name: Optional[str] = None,
-    base_url: Optional[str] = None,
-    postman_env: Optional[str] = None,
-    redact: Optional[str] = None,
-    placeholders: bool = False,
-    suite_out: Optional[str] = None,
-    split_output: bool = False,
-) -> None:
-    parse_postman = require_importer("postman")
-
-    text = Path(collection).read_text(encoding="utf-8")
-    env_text = None
-    if postman_env:
-        env_text = Path(postman_env).read_text(encoding="utf-8")
-    icase = parse_postman(
-        text, case_name=case_name, base_url=base_url, env_text=env_text
-    )
-
-    if not icase.steps:
-        typer.echo("[CONVERT] No requests detected in Postman collection.")
-        return
-    if split_output and into:
-        typer.echo(
-            "[CONVERT] -output-mode split cannot be combined with -into; provide -outfile or rely on inferred names."
-        )
-        raise typer.Exit(code=2)
-
-    cases = _build_cases_from_import(icase, split_output=split_output)
-    redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
-    cases = [
-        (
-            apply_convert_filters(
-                case, redact_headers=redact_list, placeholders=placeholders
-            ),
-            idx,
-        )
-        for case, idx in cases
-    ]
-    _write_imported_cases(
-        cases,
-        outfile=outfile,
-        into=into,
-        split_output=split_output,
-        source_path=collection,
-    )
-    # Optional suite generation
-    if suite_out:
-        if into:
-            typer.echo("[CONVERT] -suite-out cannot be combined with -into")
-            raise typer.Exit(code=2)
-        # compute case paths/names similar to writer
-        names = [c.config.name or f"Case {i}" for (c, i) in cases]
-        if split_output:
-            paths = _resolve_output_paths(
-                len(cases), outfile=outfile, source_path=collection
-            )
-        else:
-            if outfile:
-                paths = [Path(outfile)]
-            else:
-                typer.echo(
-                    "[CONVERT] -suite-out requires -output-mode split or -outfile to materialize case files"
-                )
-                raise typer.Exit(code=2)
-        _write_caseflow(
-            paths, names, suite_path=suite_out, suite_name=case_name or icase.name
-        )
-
-
-def convert_har(
-    infile: str,
-    outfile: Optional[str] = None,
-    into: Optional[str] = None,
-    case_name: Optional[str] = None,
-    base_url: Optional[str] = None,
-    redact: Optional[str] = None,
-    placeholders: bool = False,
-    exclude_static: bool = True,
-    only_2xx: bool = False,
-    exclude_pattern: Optional[str] = None,
-    split_output: bool = False,
-) -> None:
-    parse_har = require_importer("har")
-
-    text = Path(infile).read_text(encoding="utf-8")
-    icase = parse_har(
-        text,
-        case_name=case_name,
-        base_url=base_url,
-        exclude_static=exclude_static,
-        only_2xx=only_2xx,
-        exclude_pattern=exclude_pattern,
-    )
-    if not icase.steps:
-        typer.echo("[CONVERT] No HTTP entries detected in HAR file.")
-        return
-    if split_output and into:
-        typer.echo(
-            "[CONVERT] -output-mode split cannot be combined with -into; provide -outfile or rely on inferred names."
-        )
-        raise typer.Exit(code=2)
-
-    cases = _build_cases_from_import(icase, split_output=split_output)
-    redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
-    cases = [
-        (
-            apply_convert_filters(
-                case, redact_headers=redact_list, placeholders=placeholders
-            ),
-            idx,
-        )
-        for case, idx in cases
-    ]
-    _write_imported_cases(
-        cases,
-        outfile=outfile,
-        into=into,
-        split_output=split_output,
-        source_path=infile,
-    )
-
-
 @export_app.command("curl", add_help_option=False)
 def export_curl(
     path: str = typer.Argument(..., help="要导出的用例/套件 YAML 文件或目录"),
@@ -725,118 +541,18 @@ def export_curl(
     ),
 ) -> None:
     """导出测试用例为 curl 命令"""
-    resolved_layout = (layout or "multiline").strip().lower()
-    if resolved_layout not in {"multiline", "oneline"}:
-        typer.echo("[EXPORT] Invalid -layout value. Use 'multiline' or 'oneline'.")
-        raise typer.Exit(code=2)
-    multiline = resolved_layout == "multiline"
+    from drun.commands.convert import export_curl as _export_curl
 
-    resolved_comments = (comments or "off").strip().lower()
-    if resolved_comments not in {"on", "off"}:
-        typer.echo("[EXPORT] Invalid -comments value. Use 'on' or 'off'.")
-        raise typer.Exit(code=2)
-    with_comments = resolved_comments == "on"
-
-    exporter = require_exporter("curl")
-    step_to_curl = exporter.render_step
-    step_placeholders = exporter.describe_placeholders
-    out_lines: List[str] = []
-
-    env_name = os.environ.get("DRUN_ENV")
-    env_store = load_environment(env_name, ".env")
-
-    files: List[str] = []
-    p = Path(path)
-    if p.is_dir():
-        try:
-            files = discover([path])
-        except InvalidTestPathError as exc:
-            typer.echo(str(exc))
-            raise typer.Exit(code=2)
-    else:
-        files = [path]
-
-    def parse_steps_spec(spec: Optional[str], maxn: int) -> List[int]:
-        if not spec:
-            return list(range(maxn))
-        out: List[int] = []
-        for part in spec.split(","):
-            part = part.strip()
-            if not part:
-                continue
-            if "-" in part:
-                a, b = part.split("-", 1)
-                try:
-                    ia = max(1, int(a))
-                    ib = min(maxn, int(b))
-                except Exception:
-                    continue
-                out.extend(list(range(ia - 1, ib)))
-            else:
-                try:
-                    i = int(part)
-                    if 1 <= i <= maxn:
-                        out.append(i - 1)
-                except Exception:
-                    pass
-        # dedupe preserve order
-        seen = set()
-        res = []
-        for i in out:
-            if i not in seen:
-                res.append(i)
-                seen.add(i)
-        return res
-
-    redact_list = [x.strip() for x in (redact or "").split(",") if x.strip()]
-
-    if outfile and not outfile.lower().endswith(".curl"):
-        typer.echo(f"[EXPORT] Outfile must end with '.curl': {outfile}")
-        raise typer.Exit(code=2)
-
-    from pathlib import Path as _Path
-
-    for f in files:
-        cases, _meta = load_yaml_file(_Path(f))
-        if case_name:
-            cases = [c for c in cases if (c.config.name or "") == case_name]
-        for c in cases:
-            if not c.config.base_url:
-                base_from_env = env_store.get("BASE_URL") or env_store.get("base_url")
-                if base_from_env:
-                    c.config.base_url = str(base_from_env)
-            idxs = parse_steps_spec(steps, len(c.steps))
-            for j, idx in enumerate(idxs, start=1):
-                if with_comments:
-                    cname = c.config.name or "Unnamed"
-                    sname = c.steps[idx].name or f"Step {idx + 1}"
-                    out_lines.append(f"# Case: {cname} | Step {idx + 1}: {sname}")
-                    # Add placeholder annotations such as $token or ${...}
-                    if step_placeholders:
-                        vars_set, exprs_set = step_placeholders(c, idx)
-                        if vars_set:
-                            out_lines.append("# Vars: " + " ".join(sorted(vars_set)))
-                        if exprs_set:
-                            out_lines.append("# Exprs: " + " ".join(sorted(exprs_set)))
-                out_lines.append(
-                    step_to_curl(
-                        c,
-                        idx,
-                        multiline=multiline,
-                        shell=shell,
-                        redact=redact_list,
-                        envmap=env_store,
-                    )
-                )
-
-    output = "\n\n".join(out_lines)
-    if outfile:
-        out_path = Path(outfile)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(output, encoding="utf-8")
-        typer.echo(f"[EXPORT] Wrote {len(out_lines)} curl commands to {outfile}")
-    else:
-        typer.echo(output)
+    _export_curl(
+        path=path,
+        case_name=case_name,
+        steps=steps,
+        layout=layout,
+        shell=shell,
+        redact=redact,
+        comments=comments,
+        outfile=outfile,
+    )
 
 
 @app.command("t", add_help_option=False)
