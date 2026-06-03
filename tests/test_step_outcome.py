@@ -80,7 +80,7 @@ class StepOutcomeTests(unittest.TestCase):
                         variables=ctx.get_merged({}),
                         ctx=ctx,
                         global_vars={},
-                        repeat_index=0,
+                        attempt=1,
                         funcs={},
                         envmap=envmap,
                     ),

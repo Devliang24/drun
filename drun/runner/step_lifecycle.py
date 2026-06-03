@@ -1,3 +1,9 @@
+"""Step lifecycle: orchestrates step execution with unified retry.
+
+Each step runs through: skip → setup hooks → retry loop → teardown hooks.
+The retry loop covers both HTTP exceptions and check failures.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from drun.loader.yaml_loader import format_variables_multiline
 from drun.models.report import StepResult
+from drun.models.retry import get_retry_max, get_retry_every
 from drun.models.step import Step
 from drun.runner.execution_context import ExecutionContext
 from drun.runner.protocols import RunnerProtocol
@@ -13,9 +20,8 @@ from drun.runner.request_projection import (
     finalize_request_projection,
     render_request_for_setup,
 )
-from drun.runner.retry import retry_execute
+from drun.runner.retry import parse_duration, sleep_every
 from drun.runner.step_outcome import StepOutcomeContext, process_step_outcome
-from drun.templating.context import VarContext
 from drun.utils.mask import mask_body, mask_headers
 
 
@@ -46,59 +52,78 @@ class StepLifecycle:
             return self._execute_request_step(context)
         if context.step.invoke is not None:
             return self._execute_invoke_step(context)
-        raise NotImplementedError("StepLifecycle currently supports sleep, request, and invoke steps only.")
+        raise NotImplementedError(
+            "StepLifecycle currently supports sleep, request, and invoke steps only."
+        )
+
+    # ── Sleep step (no retry) ─────────────────────────────────────
 
     def _execute_sleep_step(self, context: StepLifecycleContext) -> StepLifecycleResult:
         step = context.step
         runner = self.runner
-        results: List[StepResult] = []
         last_response: Dict[str, Any] | None = None
-        stop_current_step = False
 
+        rendered_step_name = self._render_step_name(
+            step,
+            context.ctx.get_merged(context.global_vars),
+            context,
+        )
+
+        # skip decision
         try:
-            repeat_total = runner._resolve_repeat_count(
+            should_skip, skip_reason = runner._resolve_skip_decision(
                 step,
                 context.ctx.get_merged(context.global_vars),
                 context.funcs,
                 context.envmap,
             )
         except Exception as e:
-            rendered_name = self._render_step_name(
-                step,
-                context.ctx.get_merged(context.global_vars),
-                context,
-            )
             if runner.log:
-                runner.log.error(f"[STEP] Step {context.step_idx} Repeat error: {e}")
+                runner.log.error(f"[STEP] Step {context.step_idx} Skip error: {e}")
             return StepLifecycleResult(
                 results=[
                     StepResult(
-                        name=rendered_name,
-                        origin_step_name=rendered_name,
+                        name=rendered_step_name,
+                        origin_step_name=rendered_step_name,
                         status="failed",
-                        error=f"repeat error: {e}",
+                        error=f"skip error: {e}",
                     )
                 ]
             )
 
-        if repeat_total == 0:
-            rendered_name = self._render_step_name(
-                step,
-                context.ctx.get_merged(context.global_vars),
-                context,
-            )
-            skipped_name = f"{rendered_name} [repeat=0]"
+        if should_skip:
+            skip_reason_text = skip_reason or "skip=true"
             if runner.log:
                 runner.log.info(
-                    f"[STEP] Step {context.step_idx} Skip: {skipped_name} | reason=repeat=0"
+                    f"[STEP] Step {context.step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
                 )
             return StepLifecycleResult(
                 results=[
                     StepResult(
-                        name=skipped_name,
-                        origin_step_name=rendered_name,
+                        name=rendered_step_name,
+                        origin_step_name=rendered_step_name,
                         status="skipped",
-                        repeat_total=0,
+                        error=skip_reason_text,
+                    )
+                ]
+            )
+
+        variables = context.ctx.get_merged(context.global_vars)
+
+        try:
+            sleep_ms = runner._resolve_sleep_milliseconds(
+                step, variables, context.funcs, context.envmap
+            )
+        except Exception as e:
+            if runner.log:
+                runner.log.error(f"[STEP] Step {context.step_idx} Sleep error: {e}")
+            return StepLifecycleResult(
+                results=[
+                    StepResult(
+                        name=rendered_step_name,
+                        origin_step_name=rendered_step_name,
+                        status="failed",
+                        error=f"sleep error: {e}",
                     )
                 ]
             )
@@ -109,348 +134,133 @@ class StepLifecycle:
             else (step.variables or {})
         )
 
-        for repeat_index in range(repeat_total):
-            iteration_base_vars = context.ctx.get_merged(context.global_vars)
-            variables = runner._build_repeat_variables(iteration_base_vars, repeat_index)
+        sleep_request = {"sleep": sleep_ms}
+        setup_meta = {
+            "step_name": step.name,
+            "case_name": context.case_name,
+            "step_request": sleep_request,
+            "step_variables": step_locals_for_hook,
+            "session_variables": variables,
+            "session_env": context.envmap or {},
+            "step_sleep": sleep_ms,
+            "step_sleep_ms": sleep_ms,
+        }
 
-            iteration_step_name = self._render_step_name(step, variables, context)
-            rendered_step_name = runner._format_repeat_step_name(
-                iteration_step_name, repeat_index, repeat_total
+        # setup hooks
+        try:
+            new_vars = runner._run_setup_hooks(
+                step.setup_hooks,
+                funcs=context.funcs,
+                req=sleep_request,
+                variables=variables,
+                envmap=context.envmap,
+                meta=setup_meta,
             )
-
-            try:
-                should_skip, skip_reason = runner._resolve_skip_decision(
-                    step, variables, context.funcs, context.envmap
-                )
-            except Exception as e:
+            for k, v in (new_vars or {}).items():
+                context.ctx.set_base(k, v)
                 if runner.log:
-                    runner.log.error(f"[STEP] Step {context.step_idx} Skip error: {e}")
-                results.append(
+                    runner.log.info(f"[HOOK] set var: {k} = {v!r}")
+            variables = context.ctx.get_merged(context.global_vars)
+        except Exception as e:
+            if runner.log:
+                runner.log.error(f"[HOOK] setup error: {e}")
+            return StepLifecycleResult(
+                results=[
                     StepResult(
                         name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
-                        status="failed",
-                        error=f"skip error: {e}",
-                    )
-                )
-                if runner.failfast:
-                    break
-                continue
-
-            if should_skip:
-                skip_reason_text = skip_reason or "skip=true"
-                if runner.log:
-                    runner.log.info(
-                        f"[STEP] Step {context.step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
-                    )
-                results.append(
-                    StepResult(
-                        name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
-                        status="skipped",
-                        error=skip_reason_text,
-                    )
-                )
-                continue
-
-            try:
-                sleep_ms = runner._resolve_sleep_milliseconds(
-                    step, variables, context.funcs, context.envmap
-                )
-            except Exception as e:
-                if runner.log:
-                    runner.log.error(f"[STEP] Step {context.step_idx} Sleep error: {e}")
-                results.append(
-                    StepResult(
-                        name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
-                        status="failed",
-                        error=f"sleep error: {e}",
-                    )
-                )
-                if runner.failfast:
-                    break
-                continue
-
-            sleep_request = {"sleep": sleep_ms}
-            setup_meta = {
-                "step_name": step.name,
-                "case_name": context.case_name,
-                "step_request": sleep_request,
-                "step_variables": step_locals_for_hook,
-                "session_variables": variables,
-                "session_env": context.envmap or {},
-                "step_sleep": sleep_ms,
-                "step_sleep_ms": sleep_ms,
-            }
-            try:
-                new_vars = runner._run_setup_hooks(
-                    step.setup_hooks,
-                    funcs=context.funcs,
-                    req=sleep_request,
-                    variables=variables,
-                    envmap=context.envmap,
-                    meta=setup_meta,
-                )
-                for k, v in (new_vars or {}).items():
-                    context.ctx.set_base(k, v)
-                    if runner.log:
-                        runner.log.info(f"[HOOK] set var: {k} = {v!r}")
-                variables = runner._build_repeat_variables(
-                    context.ctx.get_merged(context.global_vars),
-                    repeat_index,
-                )
-            except Exception as e:
-                if runner.log:
-                    runner.log.error(f"[HOOK] setup error: {e}")
-                results.append(
-                    StepResult(
-                        name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
+                        origin_step_name=rendered_step_name,
                         status="failed",
                         error=f"setup hook error: {e}",
                     )
-                )
-                if runner.failfast:
-                    break
-                continue
+                ]
+            )
 
+        if runner.log:
+            runner.log.info(f"[STEP] Step {context.step_idx} Start: {rendered_step_name}")
+            step_vars = step.variables or {}
+            if step_vars:
+                vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
+                runner.log.info(vars_str)
+            runner.log.info(f"[SLEEP] {sleep_ms:g}ms")
+
+        sleep_started = time.perf_counter()
+        try:
+            time.sleep(sleep_ms / 1000.0)
+            elapsed_ms = (time.perf_counter() - sleep_started) * 1000.0
+        except Exception as e:
             if runner.log:
-                runner.log.info(f"[STEP] Step {context.step_idx} Start: {rendered_step_name}")
-                step_vars = step.variables or {}
-                if step_vars:
-                    vars_str = format_variables_multiline(step_vars, "[STEP] variables: ")
-                    runner.log.info(vars_str)
-                runner.log.info(f"[SLEEP] {sleep_ms:g}ms")
-
-            sleep_started = time.perf_counter()
-            try:
-                time.sleep(sleep_ms / 1000.0)
-                elapsed_ms = (time.perf_counter() - sleep_started) * 1000.0
-            except Exception as e:
-                if runner.log:
-                    runner.log.error(f"[STEP] Sleep execution error: {e}")
-                results.append(
+                runner.log.error(f"[STEP] Sleep execution error: {e}")
+            return StepLifecycleResult(
+                results=[
                     StepResult(
                         name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
+                        origin_step_name=rendered_step_name,
                         status="failed",
                         request={"sleep": sleep_ms},
                         error=f"sleep error: {e}",
                     )
-                )
-                if runner.failfast:
-                    break
-                continue
-
-            resp_obj = {
-                "sleep_ms": sleep_ms,
-                "elapsed_ms": elapsed_ms,
-            }
-            last_response = resp_obj
-            step_failed = False
-            teardown_error: Optional[str] = None
-
-            try:
-                teardown_meta = {
-                    "step_name": step.name,
-                    "case_name": context.case_name,
-                    "step_response": resp_obj,
-                    "step_request": sleep_request,
-                    "step_variables": variables,
-                    "session_variables": context.ctx.get_merged(context.global_vars),
-                    "session_env": context.envmap or {},
-                    "step_sleep": sleep_ms,
-                    "step_sleep_ms": sleep_ms,
-                }
-                new_vars_td = runner._run_teardown_hooks(
-                    step.teardown_hooks,
-                    funcs=context.funcs,
-                    resp=resp_obj,
-                    variables=variables,
-                    envmap=context.envmap,
-                    meta=teardown_meta,
-                )
-                for k, v in (new_vars_td or {}).items():
-                    context.ctx.set_base(k, v)
-                    if runner.log:
-                        runner.log.info(f"[HOOK] set var: {k} = {v!r}")
-            except Exception as e:
-                step_failed = True
-                teardown_error = f"teardown hook error: {e}"
-                if runner.log:
-                    runner.log.error(f"[HOOK] teardown error: {e}")
-
-            results.append(
-                StepResult(
-                    name=rendered_step_name,
-                    origin_step_name=iteration_step_name,
-                    repeat_index=repeat_index,
-                    repeat_no=repeat_index + 1,
-                    repeat_total=repeat_total,
-                    status="failed" if step_failed else "passed",
-                    request={"sleep": sleep_ms},
-                    response={
-                        "sleep_ms": sleep_ms,
-                        "elapsed_ms": elapsed_ms,
-                    },
-                    duration_ms=elapsed_ms,
-                    error=teardown_error,
-                )
+                ]
             )
 
-            if step_failed:
+        resp_obj = {"sleep_ms": sleep_ms, "elapsed_ms": elapsed_ms}
+        last_response = resp_obj
+        step_failed = False
+        teardown_error: Optional[str] = None
+
+        # teardown hooks
+        try:
+            teardown_meta = {
+                "step_name": step.name,
+                "case_name": context.case_name,
+                "step_response": resp_obj,
+                "step_request": sleep_request,
+                "step_variables": variables,
+                "session_variables": context.ctx.get_merged(context.global_vars),
+                "session_env": context.envmap or {},
+                "step_sleep": sleep_ms,
+                "step_sleep_ms": sleep_ms,
+            }
+            new_vars_td = runner._run_teardown_hooks(
+                step.teardown_hooks,
+                funcs=context.funcs,
+                resp=resp_obj,
+                variables=variables,
+                envmap=context.envmap,
+                meta=teardown_meta,
+            )
+            for k, v in (new_vars_td or {}).items():
+                context.ctx.set_base(k, v)
                 if runner.log:
-                    runner.log.error(
-                        f"[STEP] Step {context.step_idx} Completed: {rendered_step_name} | FAILED"
-                    )
-                if runner.failfast:
-                    stop_current_step = True
-            elif runner.log:
-                runner.log.info(
-                    f"[STEP] Step {context.step_idx} Completed: {rendered_step_name} | PASSED"
-                )
+                    runner.log.info(f"[HOOK] set var: {k} = {v!r}")
+        except Exception as e:
+            step_failed = True
+            teardown_error = f"teardown hook error: {e}"
+            if runner.log:
+                runner.log.error(f"[HOOK] teardown error: {e}")
 
-            if stop_current_step:
-                break
-
-        return StepLifecycleResult(results=results, last_response=last_response)
-
-    def _execute_invoke_step(self, context: StepLifecycleContext) -> StepLifecycleResult:
-        step = context.step
-        runner = self.runner
-        results: List[StepResult] = []
-
-        rendered_base_step_name = self._render_step_name(
-            step,
-            context.ctx.get_merged(context.global_vars),
-            context,
+        sr = StepResult(
+            name=rendered_step_name,
+            origin_step_name=rendered_step_name,
+            status="failed" if step_failed else "passed",
+            request={"sleep": sleep_ms},
+            response={"sleep_ms": sleep_ms, "elapsed_ms": elapsed_ms},
+            duration_ms=elapsed_ms,
+            error=teardown_error,
         )
 
-        try:
-            repeat_total = runner._resolve_repeat_count(
-                step,
-                context.ctx.get_merged(context.global_vars),
-                context.funcs,
-                context.envmap,
-            )
-        except Exception as e:
+        if step_failed:
             if runner.log:
-                runner.log.error(f"[STEP] Step {context.step_idx} Repeat error: {e}")
-            return StepLifecycleResult(
-                results=[
-                    StepResult(
-                        name=rendered_base_step_name,
-                        origin_step_name=rendered_base_step_name,
-                        status="failed",
-                        error=f"repeat error: {e}",
-                    )
-                ]
+                runner.log.error(
+                    f"[STEP] Step {context.step_idx} Completed: {rendered_step_name} | FAILED"
+                )
+        elif runner.log:
+            runner.log.info(
+                f"[STEP] Step {context.step_idx} Completed: {rendered_step_name} | PASSED"
             )
 
-        if repeat_total == 0:
-            skipped_name = f"{rendered_base_step_name} [repeat=0]"
-            if runner.log:
-                runner.log.info(
-                    f"[STEP] Step {context.step_idx} Skip: {skipped_name} | reason=repeat=0"
-                )
-            return StepLifecycleResult(
-                results=[
-                    StepResult(
-                        name=skipped_name,
-                        origin_step_name=rendered_base_step_name,
-                        status="skipped",
-                        repeat_total=0,
-                    )
-                ]
-            )
+        return StepLifecycleResult(results=[sr], last_response=last_response)
 
-        for repeat_index in range(repeat_total):
-            iteration_base_vars = context.ctx.get_merged(context.global_vars)
-            iteration_vars = runner._build_repeat_variables(iteration_base_vars, repeat_index)
-
-            iteration_step_name = self._render_step_name(step, iteration_vars, context)
-            rendered_step_name = runner._format_repeat_step_name(
-                iteration_step_name, repeat_index, repeat_total
-            )
-
-            try:
-                should_skip, skip_reason = runner._resolve_skip_decision(
-                    step, iteration_vars, context.funcs, context.envmap
-                )
-            except Exception as e:
-                if runner.log:
-                    runner.log.error(f"[STEP] Step {context.step_idx} Skip error: {e}")
-                results.append(
-                    StepResult(
-                        name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
-                        status="failed",
-                        error=f"skip error: {e}",
-                    )
-                )
-                if runner.failfast:
-                    break
-                continue
-
-            if should_skip:
-                skip_reason_text = skip_reason or "skip=true"
-                if runner.log:
-                    runner.log.info(
-                        f"[STEP] Step {context.step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
-                    )
-                results.append(
-                    StepResult(
-                        name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
-                        status="skipped",
-                        error=skip_reason_text,
-                    )
-                )
-                continue
-
-            invoke_results = runner._run_invoke_step(
-                step=step,
-                step_idx=context.step_idx,
-                rendered_step_name=rendered_step_name,
-                variables=iteration_vars,
-                global_vars=context.global_vars,
-                funcs=context.funcs,
-                envmap=context.envmap,
-                ctx=context.ctx,
-                params=context.params,
-                invoke_result_prefix=rendered_step_name if repeat_total > 1 else None,
-                repeat_index=repeat_index,
-                repeat_no=repeat_index + 1,
-                repeat_total=repeat_total,
-                source=context.source,
-            )
-            results.extend(invoke_results)
-            if any(r.status == "failed" for r in invoke_results) and runner.failfast:
-                break
-
-        return StepLifecycleResult(results=results)
+    # ── Request step (with retry) ──────────────────────────────────
 
     def _execute_request_step(self, context: StepLifecycleContext) -> StepLifecycleResult:
         step = context.step
@@ -459,17 +269,18 @@ class StepLifecycle:
         if client is None:
             raise ValueError("StepLifecycleContext.client is required for request steps.")
 
-        results: List[StepResult] = []
         last_response: Dict[str, Any] | None = None
 
         rendered_base_step_name = self._render_step_name(
-            step,
-            context.ctx.get_merged(context.global_vars),
-            context,
+            step, context.ctx.get_merged(context.global_vars), context
         )
 
+        retry_max = get_retry_max(step.retry)
+        retry_every = get_retry_every(step.retry)
+
+        # --- skip decision (once) ---
         try:
-            repeat_total = runner._resolve_repeat_count(
+            should_skip, skip_reason = runner._resolve_skip_decision(
                 step,
                 context.ctx.get_merged(context.global_vars),
                 context.funcs,
@@ -477,31 +288,31 @@ class StepLifecycle:
             )
         except Exception as e:
             if runner.log:
-                runner.log.error(f"[STEP] Step {context.step_idx} Repeat error: {e}")
+                runner.log.error(f"[STEP] Step {context.step_idx} Skip error: {e}")
             return StepLifecycleResult(
                 results=[
                     StepResult(
                         name=rendered_base_step_name,
                         origin_step_name=rendered_base_step_name,
                         status="failed",
-                        error=f"repeat error: {e}",
+                        error=f"skip error: {e}",
                     )
                 ]
             )
 
-        if repeat_total == 0:
-            skipped_name = f"{rendered_base_step_name} [repeat=0]"
+        if should_skip:
+            skip_reason_text = skip_reason or "skip=true"
             if runner.log:
                 runner.log.info(
-                    f"[STEP] Step {context.step_idx} Skip: {skipped_name} | reason=repeat=0"
+                    f"[STEP] Step {context.step_idx} Skip: {rendered_base_step_name} | reason={skip_reason_text}"
                 )
             return StepLifecycleResult(
                 results=[
                     StepResult(
-                        name=skipped_name,
+                        name=rendered_base_step_name,
                         origin_step_name=rendered_base_step_name,
                         status="skipped",
-                        repeat_total=0,
+                        error=skip_reason_text,
                     )
                 ]
             )
@@ -512,238 +323,342 @@ class StepLifecycle:
             if isinstance(context.rendered_locals, dict)
             else (step.variables or {})
         )
-        stop_current_step = False
 
-        for repeat_index in range(repeat_total):
-            iteration_base_vars = context.ctx.get_merged(context.global_vars)
-            variables = runner._build_repeat_variables(iteration_base_vars, repeat_index)
-
-            iteration_step_name = self._render_step_name(step, variables, context)
-            rendered_step_name = runner._format_repeat_step_name(
-                iteration_step_name, repeat_index, repeat_total
-            )
-
-            try:
-                should_skip, skip_reason = runner._resolve_skip_decision(
-                    step, variables, context.funcs, context.envmap
-                )
-            except Exception as e:
-                if runner.log:
-                    runner.log.error(f"[STEP] Step {context.step_idx} Skip error: {e}")
-                results.append(
-                    StepResult(
-                        name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
-                        status="failed",
-                        error=f"skip error: {e}",
-                    )
-                )
-                if runner.failfast:
-                    break
-                continue
-
-            if should_skip:
-                skip_reason_text = skip_reason or "skip=true"
-                if runner.log:
-                    runner.log.info(
-                        f"[STEP] Step {context.step_idx} Skip: {rendered_step_name} | reason={skip_reason_text}"
-                    )
-                results.append(
-                    StepResult(
-                        name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
-                        status="skipped",
-                        error=skip_reason_text,
-                    )
-                )
-                continue
-
-            req_rendered = render_request_for_setup(
-                runner=runner,
-                step=step,
-                variables=variables,
+        # --- setup hooks (once) ---
+        variables = context.ctx.get_merged(context.global_vars)
+        req_rendered = render_request_for_setup(
+            runner=runner,
+            step=step,
+            variables=variables,
+            funcs=context.funcs,
+            envmap=context.envmap,
+        )
+        setup_meta = {
+            "step_name": step.name,
+            "case_name": context.case_name,
+            "step_request": req_rendered,
+            "step_variables": step_locals_for_hook,
+            "session_variables": variables,
+            "session_env": context.envmap or {},
+        }
+        try:
+            new_vars = runner._run_setup_hooks(
+                step.setup_hooks,
                 funcs=context.funcs,
+                req=req_rendered,
+                variables=variables,
                 envmap=context.envmap,
+                meta=setup_meta,
             )
-            session_vars_for_hook = variables
-            setup_meta = {
-                "step_name": step.name,
-                "case_name": context.case_name,
-                "step_request": req_rendered,
-                "step_variables": step_locals_for_hook,
-                "session_variables": session_vars_for_hook,
-                "session_env": context.envmap or {},
-            }
-            try:
-                new_vars = runner._run_setup_hooks(
-                    step.setup_hooks,
-                    funcs=context.funcs,
-                    req=req_rendered,
-                    variables=variables,
-                    envmap=context.envmap,
-                    meta=setup_meta,
-                )
-                for k, v in (new_vars or {}).items():
-                    context.ctx.set_base(k, v)
-                    if runner.log:
-                        runner.log.info(f"[HOOK] set var: {k} = {v!r}")
-                variables = runner._build_repeat_variables(
-                    context.ctx.get_merged(context.global_vars), repeat_index
-                )
-            except Exception as e:
+            for k, v in (new_vars or {}).items():
+                context.ctx.set_base(k, v)
                 if runner.log:
-                    runner.log.error(f"[HOOK] setup error: {e}")
-                results.append(
+                    runner.log.info(f"[HOOK] set var: {k} = {v!r}")
+        except Exception as e:
+            if runner.log:
+                runner.log.error(f"[HOOK] setup error: {e}")
+            return StepLifecycleResult(
+                results=[
                     StepResult(
-                        name=rendered_step_name,
-                        origin_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_no=repeat_index + 1,
-                        repeat_total=repeat_total,
+                        name=rendered_base_step_name,
+                        origin_step_name=rendered_base_step_name,
                         status="failed",
                         error=f"setup hook error: {e}",
                     )
-                )
-                if runner.failfast:
-                    stop_current_step = True
-                    break
-                continue
+                ]
+            )
+
+        # --- retry loop ---
+        final_sr: StepResult | None = None
+        final_variables = variables
+        # teardown offset — rebuild ctx vars with base so hooks see latest state
+        teardown_variables_final: Dict[str, Any] | None = None
+
+        for attempt in range(1, retry_max + 1):
+            # rebuild variables for current attempt (hooks may have updated ctx)
+            attempt_vars_raw = context.ctx.get_merged(context.global_vars)
+            attempt_vars = runner._build_retry_variables(
+                attempt_vars_raw, attempt, retry_max
+            )
+
+            # render step name and request
+            iteration_step_name = self._render_step_name(step, attempt_vars, context)
+            rendered_step_name = runner._format_retry_step_name(
+                iteration_step_name, attempt, retry_max
+            )
+
+            req_rendered_attempt = render_request_for_setup(
+                runner=runner,
+                step=step,
+                variables=attempt_vars,
+                funcs=context.funcs,
+                envmap=context.envmap,
+            )
 
             request_projection = finalize_request_projection(
                 runner=runner,
-                rendered_request=req_rendered,
-                variables=variables,
+                rendered_request=req_rendered_attempt,
+                variables=attempt_vars,
             )
-            req_rendered = request_projection.runtime_request
+            req_rendered_attempt = request_projection.runtime_request
 
             self._log_request_start(
                 context=context,
                 rendered_step_name=rendered_step_name,
                 req_dict=req_dict,
-                req_rendered=req_rendered,
+                req_rendered=req_rendered_attempt,
                 step=step,
             )
 
-            resp_obj, last_error = retry_execute(
-                execute_fn=client.request,
-                request=req_rendered,
-                retry=step.retry,
-                retry_backoff=step.retry_backoff,
-            )
-
-            if last_error:
+            # --- HTTP request ---
+            try:
+                resp_obj = client.request(req_rendered_attempt)
+            except Exception as e:
                 if runner.log:
-                    runner.log.error(f"[STEP] Request error: {last_error}")
-                results.append(
-                    self._build_request_error_result(
+                    runner.log.warning(
+                        f"[RETRY] Request error attempt {attempt}/{retry_max}: {e}"
+                    )
+                if attempt >= retry_max:
+                    # last attempt exhausted
+                    sr = self._build_request_error_result(
                         request_projection=request_projection,
                         rendered_step_name=rendered_step_name,
                         iteration_step_name=iteration_step_name,
-                        repeat_index=repeat_index,
-                        repeat_total=repeat_total,
-                        error=last_error,
+                        attempt=attempt,
+                        attempt_total=retry_max,
+                        error=str(e),
                     )
-                )
-                if runner.failfast:
-                    stop_current_step = True
+                    final_sr = sr
                     break
+                sleep_every(retry_every, attempt)
                 continue
 
-            assert resp_obj is not None
             last_response = resp_obj
             request_projection = finalize_request_projection(
                 runner=runner,
-                rendered_request=req_rendered,
-                variables=variables,
+                rendered_request=req_rendered_attempt,
+                variables=attempt_vars,
                 response_url=resp_obj.get("url"),
             )
-            req_rendered = request_projection.runtime_request
+            req_rendered_attempt = request_projection.runtime_request
             self._log_response(resp_obj)
 
+            # --- process outcome (check / extract / export) ---
             outcome = process_step_outcome(
                 runner=runner,
                 context=StepOutcomeContext(
                     step=step,
                     resp_obj=resp_obj,
-                    variables=variables,
+                    variables=attempt_vars,
                     ctx=context.ctx,
                     global_vars=context.global_vars,
-                    repeat_index=repeat_index,
+                    attempt=attempt,
                     funcs=context.funcs,
                     envmap=context.envmap,
                 ),
             )
-            variables = outcome.variables
-            step_failed = outcome.step_failed
+            final_variables = outcome.variables
 
-            try:
-                teardown_meta = {
-                    "step_name": step.name,
-                    "case_name": context.case_name,
-                    "step_response": resp_obj,
-                    "step_request": req_rendered,
-                    "step_variables": variables,
-                    "session_variables": context.ctx.get_merged(context.global_vars),
-                    "session_env": context.envmap or {},
-                }
-                new_vars_td = runner._run_teardown_hooks(
-                    step.teardown_hooks,
-                    funcs=context.funcs,
-                    resp=resp_obj,
-                    variables=variables,
-                    envmap=context.envmap,
-                    meta=teardown_meta,
+            if not outcome.step_failed:
+                # passed — build success result
+                sr = StepResult(
+                    name=rendered_step_name,
+                    origin_step_name=iteration_step_name,
+                    attempt=attempt,
+                    attempt_total=retry_max,
+                    status="passed",
+                    request=request_projection.report_request,
+                    response=outcome.report_response,
+                    curl=request_projection.curl,
+                    checks=outcome.checks,
+                    extracts=outcome.extracts,
+                    duration_ms=resp_obj.get("elapsed_ms") or 0.0,
+                    error=outcome.error,
                 )
-                for k, v in (new_vars_td or {}).items():
-                    context.ctx.set_base(k, v)
-                    if runner.log:
-                        runner.log.info(f"[HOOK] set var: {k} = {v!r}")
-                variables = runner._build_repeat_variables(
-                    context.ctx.get_merged(context.global_vars), repeat_index
-                )
-            except Exception as e:
-                step_failed = True
+                final_sr = sr
+                teardown_variables_final = final_variables
                 if runner.log:
-                    runner.log.error(f"[HOOK] teardown error: {e}")
+                    runner.log.info(
+                        f"[STEP] Step {context.step_idx} Completed: {rendered_step_name} | PASSED"
+                    )
+                break
 
-            sr = StepResult(
-                name=rendered_step_name,
-                origin_step_name=iteration_step_name,
-                repeat_index=repeat_index,
-                repeat_no=repeat_index + 1,
-                repeat_total=repeat_total,
-                status="failed" if step_failed else "passed",
-                request=request_projection.report_request,
-                response=outcome.report_response,
-                curl=request_projection.curl,
-                checks=outcome.checks,
-                extracts=outcome.extracts,
-                duration_ms=resp_obj.get("elapsed_ms") or 0.0,
-                error=outcome.error,
-            )
-            results.append(sr)
-            if step_failed:
+            # check failed — may retry
+            if runner.log:
+                runner.log.warning(
+                    f"[RETRY] Check failed attempt {attempt}/{retry_max}"
+                )
+            if attempt >= retry_max:
+                sr = StepResult(
+                    name=rendered_step_name,
+                    origin_step_name=iteration_step_name,
+                    attempt=attempt,
+                    attempt_total=retry_max,
+                    status="failed",
+                    request=request_projection.report_request,
+                    response=outcome.report_response,
+                    curl=request_projection.curl,
+                    checks=outcome.checks,
+                    extracts=outcome.extracts,
+                    duration_ms=resp_obj.get("elapsed_ms") or 0.0,
+                    error=outcome.error,
+                )
+                final_sr = sr
                 if runner.log:
                     runner.log.error(
                         f"[STEP] Step {context.step_idx} Completed: {rendered_step_name} | FAILED"
                     )
-                if runner.failfast:
-                    stop_current_step = True
-            elif runner.log:
-                runner.log.info(
-                    f"[STEP] Step {context.step_idx} Completed: {rendered_step_name} | PASSED"
-                )
-
-            if stop_current_step:
                 break
+            sleep_every(retry_every, attempt)
 
-        return StepLifecycleResult(results=results, last_response=last_response)
+        # --- teardown hooks (once) ---
+        if final_sr is None:
+            # should never happen but safety net
+            final_sr = StepResult(
+                name=rendered_base_step_name,
+                origin_step_name=rendered_base_step_name,
+                attempt=retry_max,
+                attempt_total=retry_max,
+                status="failed",
+                error="step did not produce a result",
+            )
+
+        td_vars = teardown_variables_final or context.ctx.get_merged(context.global_vars)
+        teardown_meta: Dict[str, Any] = {
+            "step_name": step.name,
+            "case_name": context.case_name,
+            "step_response": last_response or {},
+            "step_request": final_sr.request or {},
+            "step_variables": td_vars,
+            "session_variables": context.ctx.get_merged(context.global_vars),
+            "session_env": context.envmap or {},
+        }
+        try:
+            new_vars_td = runner._run_teardown_hooks(
+                step.teardown_hooks,
+                funcs=context.funcs,
+                resp=last_response or {},
+                variables=td_vars,
+                envmap=context.envmap,
+                meta=teardown_meta,
+            )
+            for k, v in (new_vars_td or {}).items():
+                context.ctx.set_base(k, v)
+                if runner.log:
+                    runner.log.info(f"[HOOK] set var: {k} = {v!r}")
+        except Exception as e:
+            final_sr.status = "failed"
+            final_sr.error = f"{final_sr.error}; teardown hook error: {e}" if final_sr.error else f"teardown hook error: {e}"
+            if runner.log:
+                runner.log.error(f"[HOOK] teardown error: {e}")
+
+        return StepLifecycleResult(results=[final_sr], last_response=last_response)
+
+    # ── Invoke step (with retry) ───────────────────────────────────
+
+    def _execute_invoke_step(self, context: StepLifecycleContext) -> StepLifecycleResult:
+        step = context.step
+        runner = self.runner
+
+        rendered_base_step_name = self._render_step_name(
+            step, context.ctx.get_merged(context.global_vars), context
+        )
+
+        retry_max = get_retry_max(step.retry)
+        retry_every = get_retry_every(step.retry)
+
+        # --- skip decision (once) ---
+        try:
+            should_skip, skip_reason = runner._resolve_skip_decision(
+                step,
+                context.ctx.get_merged(context.global_vars),
+                context.funcs,
+                context.envmap,
+            )
+        except Exception as e:
+            if runner.log:
+                runner.log.error(f"[STEP] Step {context.step_idx} Skip error: {e}")
+            return StepLifecycleResult(
+                results=[
+                    StepResult(
+                        name=rendered_base_step_name,
+                        origin_step_name=rendered_base_step_name,
+                        status="failed",
+                        error=f"skip error: {e}",
+                    )
+                ]
+            )
+
+        if should_skip:
+            skip_reason_text = skip_reason or "skip=true"
+            if runner.log:
+                runner.log.info(
+                    f"[STEP] Step {context.step_idx} Skip: {rendered_base_step_name} | reason={skip_reason_text}"
+                )
+            return StepLifecycleResult(
+                results=[
+                    StepResult(
+                        name=rendered_base_step_name,
+                        origin_step_name=rendered_base_step_name,
+                        status="skipped",
+                        error=skip_reason_text,
+                    )
+                ]
+            )
+
+        # --- retry loop ---
+        for attempt in range(1, retry_max + 1):
+            attempt_vars_raw = context.ctx.get_merged(context.global_vars)
+            attempt_vars = runner._build_retry_variables(
+                attempt_vars_raw, attempt, retry_max
+            )
+
+            iteration_step_name = self._render_step_name(step, attempt_vars, context)
+            rendered_step_name = runner._format_retry_step_name(
+                iteration_step_name, attempt, retry_max
+            )
+
+            if runner.log:
+                runner.log.info(f"[STEP] Step {context.step_idx} Start: {rendered_step_name}")
+
+            invoke_results = runner._run_invoke_step(
+                step=step,
+                step_idx=context.step_idx,
+                rendered_step_name=rendered_step_name,
+                variables=attempt_vars,
+                global_vars=context.global_vars,
+                funcs=context.funcs,
+                envmap=context.envmap,
+                ctx=context.ctx,
+                params=context.params,
+                source=context.source,
+            )
+
+            any_failed = any(r.status == "failed" for r in invoke_results)
+            if not any_failed:
+                # passed — keep only this attempt's results
+                all_invoke_results = invoke_results
+                if runner.log:
+                    runner.log.info(
+                        f"[STEP] Step {context.step_idx} Completed: {rendered_step_name} | PASSED"
+                    )
+                break
+            if attempt >= retry_max:
+                all_invoke_results = invoke_results
+                if runner.log:
+                    runner.log.error(
+                        f"[STEP] Step {context.step_idx} Completed: {rendered_step_name} | FAILED"
+                    )
+                break
+            if runner.log:
+                runner.log.warning(
+                    f"[RETRY] Invoke failed attempt {attempt}/{retry_max}"
+                )
+            sleep_every(retry_every, attempt)
+
+        return StepLifecycleResult(results=all_invoke_results)
+
+    # ── Helpers ────────────────────────────────────────────────────
 
     def _log_request_start(
         self,
@@ -890,16 +805,15 @@ class StepLifecycle:
         request_projection: Any,
         rendered_step_name: str,
         iteration_step_name: str,
-        repeat_index: int,
-        repeat_total: int,
+        attempt: int,
+        attempt_total: int,
         error: str,
     ) -> StepResult:
         return StepResult(
             name=rendered_step_name,
             origin_step_name=iteration_step_name,
-            repeat_index=repeat_index,
-            repeat_no=repeat_index + 1,
-            repeat_total=repeat_total,
+            attempt=attempt,
+            attempt_total=attempt_total,
             status="failed",
             request=request_projection.report_request,
             response={"error": f"Request error: {error}"},

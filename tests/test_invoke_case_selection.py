@@ -334,28 +334,20 @@ caseflow:
             runner=runner,
             step=step,
             step_idx=1,
-            rendered_step_name="Invoke flow [repeat=2/3]",
+            rendered_step_name="Invoke flow",
             variables={},
             global_vars={},
             funcs={},
             envmap={},
             ctx=ctx,
             params={},
-            invoke_result_prefix="Invoke flow [repeat=2/3]",
-            repeat_index=1,
-            repeat_no=2,
-            repeat_total=3,
         )
 
         self.assertEqual(len(results), 1)
         self.assertEqual(
             results[0].name,
-            "Invoke flow [repeat=2/3] :: Case A::step",
+            "Case A::step",
         )
-        self.assertEqual(results[0].origin_step_name, "Case A::step")
-        self.assertEqual(results[0].repeat_index, 1)
-        self.assertEqual(results[0].repeat_no, 2)
-        self.assertEqual(results[0].repeat_total, 3)
 
 
 if __name__ == "__main__":

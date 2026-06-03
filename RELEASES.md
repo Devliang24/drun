@@ -1,10 +1,45 @@
 # Releases
 
+## Release 10.0.0
+
+3 Jun 2026
+
+### ⚠️ Breaking
+
+- **Unified retry**: `repeat` and `retry_backoff` removed. All retry/repeat semantics merged into a single `retry` field (`int | RetryConfig`).
+  - `retry: 3` → max 4 attempts, retries on HTTP exceptions and check failures
+  - `retry: {max: 10, every: "2s"}` → polls every 2s, up to 10 times
+  - `repeat` is gone; `retry_backoff` is gone
+  - Step result metadata: `repeat_index/no/total` → `attempt` / `attempt_total`
+  - Template variables: `$repeat_index`, `$repeat_no` → `$attempt`, `$attempt_total`
+- Invoke step: `invoke_result_prefix` and repeat metadata removed from `execute_invoke_step`
+
+### 🚀 Added
+
+- `RetryConfig` model with `max` and `every` fields
+- `parse_duration()` utility for duration strings (e.g. `"2s"`, `"500ms"`)
+- Retry now covers both HTTP exceptions and check failures
+- Invoke steps support retry
+
+### 🔧 Changed
+
+- Setup hooks run once before retry loop; teardown hooks run once after
+- Skip decision evaluated once before first attempt
+- Sleep steps no longer support repeat (retry not applicable)
+- Dry-run displays retry config
+- Legacy `loop`/`foreach` error messages updated
+
+### 🧱 Internal
+
+- `retry_execute()` removed; retry loop inlined into `StepLifecycle`
+- `_resolve_repeat_count`, `_build_repeat_variables`, `_format_repeat_step_name` removed
+- `StepResult` fields: `attempt`, `attempt_total` replace `repeat_index`, `repeat_no`, `repeat_total`
+
 ## Release 9.1.1
 
 3 Jun 2026
 
-### Fixed
+### 🐛 Fixed
 
 - Dry-run: recursive template rendering in request body (dict/list values).
 
@@ -12,7 +47,7 @@
 
 3 Jun 2026
 
-### Added
+### 🚀 Added
 
 - `drun r -dry-run`: preview test execution plan without HTTP requests, hooks, or artifacts. Shows matched cases, parameter expansion, and step-level details with static variable rendering.
 - `-dry-run-limit` flag to cap displayed parameter instances (default 20).

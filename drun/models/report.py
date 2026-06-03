@@ -57,9 +57,8 @@ class CheckResult(BaseModel):
 class StepResult(BaseModel):
     name: str
     origin_step_name: Optional[str] = None
-    repeat_index: Optional[int] = None
-    repeat_no: Optional[int] = None
-    repeat_total: Optional[int] = None
+    attempt: Optional[int] = None
+    attempt_total: Optional[int] = None
     request: Dict[str, Any] = Field(default_factory=dict)
     response: Dict[str, Any] = Field(default_factory=dict)
     checks: List[CheckResult] = Field(default_factory=list)

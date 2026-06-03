@@ -10,7 +10,9 @@ from typing import Any, Dict, List
 from drun.engine.http import HTTPClient
 from drun.models.case import Case
 from drun.models.report import CaseInstanceResult, RunReport, StepResult
+from drun.models.retry import get_retry_max, get_retry_every
 from drun.models.step import Step
+from drun.runner.retry import parse_duration
 from drun.templating.compat import clean_escaped_template_string
 from drun.templating.context import VarContext
 from drun.templating.engine import TemplateEngine
@@ -439,10 +441,6 @@ class Runner:
         envmap: Dict[str, Any] | None,
         ctx: VarContext,
         params: Dict[str, Any] | None,
-        invoke_result_prefix: str | None = None,
-        repeat_index: int | None = None,
-        repeat_no: int | None = None,
-        repeat_total: int | None = None,
         source: str | None = None,
     ) -> List[StepResult]:
         return execute_invoke_step(
@@ -456,24 +454,24 @@ class Runner:
             envmap=envmap,
             ctx=ctx,
             params=params,
-            invoke_result_prefix=invoke_result_prefix,
-            repeat_index=repeat_index,
-            repeat_no=repeat_no,
-            repeat_total=repeat_total,
             source=source,
         )
 
-    def _format_repeat_step_name(self, step_name: str, repeat_index: int, repeat_total: int) -> str:
-        if repeat_total <= 1:
-            return step_name
-        return f"{step_name} [repeat={repeat_index + 1}/{repeat_total}]"
+    # ── retry helpers ───────────────────────────────────────────
 
-    def _build_repeat_variables(self, variables: Dict[str, Any], repeat_index: int) -> Dict[str, Any]:
+    def _build_retry_variables(self, variables: Dict[str, Any], attempt: int, attempt_total: int) -> Dict[str, Any]:
         return {
             **variables,
-            "repeat_index": repeat_index,
-            "repeat_no": repeat_index + 1,
+            "attempt": attempt,
+            "attempt_total": attempt_total,
         }
+
+    def _format_retry_step_name(self, step_name: str, attempt: int, attempt_total: int) -> str:
+        if attempt_total <= 1:
+            return step_name
+        return f"{step_name} [attempt {attempt}/{attempt_total}]"
+
+    # ── skip helpers ────────────────────────────────────────────
 
     def _coerce_skip_bool(self, value: Any) -> bool:
         if isinstance(value, bool):
@@ -527,44 +525,7 @@ class Runner:
         should_skip = bool(raw_skip)
         return should_skip, str(raw_skip) if should_skip else None
 
-    def _resolve_repeat_count(
-        self,
-        step: Step,
-        variables: Dict[str, Any],
-        funcs: Dict[str, Any] | None,
-        envmap: Dict[str, Any] | None,
-    ) -> int:
-        raw_repeat = step.repeat if step.repeat is not None else 1
-        rendered_repeat: Any = raw_repeat
-        if isinstance(raw_repeat, str):
-            try:
-                rendered_repeat = self._render(raw_repeat, variables, funcs, envmap, strict=True)
-            except Exception as exc:
-                raise ValueError(
-                    f"Invalid repeat expression for step '{step.name}': {exc}"
-                ) from exc
-
-        if isinstance(rendered_repeat, bool):
-            raise ValueError(f"Step '{step.name}' repeat must be an integer, got boolean.")
-
-        if isinstance(rendered_repeat, int):
-            repeat_count = rendered_repeat
-        elif isinstance(rendered_repeat, str):
-            stripped = rendered_repeat.strip()
-            if re.fullmatch(r"-?\d+", stripped):
-                repeat_count = int(stripped)
-            else:
-                raise ValueError(
-                    f"Step '{step.name}' repeat must resolve to an integer, got '{rendered_repeat}'."
-                )
-        else:
-            raise ValueError(
-                f"Step '{step.name}' repeat must resolve to an integer, got {type(rendered_repeat).__name__}."
-            )
-
-        if repeat_count < 0:
-            raise ValueError(f"Step '{step.name}' repeat must be >= 0.")
-        return repeat_count
+    # ── sleep helpers ───────────────────────────────────────────
 
     def _resolve_sleep_milliseconds(
         self,

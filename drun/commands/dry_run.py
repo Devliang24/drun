@@ -91,10 +91,17 @@ def _preview_step(step: Step, global_vars: Dict[str, Any], env_store: Dict[str, 
         path_rendered = _safe_render(path_raw, step_vars, env_store)
 
         # Build the step header
-        repeat_suffix = ""
-        if step.repeat and step.repeat != 1:
-            repeat_suffix = f" repeat={step.repeat}"
-        lines.append(f"{indent}request  {method} {path_rendered}{repeat_suffix}")
+        retry_suffix = ""
+        if step.retry is not None:
+            from drun.models.retry import get_retry_max, get_retry_every
+            rm = get_retry_max(step.retry)
+            re = get_retry_every(step.retry)
+            if rm > 1:
+                parts = [f"retry={rm}"]
+                if re != "0s":
+                    parts.append(f"every={re}")
+                retry_suffix = f" ({" ".join(parts)})"
+        lines.append(f"{indent}request  {method} {path_rendered}{retry_suffix}")
 
         # Headers
         if step.request.headers:
@@ -148,11 +155,7 @@ def _preview_step(step: Step, global_vars: Dict[str, Any], env_store: Dict[str, 
             selectors.append(f"cases={','.join(step.invoke_case_names)}")
         selector_str = f" ({', '.join(selectors)})" if selectors else ""
 
-        repeat_suffix = ""
-        if step.repeat and step.repeat != 1:
-            repeat_suffix = f" repeat={step.repeat}"
-
-        lines.append(f"{indent}invoke   {invoke_target}{selector_str}{repeat_suffix}")
+        lines.append(f"{indent}invoke   {invoke_target}{selector_str}")
 
     # --- Sleep step ---
     elif step.sleep is not None:

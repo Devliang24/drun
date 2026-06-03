@@ -79,28 +79,7 @@ class RunnerProtocol(Protocol):
         strict: bool = False,
     ) -> Any: ...
 
-    # -- repeat / skip / sleep helpers -------------------------------------
-    def _resolve_repeat_count(
-        self,
-        step: Step,
-        variables: Dict[str, Any],
-        funcs: Optional[Dict[str, Any]],
-        envmap: Optional[Dict[str, Any]],
-    ) -> int: ...
-
-    def _build_repeat_variables(
-        self,
-        variables: Dict[str, Any],
-        repeat_index: int,
-    ) -> Dict[str, Any]: ...
-
-    def _format_repeat_step_name(
-        self,
-        step_name: str,
-        repeat_index: int,
-        repeat_total: int,
-    ) -> str: ...
-
+    # -- skip / sleep helpers -------------------------------------
     def _resolve_skip_decision(
         self,
         step: Step,
@@ -153,12 +132,9 @@ class RunnerProtocol(Protocol):
         global_vars: Dict[str, Any],
         funcs: Optional[Dict[str, Any]],
         envmap: Optional[Dict[str, Any]],
-        ctx: Any,  # VarContext (circular-import safe)
+        ctx: Any,
         params: Optional[Dict[str, Any]],
-        invoke_result_prefix: Optional[str] = None,
-        repeat_index: Optional[int] = None,
-        repeat_no: Optional[int] = None,
-        repeat_total: Optional[int] = None,
+        source: str | None = None,
     ) -> List: ...  # List[StepResult]
 
     # -- check / extract ---------------------------------------------------

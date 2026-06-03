@@ -30,7 +30,7 @@ class _FakeLogger:
 
 
 class StepLifecycleSleepTests(unittest.TestCase):
-    def test_sleep_step_repeat_returns_step_results(self) -> None:
+    def test_sleep_step_returns_single_result(self) -> None:
         runner = Runner(
             log=_FakeLogger(),
             failfast=False,
@@ -39,7 +39,7 @@ class StepLifecycleSleepTests(unittest.TestCase):
         )
         lifecycle = StepLifecycle(runner)
         context = StepLifecycleContext(
-            step=Step(name="Pause", sleep="${wait_ms}", repeat=2),
+            step=Step(name="Pause", sleep="${wait_ms}"),
             step_idx=1,
             case_name="Sleep Case",
             ctx=VarContext({"wait_ms": "250"}),
@@ -53,17 +53,12 @@ class StepLifecycleSleepTests(unittest.TestCase):
             lifecycle_result = lifecycle.execute(context)
 
         results = lifecycle_result.results
-        self.assertEqual(mock_sleep.call_args_list, [call(0.25), call(0.25)])
-        self.assertEqual(
-            [result.name for result in results],
-            ["Pause [repeat=1/2]", "Pause [repeat=2/2]"],
-        )
-        self.assertEqual([result.status for result in results], ["passed", "passed"])
+        self.assertEqual(mock_sleep.call_args_list, [call(0.25)])
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].name, "Pause")
+        self.assertEqual(results[0].status, "passed")
         self.assertEqual(results[0].request["sleep"], 250.0)
         self.assertEqual(results[0].response["sleep_ms"], 250.0)
-        self.assertEqual(results[0].repeat_index, 0)
-        self.assertEqual(results[1].repeat_no, 2)
-        self.assertEqual(results[1].repeat_total, 2)
         self.assertIsNotNone(lifecycle_result.last_response)
         self.assertEqual(lifecycle_result.last_response["sleep_ms"], 250.0)
 
@@ -190,26 +185,23 @@ class StepLifecycleRequestTests(unittest.TestCase):
 
 
 class StepLifecycleInvokeTests(unittest.TestCase):
-    def test_invoke_step_repeat_uses_step_lifecycle_result_metadata(self) -> None:
+    def test_invoke_step_uses_attempt_metadata(self) -> None:
         runner = Runner(log=_FakeLogger(), failfast=False)
         captured = []
 
         def _fake_run_invoke_step(**kwargs):
-            captured.append((kwargs["rendered_step_name"], kwargs.get("invoke_result_prefix")))
+            captured.append(kwargs["rendered_step_name"])
             return [
                 StepResult(
                     name=f"{kwargs['rendered_step_name']} :: child",
                     status="passed",
-                    repeat_index=kwargs["repeat_index"],
-                    repeat_no=kwargs["repeat_no"],
-                    repeat_total=kwargs["repeat_total"],
                 )
             ]
 
         runner._run_invoke_step = _fake_run_invoke_step  # type: ignore[method-assign]
         lifecycle = StepLifecycle(runner)
         context = StepLifecycleContext(
-            step=Step(name="Invoke flow", invoke="child_case", repeat=2),
+            step=Step(name="Invoke flow", invoke="child_case", retry=1),
             step_idx=1,
             case_name="Parent Case",
             ctx=VarContext({}),
@@ -222,16 +214,12 @@ class StepLifecycleInvokeTests(unittest.TestCase):
 
         lifecycle_result = lifecycle.execute(context)
 
+        # retry=1 → max=2 attempts, first should pass
         self.assertEqual(
             captured,
-            [
-                ("Invoke flow [repeat=1/2]", "Invoke flow [repeat=1/2]"),
-                ("Invoke flow [repeat=2/2]", "Invoke flow [repeat=2/2]"),
-            ],
+            ["Invoke flow [attempt 1/2]"],
         )
-        self.assertEqual(len(lifecycle_result.results), 2)
-        self.assertEqual(lifecycle_result.results[0].repeat_index, 0)
-        self.assertEqual(lifecycle_result.results[1].repeat_no, 2)
+        self.assertEqual(len(lifecycle_result.results), 1)
 
 
 if __name__ == "__main__":

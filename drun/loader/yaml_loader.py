@@ -47,9 +47,11 @@ EXAMPLE_CASEFLOW = """caseflow:
 
 INVOKE_TARGET_RE = re.compile(r"^(?:tcases/)?(?:[a-z0-9_]+/)*tc_[a-z0-9_]+(?:\.ya?ml)?$")
 
-EXAMPLE_REPEAT = """steps:
+EXAMPLE_RETRY = """steps:
   - name: Poll status
-    repeat: 3
+    retry:
+      max: 5
+      every: 2s
     request:
       method: GET
       path: /status"""
@@ -216,8 +218,7 @@ def _normalize_case_dict(d: Dict[str, Any], path: Path | None = None, raw_text: 
                 if legacy_field in ss:
                     step_label = str(ss.get("name") or f"steps[{idx + 1}]")
                     raise LoadError(
-                        f"Invalid step field '{legacy_field}' in step '{step_label}': "
-                        "please migrate to 'repeat'."
+                        f"Invalid step field '{legacy_field}' in step '{step_label}': deprecated."
                     )
             # Disallow legacy request.json field (no compatibility)
             if isinstance(ss.get("request"), dict) and "json" in ss["request"]:
@@ -385,7 +386,6 @@ def _build_cases_from_obj(obj: Any, path: Path, processed_raw: str) -> Tuple[Lis
                 if legacy_field in item:
                     raise LoadError(
                         f"Invalid caseflow item at index {idx}: field '{legacy_field}' is deprecated. "
-                        "Please use 'repeat'."
                     )
 
             invoke_path = item.get("invoke")
@@ -398,7 +398,6 @@ def _build_cases_from_obj(obj: Any, path: Path, processed_raw: str) -> Tuple[Lis
                 "variables": item.get("variables", {}),
                 "invoke_case_name": item.get("invoke_case_name"),
                 "invoke_case_names": item.get("invoke_case_names", []),
-                "repeat": item.get("repeat", 1),
             }
             steps.append(Step.model_validate_obj(step_dict))
         
@@ -549,8 +548,8 @@ def _collect_common_diagnostics(obj: Any, path: Path, raw_text: str) -> List[Dia
                             file=path,
                             line=loc[0] if loc else None,
                             yaml_path=f"caseflow[{idx}].{legacy_field}",
-                            hint="Please use 'repeat'.",
-                            example=EXAMPLE_REPEAT,
+                            hint="Please use 'retry'.",
+                            example=EXAMPLE_RETRY,
                             raw_text=raw_text,
                         )
                     )
@@ -682,8 +681,8 @@ def _collect_step_diagnostics(
                     file=path,
                     line=loc[0] if loc else None,
                     yaml_path=f"steps[{idx}].{legacy_field}",
-                    hint="please migrate to 'repeat'.",
-                    example=EXAMPLE_REPEAT,
+                    hint="please migrate to 'retry'.",
+                    example=EXAMPLE_RETRY,
                     raw_text=raw_text,
                 )
             )
@@ -903,49 +902,6 @@ def _collect_step_diagnostics(
                 diagnostics=diagnostics,
             )
 
-    if "repeat" in step:
-        repeat_value = step.get("repeat")
-        loc = _find_step_child_location(raw_text, idx, "repeat")
-        if isinstance(repeat_value, bool):
-            add(
-                _diagnostic(
-                    "DRUN-YAML-015",
-                    f"Invalid repeat value in step `{step_label}`",
-                    file=path,
-                    line=loc[0] if loc else None,
-                    yaml_path=f"steps[{idx}].repeat",
-                    hint="`repeat` must be an integer or expression string, not boolean.",
-                    example=EXAMPLE_REPEAT,
-                    raw_text=raw_text,
-                )
-            )
-        elif isinstance(repeat_value, int) and repeat_value < 0:
-            add(
-                _diagnostic(
-                    "DRUN-YAML-015",
-                    f"Invalid repeat value in step `{step_label}`",
-                    file=path,
-                    line=loc[0] if loc else None,
-                    yaml_path=f"steps[{idx}].repeat",
-                    hint="`repeat` must be >= 0.",
-                    example=EXAMPLE_REPEAT,
-                    raw_text=raw_text,
-                )
-            )
-        elif isinstance(repeat_value, str) and not repeat_value.strip():
-            add(
-                _diagnostic(
-                    "DRUN-YAML-015",
-                    f"Invalid repeat value in step `{step_label}`",
-                    file=path,
-                    line=loc[0] if loc else None,
-                    yaml_path=f"steps[{idx}].repeat",
-                    hint="`repeat` must be a non-empty integer or expression string.",
-                    example=EXAMPLE_REPEAT,
-                    raw_text=raw_text,
-                )
-            )
-
     if "sleep" in step and step.get("sleep") is not None:
         sleep_value = step.get("sleep")
         loc = _find_step_child_location(raw_text, idx, "sleep")
@@ -1102,7 +1058,7 @@ def _diagnostic_from_case_validation_error(
                     file=path,
                     line=line_info[0] if line_info else None,
                     yaml_path=step_path,
-                    hint="Check `repeat` and `sleep` values and keep them as numbers or expression strings.",
+                    hint="Check `retry` and `sleep` values.",
                     example=EXAMPLE_SLEEP,
                     raw_text=raw_text,
                 )

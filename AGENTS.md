@@ -46,7 +46,7 @@ git push origin v8.2.0
 
 1. 修改 `pyproject.toml` 中的 `version`。
 2. 修改 `drun/__init__.py` 中的 `__version__`。
-3. 可选：更新 `RELEASES.md`；不要创建 `CHANGELOG.md`。
+3. 更新 `RELEASES.md`（见下方「RELEASES.md 维护规范」）。
 4. 不在本地执行 `python -m build`、`twine check` 等打包校验，除非用户明确要求。
 5. 提交版本号变更：`chore: bump version to X.Y.Z`。
 6. 创建 tag：`git tag vX.Y.Z`。
@@ -56,6 +56,69 @@ git push origin v8.2.0
 10. 发布后验证 PyPI 最新版本和 `drun --version`。
 
 不要只推送版本号提交而不推送 tag；没有 tag 就不会触发约定的发布流程。已经推送到远端的发布 tag 不要移动、删除或重打；如需修复发布问题，优先发布新的 patch 版本。
+
+## RELEASES.md 维护规范
+
+### 写入时机
+
+每次发版 **必须** 更新 `RELEASES.md`，不再使用 `CHANGELOG.md`（已废弃）。发版 commit 和 RELEASES.md 更新一起推：
+
+```bash
+# 方式一：amend 进版本号 commit
+git add RELEASES.md && git commit --amend
+
+# 方式二：单独提交
+git add RELEASES.md && git commit -m "docs: update RELEASES.md for vX.Y.Z"
+```
+
+### 格式模板
+
+```markdown
+## Release X.Y.Z
+
+DD Mon YYYY
+
+### 🚀 Added
+
+- 功能描述，动词开头，不加句号
+
+### 🐛 Fixed
+
+- 修复描述
+
+### 🔧 Changed
+
+- 变更描述
+
+### ⚠️ Breaking
+
+- 不兼容变更，附带迁移说明
+```
+
+### 类别映射表
+
+| Commit 前缀 | 类别 | 图标 |
+|---|---|---|
+| `feat:` | Added | 🚀 |
+| `feat!:` / `refactor!:` | Breaking | ⚠️ |
+| `fix:` | Fixed | 🐛 |
+| `perf:` | Performance | 🏎️ |
+| `security:` | Security | 🔒 |
+| `refactor:` | Changed | 🔧 |
+| `chore:` | Changed | 🔧 |
+| `docs:` | Changed | 🔧 |
+| `test:` | Testing | 🧪 |
+| `ci:` | CI | ⚙️ |
+| 其他 | Internal | 🧱 |
+
+### 规则
+
+1. **每条一项** — 不要一个 bullet 列多个变更
+2. **动词开头** — "添加 run plan 预览" 好过 "run plan 预览功能"
+3. **类别按固定顺序** — 🚀 Added → ⚠️ Breaking → 🐛 Fixed → 🏎️ Performance → 🔒 Security → 🔧 Changed → 🧪 Testing → ⚙️ CI → 🧱 Internal
+4. **有出现的才写** — 没有 Breaking 就不写 `### ⚠️ Breaking`
+5. **合并空白发版** — 如果两个 tag 之间全是 `chore: bump version`，合并到一个 release
+6. **每条最多一行** — 简述即可，详细说明放 GitHub Release body
 
 ## 代码风格与命名约定
 遵循现有 Python 风格：4 空格缩进、PEP 8 布局、公共逻辑补充类型标注。新增模块优先使用 `from __future__ import annotations`。模块、函数、辅助方法使用 `snake_case`，类名使用 `PascalCase`，常量使用 `UPPER_SNAKE_CASE`。测试类通常以 `Tests` 结尾。仓库未强制配置格式化工具，因此请保持与周边文件一致的导入顺序、注释风格和代码排版。

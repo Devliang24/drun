@@ -121,21 +121,22 @@ class SleepRunnerTests(unittest.TestCase):
         self.assertEqual(result.steps[0].response["sleep_ms"], 1500)
         self.assertGreaterEqual(result.steps[0].duration_ms, 0.0)
 
-    def test_sleep_step_supports_expression_and_repeat(self) -> None:
-        step = Step(name="Pause", sleep="${wait_ms}", repeat=2)
-        case = Case(config=Config(name="Sleep Repeat Case"), steps=[step])
+    def test_sleep_step_supports_expression(self) -> None:
+        step = Step(name="Pause", sleep="${wait_ms}")
+        case = Case(config=Config(name="Sleep Expr Case"), steps=[step])
         runner, fake_client = self._build_runner()
 
         with patch("drun.runner.runner.time.sleep") as mock_sleep:
             result = runner.run_case(case, global_vars={"wait_ms": "250"}, params={})
 
         self.assertEqual(fake_client.requests, [])
-        self.assertEqual(mock_sleep.call_args_list, [call(0.25), call(0.25)])
+        self.assertEqual(mock_sleep.call_args_list, [call(0.25)])
         self.assertEqual(result.status, "passed")
-        self.assertEqual([s.name for s in result.steps], ["Pause [repeat=1/2]", "Pause [repeat=2/2]"])
+        self.assertEqual(len(result.steps), 1)
+        self.assertEqual(result.steps[0].name, "Pause")
 
-    def test_sleep_step_repeat_with_skip_expression_skips_last_iteration(self) -> None:
-        step = Step(name="Pause", sleep=100, repeat=3, skip="${repeat_no > 2}")
+    def test_sleep_step_with_skip_skips(self) -> None:
+        step = Step(name="Pause", sleep=100, skip=True)
         case = Case(config=Config(name="Sleep Skip Case"), steps=[step])
         runner, fake_client = self._build_runner()
 
@@ -143,10 +144,9 @@ class SleepRunnerTests(unittest.TestCase):
             result = runner.run_case(case, global_vars={}, params={})
 
         self.assertEqual(fake_client.requests, [])
-        self.assertEqual(mock_sleep.call_args_list, [call(0.1), call(0.1)])
+        mock_sleep.assert_not_called()
         self.assertEqual(result.status, "passed")
-        self.assertEqual([s.status for s in result.steps], ["passed", "passed", "skipped"])
-        self.assertEqual(result.steps[2].name, "Pause [repeat=3/3]")
+        self.assertEqual(result.steps[0].status, "skipped")
 
     def test_sleep_step_invalid_expression_fails_step(self) -> None:
         step = Step(name="Pause", sleep="${wait_ms}")

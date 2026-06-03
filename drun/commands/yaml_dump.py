@@ -61,18 +61,6 @@ def to_yaml_case_dict(case: Case) -> Dict[str, object]:
                 cfg.pop(field, None)
 
     steps = d.get("steps") or []
-    from drun.models.step import Step as _Step
-
-    default_retry = (
-        _Step.model_fields.get("retry").default
-        if "retry" in _Step.model_fields
-        else None
-    )
-    default_backoff = (
-        _Step.model_fields.get("retry_backoff").default
-        if "retry_backoff" in _Step.model_fields
-        else None
-    )
     cleaned_steps: List[Dict[str, object]] = []
     for step in steps:
         if not isinstance(step, dict):
@@ -170,14 +158,9 @@ def to_yaml_case_dict(case: Case) -> Dict[str, object]:
         if step_checks:
             step["check"] = step_checks
 
-        if "retry" in step and (
-            step["retry"] is None or step["retry"] == default_retry
-        ):
+        # Remove default retry values
+        if "retry" in step and step["retry"] is None:
             step.pop("retry", None)
-        if "retry_backoff" in step and (
-            step["retry_backoff"] is None or step["retry_backoff"] == default_backoff
-        ):
-            step.pop("retry_backoff", None)
 
         cleaned_steps.append(step)
     d["steps"] = cleaned_steps

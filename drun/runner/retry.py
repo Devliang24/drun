@@ -1,38 +1,37 @@
-"""Retry executor for HTTP requests.
-
-Extracted from ``drun/runner/step_lifecycle.py`` to keep the retry policy
-(self-contained exponential backoff) testable in isolation.
-"""
+"""Retry utilities: duration parsing and backoff computation."""
 
 from __future__ import annotations
 
+import re
 import time
-from typing import Any, Callable, Dict, Optional
 
 
-def retry_execute(
-    *,
-    execute_fn: Callable[[Dict[str, Any]], Dict[str, Any]],
-    request: Dict[str, Any],
-    retry: int = 0,
-    retry_backoff: float = 0.5,
-) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
-    """Execute *execute_fn(request)* with exponential-backoff retry.
+def parse_duration(s: str) -> float:
+    """Parse a duration string like "2s", "500ms", "0.5s" into seconds (float).
 
-    Returns ``(response_dict | None, error_string | None)``.
+    Supports: s (seconds), ms (milliseconds).  Returns seconds.
     """
-    max_attempts = max(retry, 0)
-    last_error: Optional[str] = None
+    s = s.strip().lower()
+    if not s:
+        return 0.0
 
-    for attempt in range(max_attempts + 1):
+    if s.endswith("ms"):
         try:
-            resp_obj = execute_fn(request)
-            return resp_obj, None
-        except Exception as e:
-            last_error = str(e)
-            if attempt >= max_attempts:
-                break
-            backoff = min(retry_backoff * (2 ** attempt), 2.0)
-            time.sleep(backoff)
+            return float(s[:-2].strip()) / 1000.0
+        except ValueError:
+            raise ValueError(f"Invalid duration: {s!r}")
 
-    return None, last_error
+    if s.endswith("s"):
+        try:
+            return float(s[:-1].strip())
+        except ValueError:
+            raise ValueError(f"Invalid duration: {s!r}")
+
+    raise ValueError(f"Invalid duration: {s!r} (expected e.g. '2s' or '500ms')")
+
+
+def sleep_every(every: str, attempt: int) -> None:
+    """Sleep for the duration given by *every* (constant delay)."""
+    secs = parse_duration(every)
+    if secs > 0:
+        time.sleep(secs)

@@ -18,7 +18,7 @@ from drun.templating.context import VarContext
 class StepOutcomeContext(ExecutionContext):
     resp_obj: Dict[str, Any]
     variables: Dict[str, Any]
-    repeat_index: int
+    attempt: int = 1
 
 
 @dataclass
@@ -53,9 +53,10 @@ def process_step_outcome(*, runner: RunnerProtocol, context: StepOutcomeContext)
             context=context,
         )
 
-    variables = runner._build_repeat_variables(
+    variables = runner._build_retry_variables(
         context.ctx.get_merged(context.global_vars),
-        context.repeat_index,
+        context.attempt,
+        1,
     )
 
     save_error = _save_response_body_if_needed(

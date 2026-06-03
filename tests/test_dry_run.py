@@ -141,11 +141,12 @@ class BuildDryRunPlanTests(unittest.TestCase):
 
         self.assertIn("invoke   tc_login", text)
 
-    def test_invoke_step_with_repeat(self) -> None:
+    def test_invoke_step_with_retry(self) -> None:
+        from drun.models.retry import RetryConfig
         case = Case(
             config=Config(name="Flow"),
             steps=[
-                Step(name="Poll", invoke="tc_status", repeat=3)
+                Step(name="Poll", invoke="tc_status", retry=RetryConfig(max=5, every="2s"))
             ],
         )
         items = self._build_items(case)
@@ -166,7 +167,7 @@ class BuildDryRunPlanTests(unittest.TestCase):
             reveal_secrets=True,
         )
 
-        self.assertIn("invoke   tc_status repeat=3", text)
+        self.assertIn("invoke   tc_status", text)
 
     def test_invoke_step_with_case_name_selector(self) -> None:
         case = Case(
