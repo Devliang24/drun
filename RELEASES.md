@@ -1,5 +1,13 @@
 # Releases
 
+## Release 9.1.1
+
+3 Jun 2026
+
+### Fixed
+
+- Dry-run: recursive template rendering in request body (dict/list values).
+
 ## Release 9.1.0
 
 3 Jun 2026
