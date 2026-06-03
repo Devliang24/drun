@@ -139,25 +139,26 @@ class CliHelpWidthTests(unittest.TestCase):
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("No such command 'quick'", result.output)
 
-    def test_subcommand_help_is_disabled_and_redirected(self) -> None:
+    def test_subcommand_help_is_available(self) -> None:
         runner = CliRunner()
         cases = [
-            ["r", "--help"],
-            ["q", "--help"],
-            ["s", "--help"],
-            ["c", "--help"],
-            ["f", "--help"],
-            ["t", "--help"],
-            ["i", "--help"],
-            ["o", "--help"],
-            ["w", "--help"],
-            ["e", "--help"],
-            ["e", "curl", "--help"],
+            (["r", "--help"], ["Usage:", "PATH", "-env", "-report"]),
+            (["q", "--help"], ["Usage:", "URL", "-save-yaml"]),
+            (["s", "--help"], ["Usage:", "-port", "-reports-dir"]),
+            (["c", "--help"], ["Usage:", "PATH"]),
+            (["f", "--help"], ["Usage:", "PATH", "-mode"]),
+            (["t", "--help"], ["Usage:", "PATH"]),
+            (["i", "--help"], ["Usage:", "[NAME]", "-force"]),
+            (["o", "--help"], ["Usage:", "INFILE", "-outfile"]),
+            (["w", "--help"], ["Usage:", "SPEC", "-output-mode"]),
+            (["e", "--help"], ["Usage:", "COMMAND", "curl"]),
+            (["e", "curl", "--help"], ["Usage:", "PATH", "-case-name", "-outfile"]),
         ]
-        for argv in cases:
+        for argv, expected in cases:
             result = runner.invoke(cli.app, argv)
-            self.assertNotEqual(result.exit_code, 0)
-            self.assertIn("Subcommand help is disabled. Please use: drun --help", result.output)
+            self.assertEqual(result.exit_code, 0, msg=result.output)
+            for text in expected:
+                self.assertIn(text, result.output)
 
     def test_run_accepts_single_dash_env_option(self) -> None:
         runner = CliRunner()

@@ -104,7 +104,7 @@ _CLI_CONTEXT_SETTINGS = {
     "terminal_width": _HELP_WIDTH,
     "max_content_width": _HELP_WIDTH,
 }
-_SUBCOMMAND_HELP_GUIDE = "Subcommand help is disabled. Please use: drun --help"
+_SUBCOMMAND_HELP_GUIDE = "Use drun <command> --help for focused subcommand help."
 
 
 def _looks_like_subcommand_help(args: List[str]) -> bool:
@@ -175,6 +175,8 @@ def _collect_command_help_rows(
             continue
         left, right = record
         cleaned_left = _strip_type_suffix(left.strip())
+        if cleaned_left in {"--help", "-h, --help"}:
+            continue
         cleaned_right = _unescape_brackets((right or "-").strip())
         if _is_argument_param(param):
             argument_rows.append((cleaned_left, cleaned_right))
@@ -234,8 +236,6 @@ class _DrunRootGroup(typer.core.TyperGroup):
         return super().get_command(ctx, cmd_name)
 
     def parse_args(self, ctx: click.Context, args: List[str]) -> List[str]:
-        if _looks_like_subcommand_help(args):
-            raise click.UsageError(_SUBCOMMAND_HELP_GUIDE, ctx=ctx)
         if args and args[0] == "q" and any(
             token == "-validate" or token.startswith("-validate=") for token in args[1:]
         ):
@@ -288,7 +288,6 @@ app = typer.Typer(
 )
 export_app = typer.Typer(
     help="导出测试用例到其他格式",
-    add_help_option=False,
     context_settings=_CLI_CONTEXT_SETTINGS,
 )
 app.add_typer(export_app, name="e")
@@ -316,7 +315,7 @@ def main(
 
 
 # Unified convert entrypoint (auto-detect by suffix)
-@app.command("o", add_help_option=False)
+@app.command("o")
 def convert_auto(
     infile: str = typer.Argument(..., help="待转换的源文件 (.curl/.har/.json)"),
     outfile: Optional[str] = typer.Option(None, "-outfile", help="输出到指定文件"),
@@ -385,7 +384,7 @@ def convert_auto(
                 break
         if pos is not None and any(t.startswith("-") for t in tail[:pos]):
             typer.echo(
-                "[CONVERT] Options must follow INFILE. Example:\n  drun convert file.curl -outfile out.yaml"
+                "[CONVERT] Options must follow INFILE. Example:\n  drun o file.curl -outfile out.yaml"
             )
             raise typer.Exit(code=2)
     # Enforce: no bare conversion without any options
@@ -404,7 +403,7 @@ def convert_auto(
     )
     if not any_option:
         typer.echo(
-            "[CONVERT] No options provided. Bare conversion is not supported. Place options after INFILE, e.g.:\n  drun convert my.curl -outfile tcases/tc_from_curl.yaml"
+            "[CONVERT] No options provided. Bare conversion is not supported. Place options after INFILE, e.g.:\n  drun o my.curl -outfile tcases/tc_from_curl.yaml"
         )
         raise typer.Exit(code=2)
 
@@ -486,7 +485,7 @@ def convert_auto(
 
 
 # Helper for curl conversion
-@export_app.command("curl", add_help_option=False)
+@export_app.command("curl")
 def export_curl(
     path: str = typer.Argument(..., help="要导出的用例/套件 YAML 文件或目录"),
     case_name: Optional[str] = typer.Option(
@@ -528,7 +527,7 @@ def export_curl(
     )
 
 
-@app.command("t", add_help_option=False)
+@app.command("t")
 def list_tags(
     path: str = typer.Argument("tcases", help="要扫描的文件或目录"),
 ) -> None:
@@ -536,10 +535,10 @@ def list_tags(
     run_tags(path)
 
 
-quick = app.command("q", add_help_option=False)(quick)
+quick = app.command("q")(quick)
 
 
-@app.command("r", add_help_option=False)
+@app.command("r")
 def r(
     path: str = typer.Argument(
         ...,
@@ -673,7 +672,7 @@ def r(
     )
 
 
-@app.command("c", add_help_option=False)
+@app.command("c")
 def check(
     path: str = typer.Argument(..., help="要验证的文件或目录"),
 ):
@@ -688,7 +687,7 @@ def check(
     run_check(path)
 
 
-@app.command("f", add_help_option=False)
+@app.command("f")
 def fix(
     paths: List[str] = typer.Argument(
         ...,
@@ -719,7 +718,7 @@ def fix(
     )
 
 
-@app.command("i", add_help_option=False)
+@app.command("i")
 def init_project(
     name: Optional[str] = typer.Argument(
         None, help="Project name (default: current directory)"
@@ -730,10 +729,10 @@ def init_project(
     """Initialize Drun test project scaffold.
 
     Examples:
-        drun init                    # Initialize in current directory
-        drun init my-api-test        # Create new project directory
-        drun init -force             # Overwrite existing files
-        drun init -ci                # Include GitHub Actions workflow
+        drun i                    # Initialize in current directory
+        drun i my-api-test        # Create new project directory
+        drun i -force             # Overwrite existing files
+        drun i -ci                # Include GitHub Actions workflow
     """
     from drun import scaffolds
 
@@ -914,14 +913,14 @@ def init_project(
     typer.echo("Quick start:")
     if name:
         typer.echo(f"  cd {name}")
-    typer.echo("  drun run tcases -env dev")
-    typer.echo("  drun run tc_demo -env dev")
-    typer.echo("  drun run ts_smoke -env dev")
+    typer.echo("  drun r tcases -env dev")
+    typer.echo("  drun r tc_demo -env dev")
+    typer.echo("  drun r ts_smoke -env dev")
     typer.echo("")
     typer.echo("Docs: https://github.com/Devliang24/drun")
 
 
-@app.command("w", add_help_option=False)
+@app.command("w")
 def convert_openapi(
     spec: str = typer.Argument(..., help="OpenAPI 3.x 规范文件（.json 或 .yaml）"),
     outfile: Optional[str] = typer.Option(None, "-outfile", help="输出文件路径"),
@@ -989,7 +988,7 @@ def convert_openapi(
     )
 
 
-@app.command("s", add_help_option=False)
+@app.command("s")
 def serve_reports(
     port: int = typer.Option(8080, "-port", help="监听端口"),
     host: str = typer.Option(
