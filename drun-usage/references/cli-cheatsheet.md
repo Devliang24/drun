@@ -29,6 +29,16 @@ drun r tcases/tc_login.yaml -env dev -log-level DEBUG -httpx-logs -secrets mask
 drun r tcases/tc_login.yaml -env dev -response-headers -secrets mask
 ```
 
+## 预览执行计划（dry-run）
+
+```bash
+drun r tcases -dry-run
+drun r tcases -env dev -dry-run
+drun r tcases -k smoke -dry-run -dry-run-limit 50
+```
+
+`-dry-run` 只做 YAML 校验、参数展开和 step 预览，不发送 HTTP 请求，不执行 hooks，不生成报告。适合写用例时快速验证结构。
+
 ## 环境与变量
 
 ```bash

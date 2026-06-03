@@ -360,3 +360,18 @@ Legacy inline suite ('cases:') is not supported
 drun o sample.curl -outfile tcases/from_curl.yaml
 drun o traffic.har -output-mode split -outfile tcases/imported.yaml
 ```
+
+## 快速预览：dry-run
+
+### 看参数展开结果
+
+写参数化用例时，可以先 dry-run 看展开结果，不必真正跑 HTTP：
+
+```bash
+drun r tcases -dry-run
+drun r tcases -env dev -dry-run -dry-run-limit 50
+```
+
+### dry-run 不要求环境文件
+
+如果没有 `.env`，dry-run 仍然可以输出预览，此时 `${ENV(...)}` 和需要运行时 extract 的变量会保留原样。真正执行时仍然要求环境文件。

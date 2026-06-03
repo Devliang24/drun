@@ -28,6 +28,28 @@ drun r tcases -env dev -k "smoke and not slow"
 
 `drun r` 在真正执行第一个 Case 前会输出 `[RUN PLAN]`，用于确认 target、环境文件、Base URL 状态、匹配 Case 数、Case Instance（用例实例）数、tag filter、产物路径和日志/脱敏模式。执行结束后会输出 Summary、Failed Cases（如有）和 `[ARTIFACTS]`，方便直接找到报告、日志和 snippets。
 
+## 预览执行计划（dry-run）
+
+`drun r -dry-run` 在**不发送 HTTP 请求、不执行 hooks、不生成报告**的前提下预览整个执行计划：
+
+```bash
+drun r tcases -dry-run
+drun r tcases -env dev -dry-run
+drun r tcases -k smoke -dry-run -dry-run-limit 50
+```
+
+输出内容：
+- `[PLAN]`：匹配的文件数、Case 数、参数展开实例数
+- `[CASE #N]`：每个 Case 的来源文件、tags、参数组合、step 预览
+- `[SUMMARY]`：最终统计
+
+规则：
+- 不强制要求 `.env`，缺失时标记 `(not set / unresolved)`
+- 参数实例超过 `-dry-run-limit`（默认 20）时截断并提示
+- 内置函数（`${uuid()}`、`${random_int()}`）和上一步 `extract` 的变量不渲染，保留原样
+- invoke 目标不递归展开
+- 与其他输出 flag（`-html`、`-report` 等）不互斥，一起传时 dry-run 模式无声忽略
+
 ## 环境文件选择与合并
 
 运行时环境文件选择顺序：

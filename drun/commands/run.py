@@ -169,6 +169,8 @@ def run_cases(
     no_snippet: bool,
     snippet_output: Optional[str],
     snippet_lang: str,
+    dry_run: bool = False,
+    dry_run_limit: int = 20,
 ) -> None:
     input_path = path
     try:
@@ -178,7 +180,7 @@ def run_cases(
         raise typer.Exit(code=2)
 
     runtime_env_file = _resolve_runtime_env_file(env, env_file)
-    if env is None and runtime_env_file is None:
+    if env is None and runtime_env_file is None and not dry_run:
         typer.echo(
             "[ERROR] Environment not found. Use -env, -env-file, or provide .env in current directory."
         )
@@ -279,7 +281,10 @@ def run_cases(
     )
     default_log = output_plan.log_path
 
-    setup_logging(log_level, log_file=default_log)
+    if dry_run:
+        setup_logging(log_level, log_file=None)
+    else:
+        setup_logging(log_level, log_file=default_log)
     log = get_logger("drun.commands.run")
     _httpx_logger = _logging.getLogger("httpx")
     _httpx_logger.setLevel(_logging.INFO if httpx_logs else _logging.WARNING)
@@ -401,6 +406,28 @@ def run_cases(
         log.error(str(exc))
         typer.echo(f"[ERROR] {exc}")
         raise typer.Exit(code=2)
+
+    if dry_run:
+        from drun.commands.dry_run import build_dry_run_plan_text
+
+        typer.echo(
+            build_dry_run_plan_text(
+                target=path,
+                env_label=env_label,
+                env_file_label=env_file_label,
+                base_url=base_url_candidate,
+                files_count=len(files),
+                items=items,
+                parameterized_items=parameterized_items,
+                tag_filter=k,
+                case_selector=selected_case_names,
+                global_vars=global_vars,
+                env_store=env_store,
+                dry_run_limit=dry_run_limit,
+                reveal_secrets=reveal_secrets,
+            )
+        )
+        raise typer.Exit(code=0)
 
     case_instance_count = sum(
         len(param_sets) for _, _, param_sets in parameterized_items

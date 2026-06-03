@@ -628,6 +628,18 @@ def r(
         help="代码片段输出目录。例: -snippet-output snippets_out",
         metavar="",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "-dry-run",
+        help="预览执行计划，不发送 HTTP 请求，不执行 hooks",
+        show_default=False,
+    ),
+    dry_run_limit: int = typer.Option(
+        20,
+        "-dry-run-limit",
+        help="dry-run 参数实例最多展示数量",
+        metavar="",
+    ),
 ):
     """Run test cases or suites."""
     secrets_mode = (secrets or "plain").strip().lower()
@@ -670,6 +682,8 @@ def r(
         no_snippet=resolved_no_snippet,
         snippet_output=snippet_output,
         snippet_lang=resolved_snippet_lang,
+        dry_run=dry_run,
+        dry_run_limit=dry_run_limit,
     )
 
 
