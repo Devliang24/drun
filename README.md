@@ -1,8 +1,6 @@
 # Drun: Modern HTTP API Testing Framework
 
-[English](README.md) | [中文](README.zh.md)
-
-[![Version](https://img.shields.io/badge/version-7.2.19-blue.svg)](https://github.com/Devliang24/drun)
+[![PyPI Version](https://img.shields.io/pypi/v/drun.svg)](https://pypi.org/project/drun/)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -284,7 +282,7 @@ Repository overview:
 - `drun/`: core implementation.
 - `tests/`: regression tests.
 - `spec/`: sample OpenAPI specs.
-- `CHANGELOG.md`: version history.
+- `RELEASES.md`: release notes.
 - `drun-usage/`: local deep-usage skill for AI coding assistants, covering `drun` YAML, CLI usage, conversion, and troubleshooting.
 - `AGENTS.md`: contributor rules and local development notes.
 
