@@ -1,6 +1,8 @@
 # Releases
 
-## Unreleased
+## Release 9.0.0
+
+3 Jun 2026
 
 ### ⚠️ Breaking
 
