@@ -1,7 +1,7 @@
 """
 Drun project scaffold templates.
 
-Provides templates for `drun init` command.
+Provides templates for `drun i` command.
 """
 
 from .templates import (

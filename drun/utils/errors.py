@@ -81,7 +81,7 @@ DIAGNOSTIC_CODE_CATALOG: tuple[DiagnosticCode, ...] = (
     DiagnosticCode(
         "DRUN-YAML-014",
         "Invalid step spacing",
-        "Step items are missing the blank line required by `drun check` style validation.",
+        "Step items are missing the blank line required by `drun c` style validation.",
     ),
     DiagnosticCode(
         "DRUN-YAML-015",

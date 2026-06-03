@@ -24,7 +24,7 @@ def run_tags(path: str) -> None:
                 for ext in (".yaml", ".yml"):
                     cand = pth.with_suffix(ext)
                     if cand.exists():
-                        hints.append(f"Did you mean: drun run {cand}")
+                        hints.append(f"Did you mean: drun r {cand}")
                         break
         else:
             if pth.is_file():
@@ -33,17 +33,17 @@ def run_tags(path: str) -> None:
                     for ext in (".yaml", ".yml"):
                         cand = pth.with_suffix(ext)
                         if cand.exists():
-                            hints.append(f"Try: drun run {cand}")
+                            hints.append(f"Try: drun r {cand}")
                             break
             elif pth.is_dir():
                 hints.append(
                     "Provide a YAML file or a directory containing YAML tests under tcases/ or tsuites/."
                 )
         hints.append("Examples:")
-        hints.append("  drun run tcases")
-        hints.append("  drun run tc_demo")
-        hints.append("  drun run tcases/tc_hello.yaml")
-        hints.append("  drun run ts_smoke")
+        hints.append("  drun r tcases")
+        hints.append("  drun r tc_demo")
+        hints.append("  drun r tcases/tc_hello.yaml")
+        hints.append("  drun r ts_smoke")
         for h in hints:
             typer.echo(h)
         raise typer.Exit(code=2)

@@ -1,6 +1,6 @@
 """
 Drun project scaffold templates
-Used by `drun init` command to generate project structure
+Used by `drun i` command to generate project structure
 """
 
 # Demo test case template (GET + POST with extract)
@@ -98,7 +98,7 @@ curl -X POST 'https://api.example.com/api/v1/login' \\
   -H 'Content-Type: application/json' \\
   --data-raw '{"username": "test", "password": "pass123"}'
 
-# Convert: drun convert converts/sample.curl -outfile tcases/tc_from_curl.yaml -placeholders on
+# Convert: drun o converts/sample.curl -outfile tcases/tc_from_curl.yaml -placeholders on
 """
 
 # Environment config template
@@ -292,13 +292,13 @@ API automation testing with [Drun](https://github.com/Devliang24/drun).
 pip install drun
 
 # Run tests
-drun run tcases -env dev -html reports/report.html
+drun r tcases -env dev -html reports/report.html
 
 # Run test suite
-drun run ts_smoke -env dev
+drun r ts_smoke -env dev
 
 # Run with tag filter
-drun run tcases -k "smoke" -env dev
+drun r tcases -k "smoke" -env dev
 ```
 
 ## Test Case Example
@@ -368,7 +368,7 @@ jobs:
         env:
           BASE_URL: ${{ secrets.BASE_URL }}
         run: |
-          drun run tcases \\
+          drun r tcases \\
             -html reports/report.html \\
             -secrets mask
 

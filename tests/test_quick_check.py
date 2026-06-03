@@ -45,7 +45,7 @@ class QuickCheckCommandTests(unittest.TestCase):
         self.assertIn("Check: status_code eq 200 -> PASS", result.output)
         self.assertIn("Check: $.ok eq True -> PASS", result.output)
 
-    def test_q_save_yaml_emits_check_field(self) -> None:
+    def test_q_save_yaml_emits_check_field_and_next_steps(self) -> None:
         runner = CliRunner()
 
         with runner.isolated_filesystem():
@@ -67,6 +67,10 @@ class QuickCheckCommandTests(unittest.TestCase):
 
         self.assertIn("check:", text)
         self.assertNotIn("validate:", text)
+        self.assertIn("Saved YAML Case: case.yaml", result.output)
+        self.assertIn("drun c case.yaml", result.output)
+        self.assertIn("drun r case.yaml", result.output)
+        self.assertIn(".env, -env, or -env-file", result.output)
 
     def test_q_validate_option_fails_with_check_hint(self) -> None:
         runner = CliRunner()

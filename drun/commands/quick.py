@@ -512,6 +512,11 @@ def quick(
             }
 
             out_path.write_text(_dump_case_dict(case_obj), encoding="utf-8")
+            typer.echo(f"Saved YAML Case: {out_path}")
+            typer.echo("Next steps:")
+            typer.echo(f"  drun c {out_path}")
+            typer.echo(f"  drun r {out_path}")
+            typer.echo("Note: running the saved Case may require .env, -env, or -env-file.")
         except Exception as e:
             typer.echo(f"[ERROR] Failed to write YAML '{save_yaml}': {e}")
             raise typer.Exit(code=2)

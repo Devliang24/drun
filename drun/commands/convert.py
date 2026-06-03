@@ -1,4 +1,4 @@
-"""Convert helpers — shared logic for `drun convert` and `drun convert-openapi`.
+"""Convert helpers — shared logic for `drun o` and `drun w`.
 
 These functions were moved from ``drun/cli.py`` to keep the CLI entry-point
 file focused on routing.
