@@ -39,38 +39,39 @@ def _format_params(params: Dict[str, Any]) -> str:
     return ", ".join(f"{k}={v!r}" for k, v in params.items())
 
 
-def _safe_render(value: Any, variables: Dict[str, Any], envmap: Dict[str, Any] | None = None) -> str:
+def _safe_render(value: Any, variables: Dict[str, Any], envmap: Dict[str, Any] | None = None) -> Any:
     """Static-only render: resolve config.variables / CLI vars / params / ENV.
 
     Does NOT execute user hooks, built-in random/uuid functions, or
     runtime-extracted variables. Unresolved tokens are left as-is.
+    Recursively renders dict/list string values.
     """
-    if not isinstance(value, str):
-        return str(value)
-
-    if "${" not in value and "$" not in value:
-        return value
-
-    # Build a minimal context with only ENV and static variables,
-    # deliberately excluding BUILTINS and user-defined hook functions.
-    engine = TemplateEngine()
-
-    # ENV-like lookup (mimics ENV function without side effects)
     import os as _os
 
-    def _env_lookup(name: str, default: Any = None) -> Any:
-        if envmap is not None and name in envmap:
-            return envmap[name]
-        return _os.environ.get(name, default)
+    def _render_str(s: str) -> str:
+        if "${" not in s and "$" not in s:
+            return s
+        engine = TemplateEngine()
 
-    ctx = {**variables, "ENV": _env_lookup}
+        def _env_lookup(name: str, default: Any = None) -> Any:
+            if envmap is not None and name in envmap:
+                return envmap[name]
+            return _os.environ.get(name, default)
 
-    try:
-        result = engine.render_value(value, ctx, strict=False)
-    except Exception:
-        return value
+        ctx = {**variables, "ENV": _env_lookup}
+        try:
+            result = engine.render_value(s, ctx, strict=False)
+        except Exception:
+            return s
+        return str(result) if not isinstance(result, str) else result
 
-    return str(result) if not isinstance(result, str) else result
+    if isinstance(value, str):
+        return _render_str(value)
+    if isinstance(value, dict):
+        return {k: _safe_render(v, variables, envmap) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_safe_render(v, variables, envmap) for v in value]
+    return value
 
 
 def _preview_step(step: Step, global_vars: Dict[str, Any], env_store: Dict[str, Any]) -> str:
@@ -108,7 +109,7 @@ def _preview_step(step: Step, global_vars: Dict[str, Any], env_store: Dict[str, 
         body = getattr(step.request, "body", None)
         if body is not None:
             body_rendered = _safe_render(body, step_vars, env_store)
-            body_text = _json_truncate(body, max_chars=200)
+            body_text = _json_truncate(body_rendered, max_chars=200)
             lines.append(f"{indent}  body: {body_text}")
 
         # Checks
