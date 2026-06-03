@@ -4,7 +4,6 @@ import argparse
 import os
 import re
 import sys
-import tomllib
 from pathlib import Path
 
 
@@ -13,6 +12,7 @@ class ReleaseVersionError(ValueError):
 
 
 _VERSION_PATTERN = re.compile(r"__version__\s*=\s*['\"]([^'\"]+)['\"]")
+_PROJECT_VERSION_PATTERN = re.compile(r"^version\s*=\s*['\"]([^'\"]+)['\"]")
 
 
 def _normalize_tag_ref(ref_name: str | None) -> str:
@@ -34,14 +34,29 @@ def _normalize_tag_ref(ref_name: str | None) -> str:
 def _read_pyproject_version(project_root: Path) -> str:
     pyproject_path = project_root / "pyproject.toml"
     try:
-        data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
-        return str(data["project"]["version"])
+        in_project = False
+        for line in pyproject_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if stripped.startswith("[") and stripped.endswith("]"):
+                in_project = stripped == "[project]"
+                continue
+            if not in_project:
+                continue
+            match = _PROJECT_VERSION_PATTERN.match(stripped)
+            if match:
+                return match.group(1)
     except FileNotFoundError as exc:
         raise ReleaseVersionError(f"Missing {pyproject_path}.") from exc
     except Exception as exc:
         raise ReleaseVersionError(
             f"Could not read project.version from {pyproject_path}: {exc}"
         ) from exc
+
+    raise ReleaseVersionError(
+        f"Could not find project.version in {pyproject_path}."
+    )
 
 
 def _read_module_version(project_root: Path) -> str:

@@ -1,12 +1,16 @@
 # Releases
 
-## Release 9.0.0
+## Release 9.0.1
 
 3 Jun 2026
 
 ### ⚠️ Breaking
 
 - Default hook file discovery now uses `dhook.py` instead of `Dhook.py`. Rename existing hook files to `dhook.py`; explicitly setting `DRUN_HOOKS_FILE=Dhook.py` remains available for manual migration.
+
+### 🐛 Fixed
+
+- Made the release tag/version checker compatible with Python 3.10 used by the publish workflow.
 
 ---
 
