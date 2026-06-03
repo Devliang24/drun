@@ -1,5 +1,15 @@
 # Releases
 
+## Release 9.1.0
+
+3 Jun 2026
+
+### Added
+
+- `drun r -dry-run`: preview test execution plan without HTTP requests, hooks, or artifacts. Shows matched cases, parameter expansion, and step-level details with static variable rendering.
+- `-dry-run-limit` flag to cap displayed parameter instances (default 20).
+- Dry-run does not require `.env`; unresolved variables shown as-is.
+
 ## Release 9.0.1
 
 3 Jun 2026
