@@ -41,7 +41,7 @@ uv pip install drun
 ### 1. Initialize a Project
 
 ```bash
-drun init myproject
+drun i myproject
 cd myproject
 ```
 
@@ -49,8 +49,8 @@ Default scaffold:
 
 ```text
 myproject/
-├── testcases/
-├── testsuites/
+├── tcases/
+├── tsuites/
 ├── data/
 ├── converts/
 ├── logs/
@@ -71,7 +71,7 @@ API_KEY=demo-token
 
 ### 3. Write Your First Test
 
-`testcases/test_user_api.yaml`
+`tcases/tc_user_api.yaml`
 
 ```yaml
 config:
@@ -108,10 +108,10 @@ steps:
 ### 4. Run Tests
 
 ```bash
-drun run testcases/test_user_api.yaml -env dev
-drun run test_user_api -env dev
-drun run testcases -env dev -k "smoke and not slow"
-drun run test_user_api -env dev -html reports/report.html
+drun r tcases/tc_user_api.yaml -env dev
+drun r tc_user_api -env dev
+drun r tcases -env dev -k "smoke and not slow"
+drun r tc_user_api -env dev -html reports/report.html
 ```
 
 Notes:
@@ -119,6 +119,7 @@ Notes:
 - `.yaml` can be omitted in run targets.
 - Temporary single-file runs write only one log file to the current directory.
 - Scaffolded project runs keep outputs in `logs/`, `reports/`, and `snippets/`.
+- `drun r` prints a preflight Run Plan before execution and a final Artifacts block that lists HTML, JSON, Allure, log, and snippet outputs.
 
 ## Common Patterns
 
@@ -206,29 +207,29 @@ steps:
 ### Run and Debug
 
 ```bash
-drun run PATH -env dev
+drun r PATH -env dev
 drun q https://api.example.com/ping
 drun q https://api.example.com/users -X POST -d '{"name":"alice"}'
-drun tags testcases
-drun check testcases
-drun fix testcases
+drun t tcases
+drun c tcases
+drun f tcases
 ```
 
-`drun check` aggregates YAML/DSL authoring diagnostics with stable error codes such as `DRUN-YAML-003`, file locations, fix hints, and minimal examples. `drun run` still stops quickly on blocking YAML errors.
+`drun c` aggregates YAML/DSL authoring diagnostics with stable error codes such as `DRUN-YAML-003`, file locations, fix hints, and minimal examples. `drun r` still stops quickly on blocking YAML errors.
 
 ### Format Conversion
 
 ```bash
-drun convert sample.curl -outfile out.yaml
-drun convert-openapi spec/openapi/ecommerce_api.json -output-mode split -outfile converted/ecommerce.yaml
-drun export curl testcases/test_user_api.yaml -outfile request.curl
+drun o sample.curl -outfile out.yaml
+drun w spec/openapi/ecommerce_api.json -output-mode split -outfile converted/ecommerce.yaml
+drun e curl tcases/tc_user_api.yaml -outfile request.curl
 ```
 
 ### Report Server
 
 ```bash
-drun server
-drun server -port 8080
+drun s
+drun s -port 8080
 ```
 
 After startup, you can browse the report list and detail pages in the browser.
@@ -243,8 +244,8 @@ After startup, you can browse the report list and detail pages in the browser.
 Examples:
 
 ```bash
-drun run testcases -env dev -html reports/report.html
-drun run testcases -env dev -allure-results allure-results
+drun r tcases -env dev -html reports/report.html
+drun r tcases -env dev -allure-results allure-results
 allure serve allure-results
 ```
 
@@ -275,7 +276,7 @@ Typical use cases:
 
 - Generate `drun` YAML cases
 - Explain `invoke`, `invoke_case_name`, `invoke_case_names`, `repeat`, and `sleep`
-- Design `drun run`, `drun q`, `convert`, `convert-openapi`, and `export curl` commands
+- Design `drun r`, `drun q`, `drun o`, `drun w`, and `drun e curl` commands
 - Explain HTML / JSON / Allure / snippet / `server`
 - Troubleshoot `drun` errors
 
@@ -318,7 +319,7 @@ Read drun-usage/SKILL.md first, then generate a drun YAML case for file upload a
 ```
 
 ```text
-Read drun-usage/references/debug-convert-export.md and give me a drun convert-openapi command for this spec.
+Read drun-usage/references/debug-convert-export.md and give me a drun w command for this spec.
 ```
 
 ### Usage Tips

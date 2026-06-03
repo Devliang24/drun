@@ -116,6 +116,6 @@ drun e curl tcases -case-name 登录 -steps 1,3-4
 ## 什么时候选哪一个
 
 - 只想立刻打接口：先 `q`
-- 手里有 cURL / HAR / Postman：先 `convert`
-- 手里是 OpenAPI 规范：用 `convert-openapi`
-- 已经有 `drun` case，只想拿到可复现命令：用 `export curl`
+- 手里有 cURL / HAR / Postman：先 `drun o`
+- 手里是 OpenAPI 规范：用 `drun w`
+- 已经有 `drun` case，只想拿到可复现命令：用 `drun e curl`

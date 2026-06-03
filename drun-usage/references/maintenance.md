@@ -12,7 +12,7 @@
 - Request Step 的 `request.files`、`request.auth`、`request.stream`、`response.save_body_to`、`export.csv` 行为变化。
 - 报告、JSON、HTML、Allure、snippet、`drun s` 输出或目录行为变化。
 - YAML 诊断错误码、错误提示、hint、example 或修复建议变化。
-- `drun q`、`convert`、`convert-openapi`、`export curl` 行为变化。
+- `drun q`、`drun o`、`drun w`、`drun e curl` 行为变化。
 
 ## 改什么内容时更新哪些 reference
 
@@ -24,9 +24,9 @@
 | `check` / `extract` 行为 | `dsl-core.md`、`yaml-fields.md`、`recipes.md`、`troubleshooting.md` |
 | `caseflow` / `invoke` 行为 | `composition-and-reuse.md`、`recipes.md`、`troubleshooting.md` |
 | `repeat` / `sleep` 行为 | `composition-and-reuse.md`、`yaml-fields.md`、`anti-patterns.md` |
-| 报告 / snippet / server | `reports-and-outputs.md`、`cli-cheatsheet.md`、`recipes.md` |
+| 报告 / snippet / `drun s` | `reports-and-outputs.md`、`cli-cheatsheet.md`、`recipes.md` |
 | 错误码或诊断提示 | `troubleshooting.md`、`anti-patterns.md` |
-| `drun q` / convert / export curl | `debug-convert-export.md`、`cli-cheatsheet.md`、`recipes.md` |
+| `drun q` / `drun o` / `drun e curl` | `debug-convert-export.md`、`cli-cheatsheet.md`、`recipes.md` |
 | Agent 安装方式 | `agent-usage.md`、`SKILL.md` |
 
 ## 维护原则

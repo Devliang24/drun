@@ -13,6 +13,8 @@
 - 响应数组导出 CSV：YAML step 里写 `export.csv`
 - 报告 Web 查看：`drun s`
 
+运行结束后，最终输出会按 Summary → Failed Cases（如有）→ Artifacts 的顺序收束；`[ARTIFACTS]` 会集中列出 HTML、JSON、Allure、日志和 snippets 路径，HTML 存在时还会提示 `Open reports: drun s`。
+
 ## 临时单文件 vs 脚手架项目
 
 当前实现会区分两种运行模式。

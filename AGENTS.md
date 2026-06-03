@@ -52,50 +52,45 @@ python -m drun.cli --version
 ## 安全与配置提示
 不要提交 `.env`、本地日志、报告目录或其他生成文件；这些路径已在 `.gitignore` 中处理。测试、文档和截图中不要暴露真实密钥，YAML 示例和变更说明统一使用脱敏值。
 
-## GSD 工作流（强制）
+## Matt Pocock Skills 工作流
 
-本仓库**强制使用 GSD（Get Shit Done）工作流**进行所有非平凡改动。GSD 是 **pi agent 全局能力**，装在 `~/.pi/agent/` 下，所有使用 pi 的项目都能用，不只限本仓库。
+本仓库不再使用 GSD（Get Shit Done）强制流程。日常协作改用 Matt Pocock 的 composable skills：<https://github.com/mattpocock/skills>。这些 skills 用来补齐不同阶段的工程反馈回路，但不是一套必须线性执行的流程。
 
-**工作流三步走：**
+**推荐使用方式：**
 
-1. **规划** — 在 pi 中输入 `/skill:gsd-plan <任务>`，按 5 步流程（读上下文 → 研究 → 拆解 → 自检 → 审批）输出 `.planning/phases/PLAN-*.md`
-2. **执行** — 审批后输入 `/skill:gsd-execute`，逐任务执行，每个任务一个原子 conventional commit
-3. **审查** — 完成后输入 `/skill:gsd-review`，按 Bug/安全/质量/测试/性能五维度审查
+| 场景 | 推荐 skill | 作用 |
+|------|------------|------|
+| 不熟悉代码区域，需要先建立全局理解 | `zoom-out` | 从更高层抽象解释相关模块、调用者和领域词汇 |
+| 需求或方案还不清楚 | `grill-me` / `grill-with-docs` | 逐个追问关键决策；`grill-with-docs` 还会对齐 `CONTEXT.md` / ADR |
+| 已有讨论，需要沉淀产品需求 | `to-prd` | 将当前上下文整理为 PRD |
+| 需要把 PRD / 计划拆成可执行任务 | `to-issues` | 拆成独立、可领取的 issues / vertical slices |
+| 需要按测试先行方式实现 | `tdd` | 按 red-green-refactor 循环开发 |
+| 遇到难复现 bug 或性能回退 | `diagnose` | 按复现 → 最小化 → 假设 → 观测 → 修复 → 回归测试诊断 |
+| 想改善结构或降低耦合 | `improve-codebase-architecture` | 根据领域语言和 ADR 找重构机会 |
+| 需要交接上下文 | `handoff` | 生成可供下一个 agent 接手的交接文档 |
 
-**可用命令：**
+**使用原则：**
 
-| 命令 | 作用 |
-|------|------|
-| `/skill:gsd-plan` | 规划任务 |
-| `/skill:gsd-execute` | 执行计划 |
-| `/skill:gsd-review` | 审查代码 |
-| `/gsd:state` | 查看 `.planning/STATE.md` 项目状态 |
+- skills 是按需组合的工程工具，不要求每个非平凡改动都先走固定计划流程。
+- 开始复杂改动前，优先用 `zoom-out` / `grill-me` 对齐上下文和决策；是否生成 PRD 或 issues 由任务复杂度决定。
+- 涉及用户可见行为变更时，仍要同步评估 `drun-usage/` skill 文档是否需要更新。
+- 修改执行逻辑、CLI、YAML DSL、报告或导入导出能力时，仍必须补充或更新对应测试。
+- 若需要让 `to-prd`、`to-issues`、`triage` 等 skills 写入 issue tracker，可先运行 `setup-matt-pocock-skills` 配置 issue tracker、triage labels 和 domain docs。
 
-**GSD 文件在哪（user-level）：**
+**常用命令示例：**
 
-- skills: `~/.pi/agent/skills/gsd-{plan,execute,review}/`
-- extension: `~/.pi/agent/extensions/gsd-state.ts`
-
-**在新机器上启用 GSD：**
-
-```bash
-mkdir -p ~/.pi/agent/{skills,extensions}
-# 从 gsd-pi 安装包获取（详见 gsd-pi 仓库 README），
-# 或从已有机器复制上面 2 类文件即可。
+```text
+/skill:zoom-out
+/skill:grill-me
+/skill:to-prd
+/skill:to-issues
+/skill:tdd
+/skill:diagnose
+/skill:handoff
 ```
 
-pi 启动时会自动从 `~/.pi/agent/` 发现并加载这些 skills。
+**注意：**
 
-**强制范围：**
-
-- 任何涉及 ≥ 2 个文件、≥ 1 个新接口、≥ 1 个新测试文件的改动
-- 任何 refactor、new feature、breaking change
-- 任何需要 review 的 PR
-
-**豁免范围：**
-
-- 单行 typo 修复
-- 单文件文档补全
-- 紧急 hotfix（事后补 plan）
-
-**禁止跳过规划直接执行复杂任务。**
+- 不再要求创建 `.planning/phases/PLAN-*.md`。
+- 不再要求每个任务一个 GSD 原子提交。
+- 提交仍遵循 Conventional Commits，PR 仍需说明用户可见影响、文档同步情况和验证命令。

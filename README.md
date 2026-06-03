@@ -139,6 +139,7 @@ Notes:
 - `.yaml` can be omitted in run targets.
 - Temporary single-file runs write only one log file to the current directory.
 - Scaffolded project runs keep outputs in `logs/`, `reports/`, and `snippets/`.
+- `drun r` prints a preflight Run Plan before execution and a final Artifacts block that lists HTML, JSON, Allure, log, and snippet outputs.
 
 ## Common Patterns
 
@@ -295,7 +296,7 @@ Typical use cases:
 
 - Generate `drun` YAML cases
 - Explain `invoke`, `invoke_case_name`, `invoke_case_names`, `repeat`, and `sleep`
-- Design `drun r`, `drun q`, `convert`, `convert-openapi`, and `export curl` commands
+- Design `drun r`, `drun q`, `drun o`, `drun w`, and `drun e curl` commands
 - Explain HTML / JSON / Allure / snippet / `server`
 - Troubleshoot `drun` errors
 

@@ -139,6 +139,7 @@ drun r test_user_api -env dev -html reports/report.html
 - 支持省略 `.yaml` 扩展名。
 - 单文件临时运行时，默认只在当前目录输出一个日志文件。
 - 脚手架项目运行时，会默认输出到 `logs/`、`reports/`、`snippets/`。
+- `drun r` 会在执行前输出 Run Plan，并在结束时输出 Artifacts，集中列出 HTML、JSON、Allure、日志和 snippet 产物路径。
 
 ## 常用写法
 
@@ -295,7 +296,7 @@ python -m drun.cli --version
 
 - 生成 `drun` YAML 用例
 - 解释 `invoke`、`invoke_case_name`、`invoke_case_names`、`repeat`、`sleep`
-- 设计 `drun r`、`drun q`、`convert`、`convert-openapi`、`export curl`
+- 设计 `drun r`、`drun q`、`drun o`、`drun w`、`drun e curl`
 - 解释 HTML / JSON / Allure / snippet / `server`
 - 根据报错做 `drun` 排障
 

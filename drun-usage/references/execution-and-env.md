@@ -24,6 +24,10 @@ drun r tcases -env dev -k "smoke and not slow"
 - 如果命中了重复 case 名，当前实现会全部执行并给 warning
 - `-k` 按 tags 表达式过滤，适合 smoke / regression / slow 这类分组
 
+## 运行前后输出
+
+`drun r` 在真正执行第一个 Case 前会输出 `[RUN PLAN]`，用于确认 target、环境文件、Base URL 状态、匹配 Case 数、Case Instance（用例实例）数、tag filter、产物路径和日志/脱敏模式。执行结束后会输出 Summary、Failed Cases（如有）和 `[ARTIFACTS]`，方便直接找到报告、日志和 snippets。
+
 ## 环境文件选择与合并
 
 运行时环境文件选择顺序：

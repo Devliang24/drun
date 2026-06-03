@@ -8,6 +8,10 @@
 一个由 YAML 定义的测试用例，包含 `config`、可选参数，以及按顺序执行的 steps。
 _Avoid_: scenario, test object, 测试对象
 
+**Case Instance（用例实例）**:
+一个 Case 在具体参数集下的一次运行实例。无参数化时，一个 Case 通常产生一个 Case Instance；有 `config.parameters` 时，一个 Case 会展开为多个 Case Instance。
+_Avoid_: test run item, parameter row result, 参数行结果
+
 **Step（步骤）**:
 用例中的一个有序执行项。一个 Step 必须且只能拥有一个 Executable Target：request、invoke 或 sleep。
 _Avoid_: action, operation, 动作, 操作

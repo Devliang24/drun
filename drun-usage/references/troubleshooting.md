@@ -340,7 +340,7 @@ Legacy inline suite ('cases:') is not supported
 - 顶层 `parameters` -> `config.parameters`
 - 旧 `cases:` -> `caseflow`
 
-## `convert` 命令写法错误
+## `drun o` 命令写法错误
 
 症状：
 

@@ -110,7 +110,7 @@ class DrunUsageSkillTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        for expected in ("CLI", "YAML DSL", "报告", "错误码", "convert", "export curl"):
+        for expected in ("CLI", "YAML DSL", "报告", "错误码", "drun o", "drun e curl"):
             with self.subTest(expected=expected):
                 self.assertIn(expected, maintenance)
 

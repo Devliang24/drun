@@ -10,6 +10,8 @@ drun c tcases
 drun r tcases -env dev
 ```
 
+基础运行会先打印 `[RUN PLAN]` 供确认；结束时看 `[ARTIFACTS]` 找 HTML、JSON、Allure、日志和 snippets。
+
 ## 运行 Case 或 suite
 
 ```bash
