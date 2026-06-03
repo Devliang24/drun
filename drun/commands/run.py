@@ -10,7 +10,10 @@ import typer
 
 from drun.commands.run_outputs import (
     RunOutputPlan,
+    RunPlanContext,
+    build_artifacts_text,
     build_run_output_plan as _build_run_output_plan,
+    build_run_plan_text,
     build_run_summary_text as _build_run_summary_text,
     format_failed_cases_block as _format_failed_cases_block,
     log_run_summary_outputs,
@@ -181,9 +184,9 @@ def run_cases(
         )
         typer.echo()
         typer.echo("Usage:")
-        typer.echo("  drun run <path> -env <env_name>")
-        typer.echo("  drun run <path> -env-file /path/to/.env")
-        typer.echo("  drun run <path>   # auto-loads .env when present")
+        typer.echo("  drun r <path> -env <env_name>")
+        typer.echo("  drun r <path> -env-file /path/to/.env")
+        typer.echo("  drun r <path>   # auto-loads .env when present")
         typer.echo()
         typer.echo("Environment file naming:")
         typer.echo("  .env.dev    -> -env dev")
@@ -192,11 +195,11 @@ def run_cases(
         typer.echo("  .env        -> default (single-file mode)")
         typer.echo()
         typer.echo("Examples:")
-        typer.echo("  drun run demo -env dev")
-        typer.echo("  drun run demo -env-file ./demo.env")
-        typer.echo("  drun run tc_smoke.yaml")
-        typer.echo("  drun run tcases -env uat")
-        typer.echo("  drun run tsuites -env prod")
+        typer.echo("  drun r demo -env dev")
+        typer.echo("  drun r demo -env-file ./demo.env")
+        typer.echo("  drun r tc_smoke.yaml")
+        typer.echo("  drun r tcases -env uat")
+        typer.echo("  drun r tsuites -env prod")
         raise typer.Exit(code=2)
 
     ts = time.strftime("%Y%m%d-%H%M%S")
@@ -240,7 +243,7 @@ def run_cases(
                 for ext in (".yaml", ".yml"):
                     cand = pth.with_suffix(ext)
                     if cand.exists():
-                        hints.append(f"Did you mean: drun run {cand}")
+                        hints.append(f"Did you mean: drun r {cand}")
                         break
         else:
             if pth.is_file():
@@ -249,16 +252,16 @@ def run_cases(
                     for ext in (".yaml", ".yml"):
                         cand = pth.with_suffix(ext)
                         if cand.exists():
-                            hints.append(f"Try: drun run {cand}")
+                            hints.append(f"Try: drun r {cand}")
                             break
             elif pth.is_dir():
                 hints.append(
                     "Provide a YAML file or a directory containing YAML tests under tcases/ or tsuites/."
                 )
-        hints.append("  drun run tcases")
-        hints.append("  drun run tc_demo")
-        hints.append("  drun run tcases/tc_hello.yaml")
-        hints.append("  drun run ts_smoke")
+        hints.append("  drun r tcases")
+        hints.append("  drun r tc_demo")
+        hints.append("  drun r tcases/tc_hello.yaml")
+        hints.append("  drun r ts_smoke")
         for h in hints:
             typer.echo(h)
         raise typer.Exit(code=2)
@@ -298,15 +301,12 @@ def run_cases(
     else:
         log.info("[OUTPUT] Snippets: disabled by default")
 
-    _base_any = os.environ.get("BASE_URL") or os.environ.get("base_url") or None
-    if not _base_any:
-        _base_any = env_store.get("BASE_URL") or env_store.get("base_url")
-    if not _base_any:
-        log.warning(
-            "[ENV] BASE_URL not found in %s. Relative URLs may fail. Add BASE_URL to %s.",
-            env_file_label,
-            env_file_label,
-        )
+    base_url_candidate = (
+        global_vars.get("BASE_URL")
+        or global_vars.get("base_url")
+        or env_store.get("BASE_URL")
+        or env_store.get("base_url")
+    )
     log.info("[FILTER] expression: %r", k)
     if selected_case_names:
         log.info(
@@ -319,6 +319,8 @@ def run_cases(
     selected_name_set = set(selected_case_names or [])
     selected_hits: Dict[str, int] = {name: 0 for name in selected_case_names or []}
     available_case_names: List[str] = []
+    loaded_case_count = 0
+    candidate_case_count = 0
     for f in files:
         try:
             loaded, meta = load_yaml_file(f)
@@ -331,6 +333,7 @@ def run_cases(
                 log.error(str(exc))
             raise typer.Exit(code=2)
         debug_info.append(f"file={f} cases={len(loaded)}")
+        loaded_case_count += len(loaded)
         for c in loaded:
             case_name = c.config.name or "Unnamed Case"
             available_case_names.append(case_name)
@@ -339,6 +342,7 @@ def run_cases(
                     continue
                 selected_hits[case_name] = selected_hits.get(case_name, 0) + 1
 
+            candidate_case_count += 1
             tags = c.config.tags or []
             m = match_tags(tags, k)
             debug_info.append(f"  case={case_name!r} tags={tags} match={m}")
@@ -370,10 +374,62 @@ def run_cases(
             )
 
     if not items:
-        typer.echo("No cases matched tag expression.")
-        for line in debug_info:
-            typer.echo(line)
+        typer.echo("[ERROR] No Cases matched tag expression.")
+        typer.echo("Scanned:")
+        typer.echo(f"  Files: {len(files)}")
+        typer.echo(f"  Cases: {loaded_case_count}")
+        if selected_case_names:
+            typer.echo(f"  Cases after selector: {candidate_case_count}")
+        typer.echo("Fix:")
+        typer.echo(f"  drun t {path}")
+        if k:
+            typer.echo(f"  drun r {path}")
+        else:
+            typer.echo("  Add at least one Case with matching tags or steps")
+        if log.isEnabledFor(logging.DEBUG):
+            typer.echo("Debug:")
+            for line in debug_info:
+                typer.echo(f"  {line}")
         raise typer.Exit(code=2)
+
+    parameterized_items: List[tuple[Case, Dict[str, str], List[Dict[str, Any]]]] = []
+    try:
+        for c, meta in items:
+            param_sets = expand_parameters(c.parameters, source_path=meta.get("file"))
+            parameterized_items.append((c, meta, param_sets))
+    except LoadError as exc:
+        log.error(str(exc))
+        typer.echo(f"[ERROR] {exc}")
+        raise typer.Exit(code=2)
+
+    case_instance_count = sum(
+        len(param_sets) for _, _, param_sets in parameterized_items
+    )
+    log.info(
+        build_run_plan_text(
+            RunPlanContext(
+                target=path,
+                environment=env_label,
+                env_file=env_file_label,
+                base_url=base_url_candidate,
+                files_count=len(files),
+                cases_count=len(items),
+                case_instances_count=case_instance_count,
+                tag_filter=k,
+                case_selector=selected_case_names,
+                failfast=failfast,
+                cli_vars_keys=cli_vars.keys(),
+                output_plan=output_plan,
+                json_report=report,
+                allure_results=allure_results,
+                log_level=log_level,
+                reveal_secrets=reveal_secrets,
+                response_headers=response_headers,
+                httpx_logs=httpx_logs,
+                snippet_lang=snippet_lang,
+            )
+        )
+    )
 
     persist_file = (
         persist_env
@@ -413,9 +469,8 @@ def run_cases(
         except Exception:
             return False
 
-    for c, meta in items:
+    for c, meta, param_sets in parameterized_items:
         funcs = get_functions_for(Path(meta.get("file", path)).resolve())
-        param_sets = expand_parameters(c.parameters, source_path=meta.get("file"))
         for ps in param_sets:
             if (not c.config.base_url) and (
                 base := global_vars.get("BASE_URL")
@@ -452,9 +507,10 @@ def run_cases(
                 raise typer.Exit(code=2)
             log.info("[CASE] Start: %s | params=%s", c.config.name or "Unnamed", ps)
 
-            if env_store:
+            if env_store and log.isEnabledFor(logging.DEBUG):
                 for key, value in _iter_unique_env_items(env_store):
-                    log.info("[ENV] %s = %r", key, value)
+                    logged_value = value if reveal_secrets else "***"
+                    log.debug("[ENV] %s = %r", key, logged_value)
 
             if c.config.base_url:
                 log.info("[CONFIG] base_url: %s", c.config.base_url)
@@ -706,7 +762,20 @@ def run_cases(
         log,
         snippet_writer=_save_code_snippets,
     )
-    log_run_summary_outputs(report_obj, log=log, log_path=default_log)
+    artifacts_text = build_artifacts_text(
+        output_plan=output_plan,
+        json_report=report,
+        allure_results=allure_results,
+        snippet_lang=snippet_lang,
+    )
+    log_run_summary_outputs(
+        report_obj,
+        log=log,
+        run_target=path,
+        env=env,
+        env_file=env_file,
+        artifacts_text=artifacts_text,
+    )
 
     if s.get("failed", 0) > 0:
         raise typer.Exit(code=1)

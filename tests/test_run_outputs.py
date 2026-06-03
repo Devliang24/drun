@@ -16,6 +16,13 @@ from drun.commands.run import (
     _parse_run_target_with_case_selector,
     run_cases,
 )
+from drun.commands.run_outputs import (
+    RunOutputPlan,
+    RunPlanContext,
+    build_artifacts_text,
+    build_run_plan_text,
+    render_key_value_block,
+)
 from drun.models.report import (
     CaseInstanceResult,
     CheckResult,
@@ -205,7 +212,134 @@ class SummaryFormattingTests(unittest.TestCase):
         self.assertIn(
             "  reason: request.files.file path not found: ./data/demo.wav", text
         )
-        self.assertIn("  reason: expected=200 actual=500", text)
+    def test_failed_cases_block_can_include_rerun_hint_and_parameter_note(self) -> None:
+        report = RunReport(
+            summary={},
+            cases=[
+                CaseInstanceResult(
+                    name="Broken Case",
+                    parameters={"user": "alice"},
+                    status="failed",
+                    steps=[StepResult(name="Login", status="failed", error="boom")],
+                )
+            ],
+        )
+
+        text = _format_failed_cases_block(
+            report,
+            run_target="tcases",
+            env="dev",
+            env_file=".env.local",
+        )
+
+        self.assertIn("  rerun: drun r 'tcases:Broken Case' -env-file .env.local", text)
+        self.assertIn(
+            "  note: rerun executes all parameter sets for this Case", text
+        )
+        self.assertNotIn("-env dev", text)
+
+    def test_failed_cases_block_omits_rerun_for_unsupported_case_selector_name(self) -> None:
+        report = RunReport(
+            summary={},
+            cases=[
+                CaseInstanceResult(
+                    name="Broken: Case, Variant",
+                    status="failed",
+                    steps=[StepResult(name="Login", status="failed", error="boom")],
+                )
+            ],
+        )
+
+        text = _format_failed_cases_block(report, run_target="tcases", env="dev")
+
+        self.assertNotIn("rerun:", text)
+        self.assertIn(
+            "note: rerun hint unavailable because Case name contains ',' or ':'",
+            text,
+        )
+
+
+    def test_render_key_value_block_sanitizes_multiline_values(self) -> None:
+        text = render_key_value_block(
+            "DEMO",
+            [
+                ("Single", " value "),
+                ("Multi", "first\nsecond\rthird"),
+            ],
+        )
+
+        self.assertEqual(text, "[DEMO]\nSingle: value\nMulti: first second third")
+
+    def test_build_run_plan_text_masks_base_url_userinfo_and_lists_var_keys(self) -> None:
+        output_plan = RunOutputPlan(
+            single_file_target=None,
+            scaffold_root=Path("/repo").resolve(),
+            temporary_single_file=False,
+            log_path="logs/run.log",
+            html_path="reports/report.html",
+            snippet_output="snippets/20260603",
+            generate_snippets=True,
+        )
+
+        text = build_run_plan_text(
+            RunPlanContext(
+                target="tcases",
+                environment="dev",
+                env_file="/repo/.env.dev",
+                base_url="https://user:pass@example.test/v1",
+                files_count=2,
+                cases_count=3,
+                case_instances_count=5,
+                tag_filter="smoke",
+                case_selector=["Case A"],
+                failfast=True,
+                cli_vars_keys=["token", "BASE_URL"],
+                output_plan=output_plan,
+                json_report="reports/result.json",
+                allure_results="allure-results",
+                log_level="INFO",
+                reveal_secrets=False,
+                response_headers=True,
+                httpx_logs=True,
+                snippet_lang="curl",
+            )
+        )
+
+        self.assertIn("[RUN PLAN]", text)
+        self.assertIn("Target: tcases", text)
+        self.assertIn("Base URL: https://***@example.test/v1", text)
+        self.assertIn("Cases: 3", text)
+        self.assertIn("Case instances: 5", text)
+        self.assertIn("Case selector: Case A", text)
+        self.assertIn("CLI vars: BASE_URL, token", text)
+        self.assertIn("Secrets mode: mask", text)
+        self.assertNotIn("user:pass", text)
+
+    def test_build_artifacts_text_lists_disabled_outputs_and_open_hint(self) -> None:
+        output_plan = RunOutputPlan(
+            single_file_target=None,
+            scaffold_root=None,
+            temporary_single_file=False,
+            log_path="run.log",
+            html_path="report.html",
+            snippet_output=None,
+            generate_snippets=False,
+        )
+
+        text = build_artifacts_text(
+            output_plan=output_plan,
+            json_report=None,
+            allure_results=None,
+            snippet_lang="all",
+        )
+
+        self.assertIn("[ARTIFACTS]", text)
+        self.assertIn("HTML report: report.html", text)
+        self.assertIn("JSON report: disabled", text)
+        self.assertIn("Allure results: disabled", text)
+        self.assertIn("Log file: run.log", text)
+        self.assertIn("Snippets: disabled", text)
+        self.assertIn("Open reports: drun s", text)
 
 
 class RunPathCaseSelectorParseTests(unittest.TestCase):
@@ -419,6 +553,9 @@ steps:
             self.assertIn("Cases Pass Rate", log_text)
             self.assertIn("Steps Total", log_text)
             self.assertIn("[FAILED CASES]", log_text)
+            self.assertIn("[ARTIFACTS]", log_text)
+            self.assertIn("HTML report: disabled", log_text)
+            self.assertNotIn("Open reports: drun s", log_text)
             self.assertIn("- Temporary File", log_text)
             self.assertIn("  failed_step: Ping", log_text)
 
@@ -490,6 +627,9 @@ steps:
             self.assertTrue(log_files)
             log_text = log_files[0].read_text(encoding="utf-8")
             self.assertIn("[SUMMARY]", log_text)
+            self.assertIn("[ARTIFACTS]", log_text)
+            self.assertIn("Open reports: drun s", log_text)
+            self.assertLess(log_text.index("[SUMMARY]"), log_text.index("[ARTIFACTS]"))
             self.assertIn("Cases Total", log_text)
             self.assertIn("Cases Pass Rate", log_text)
             self.assertIn("Steps Total", log_text)
@@ -598,6 +738,8 @@ steps:
             self.assertTrue(log_files)
             log_text = log_files[0].read_text(encoding="utf-8")
             self.assertIn("[SUMMARY]", log_text)
+            self.assertIn("[ARTIFACTS]", log_text)
+            self.assertLess(log_text.index("[FAILED CASES]"), log_text.index("[ARTIFACTS]"))
             self.assertIn("Cases Total", log_text)
             self.assertIn("Cases Pass Rate", log_text)
             self.assertIn("Steps Total", log_text)
@@ -609,6 +751,77 @@ steps:
             self.assertIn(
                 "  reason: request.files.file path not found: ./data/demo.wav", log_text
             )
+    def test_run_cases_no_match_tag_output_is_concise(self) -> None:
+        with TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            tcases = project / "tcases"
+            tsuites = project / "tsuites"
+            tcases.mkdir(parents=True)
+            tsuites.mkdir()
+            (project / ".env").write_text(
+                "BASE_URL=http://localhost:8000\n", encoding="utf-8"
+            )
+            (tcases / "tc_case.yaml").write_text(
+                """config:
+  name: Smoke Case
+  tags: [smoke]
+  base_url: http://example.com
+steps:
+  - name: Ping
+    request:
+      method: GET
+      path: /ping
+""",
+                encoding="utf-8",
+            )
+
+            old_cwd = os.getcwd()
+            os.chdir(project)
+            try:
+                with (
+                    patch("drun.commands.run.Runner", _StubRunner),
+                    patch("drun.commands.run.get_functions_for", return_value={}),
+                    patch("drun.commands.run.typer.echo") as echo_mock,
+                ):
+                    with self.assertRaises(typer.Exit) as ctx:
+                        run_cases(
+                            path="tcases",
+                            k="regression",
+                            vars=[],
+                            failfast=False,
+                            report=None,
+                            html=None,
+                            allure_results=None,
+                            log_level="WARNING",
+                            env=None,
+                            env_file=".env",
+                            persist_env=None,
+                            log_file=None,
+                            httpx_logs=False,
+                            reveal_secrets=True,
+                            response_headers=False,
+                            notify=None,
+                            notify_only=None,
+                            notify_attach_html=False,
+                            no_snippet=False,
+                            snippet_output=None,
+                            snippet_lang="all",
+                        )
+            finally:
+                os.chdir(old_cwd)
+                logging.shutdown()
+
+            self.assertEqual(ctx.exception.exit_code, 2)
+            emitted = "\n".join(
+                call.args[0] for call in echo_mock.call_args_list if call.args
+            )
+            self.assertIn("[ERROR] No Cases matched tag expression.", emitted)
+            self.assertIn("Files: 1", emitted)
+            self.assertIn("Cases: 1", emitted)
+            self.assertIn("drun t tcases", emitted)
+            self.assertIn("drun r tcases", emitted)
+            self.assertNotIn("file=", emitted)
+            self.assertNotIn("[RUN PLAN]", emitted)
 
 
 class _RecordingRunner(_StubRunner):

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+import shlex
 import unicodedata
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from urllib.parse import urlsplit, urlunsplit
 
 from drun.models.case import Case
 from drun.models.report import RunReport
@@ -22,10 +24,147 @@ class RunOutputPlan:
     generate_snippets: bool
 
 
+@dataclass(frozen=True)
+class RunPlanContext:
+    target: str
+    environment: str
+    env_file: str
+    base_url: str | None
+    files_count: int
+    cases_count: int
+    case_instances_count: int
+    tag_filter: str | None
+    case_selector: List[str] | None
+    failfast: bool
+    cli_vars_keys: Iterable[str]
+    output_plan: RunOutputPlan
+    json_report: str | None
+    allure_results: str | None
+    log_level: str
+    reveal_secrets: bool
+    response_headers: bool
+    httpx_logs: bool
+    snippet_lang: str
+
+
 SnippetWriter = Callable[
     [List[tuple[Case, Dict[str, str]]], str, str, Dict[str, Any], Any],
     None,
 ]
+
+
+def render_key_value_block(title: str, rows: List[Tuple[str, Any]]) -> str:
+    header = title if title.startswith("[") else f"[{title}]"
+    lines = [header]
+    for key, value in rows:
+        value_text = str(value).replace("\r", " ").replace("\n", " ").strip()
+        lines.append(f"{key}: {value_text}")
+    return "\n".join(lines)
+
+
+def _display_value(value: Any, fallback: str = "(none)") -> str:
+    if value is None:
+        return fallback
+    text = str(value).strip()
+    return text if text else fallback
+
+
+def _bool_text(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def _mask_url_userinfo(value: str | None, *, reveal_secrets: bool) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or reveal_secrets:
+        return text
+    try:
+        parts = urlsplit(text)
+        if parts.netloc and "@" in parts.netloc:
+            _, host_part = parts.netloc.rsplit("@", 1)
+            return urlunsplit(
+                (parts.scheme, f"***@{host_part}", parts.path, parts.query, parts.fragment)
+            )
+    except Exception:
+        pass
+    if "://" in text and "@" in text:
+        scheme, rest = text.split("://", 1)
+        _, tail = rest.rsplit("@", 1)
+        return f"{scheme}://***@{tail}"
+    return text
+
+
+def _output_mode_text(output_plan: RunOutputPlan) -> str:
+    if output_plan.temporary_single_file:
+        return "temporary single-file"
+    if output_plan.scaffold_root is not None:
+        return "project"
+    return "standard"
+
+
+def _project_root_text(output_plan: RunOutputPlan) -> str:
+    if output_plan.scaffold_root is not None:
+        return str(output_plan.scaffold_root)
+    return "(none)"
+
+
+def _snippet_text(output_plan: RunOutputPlan, snippet_lang: str) -> str:
+    if output_plan.generate_snippets and output_plan.snippet_output:
+        return f"{output_plan.snippet_output} ({snippet_lang})"
+    return "disabled"
+
+
+def build_run_plan_text(context: RunPlanContext) -> str:
+    cli_var_keys = sorted({str(key) for key in context.cli_vars_keys if str(key).strip()})
+    case_selector = ", ".join(context.case_selector or []) or "(none)"
+    base_url = _mask_url_userinfo(
+        context.base_url, reveal_secrets=context.reveal_secrets
+    )
+    rows: List[Tuple[str, Any]] = [
+        ("Target", context.target),
+        ("Environment", _display_value(context.environment)),
+        ("Env file", _display_value(context.env_file)),
+        ("Base URL", _display_value(base_url, "case config / unresolved")),
+        ("Files", context.files_count),
+        ("Cases", context.cases_count),
+        ("Case instances", context.case_instances_count),
+        ("Tag filter", _display_value(context.tag_filter)),
+        ("Case selector", case_selector),
+        ("Failfast", _bool_text(context.failfast)),
+        ("CLI vars", ", ".join(cli_var_keys) if cli_var_keys else "(none)"),
+        ("Output mode", _output_mode_text(context.output_plan)),
+        ("Project root", _project_root_text(context.output_plan)),
+        ("Log file", context.output_plan.log_path),
+        ("HTML report", context.output_plan.html_path or "disabled"),
+        ("JSON report", context.json_report or "disabled"),
+        ("Allure results", context.allure_results or "disabled"),
+        ("Snippets", _snippet_text(context.output_plan, context.snippet_lang)),
+        ("Log level", context.log_level),
+        ("Secrets mode", "plain" if context.reveal_secrets else "mask"),
+        ("Response headers", _bool_text(context.response_headers)),
+        ("HTTPX logs", _bool_text(context.httpx_logs)),
+    ]
+    return render_key_value_block("RUN PLAN", rows)
+
+
+def build_artifacts_text(
+    *,
+    output_plan: RunOutputPlan,
+    json_report: str | None,
+    allure_results: str | None,
+    snippet_lang: str,
+) -> str:
+    rows: List[Tuple[str, Any]] = [
+        ("HTML report", output_plan.html_path or "disabled"),
+        ("JSON report", json_report or "disabled"),
+        ("Allure results", allure_results or "disabled"),
+        ("Log file", output_plan.log_path),
+        ("Snippets", _snippet_text(output_plan, snippet_lang)),
+    ]
+    if output_plan.html_path:
+        rows.append(("Open reports", "drun s"))
+    return render_key_value_block("ARTIFACTS", rows)
 
 
 def sanitize_filename_component(value: str, fallback: str) -> str:
@@ -141,8 +280,30 @@ def summarize_failure_reason(step) -> str:
     return "(no error message)"
 
 
-def format_failed_cases_block(report: RunReport) -> str:
-    failed_cases: List[Tuple[str, List[Tuple[str, str]]]] = []
+def _build_rerun_command(
+    *,
+    run_target: str,
+    case_name: str,
+    env: str | None,
+    env_file: str | None,
+) -> str:
+    target_arg = shlex.quote(f"{run_target}:{case_name}")
+    parts = ["drun", "r", target_arg]
+    if env_file:
+        parts.extend(["-env-file", shlex.quote(env_file)])
+    elif env:
+        parts.extend(["-env", shlex.quote(env)])
+    return " ".join(parts)
+
+
+def format_failed_cases_block(
+    report: RunReport,
+    *,
+    run_target: str | None = None,
+    env: str | None = None,
+    env_file: str | None = None,
+) -> str:
+    failed_cases: List[Tuple[str, List[Tuple[str, str]], bool]] = []
     for case in report.cases:
         if case.status != "failed":
             continue
@@ -157,7 +318,9 @@ def format_failed_cases_block(report: RunReport) -> str:
         if not failed_steps:
             failed_steps.append(("(unknown step)", "(no error message)"))
 
-        failed_cases.append((case.name or "Unnamed", failed_steps))
+        failed_cases.append(
+            (case.name or "Unnamed", failed_steps, bool(case.parameters))
+        )
 
     if not failed_cases:
         return ""
@@ -165,11 +328,29 @@ def format_failed_cases_block(report: RunReport) -> str:
     case_indent = ""
     detail_indent = " " * 2
     lines = ["[FAILED CASES]"]
-    for idx, (case_name, failed_steps) in enumerate(failed_cases):
+    for idx, (case_name, failed_steps, has_parameters) in enumerate(failed_cases):
         lines.append(f"{case_indent}- {case_name}")
         for step_name, reason in failed_steps:
             lines.append(f"{detail_indent}failed_step: {step_name}")
             lines.append(f"{detail_indent}reason: {reason}")
+        if run_target:
+            if "," in case_name or ":" in case_name:
+                lines.append(
+                    f"{detail_indent}note: rerun hint unavailable because Case name "
+                    "contains ',' or ':'"
+                )
+            else:
+                rerun = _build_rerun_command(
+                    run_target=run_target,
+                    case_name=case_name,
+                    env=env,
+                    env_file=env_file,
+                )
+                lines.append(f"{detail_indent}rerun: {rerun}")
+        if has_parameters:
+            lines.append(
+                f"{detail_indent}note: rerun executes all parameter sets for this Case"
+            )
         if idx < len(failed_cases) - 1:
             lines.append("")
     return "\n".join(lines)
@@ -399,12 +580,23 @@ def log_run_summary_outputs(
     report_obj: RunReport,
     *,
     log,
-    log_path: str,
+    log_path: str | None = None,
+    run_target: str | None = None,
+    env: str | None = None,
+    env_file: str | None = None,
+    artifacts_text: str | None = None,
 ) -> None:
-    log.info("[CASE] Logs written to %s", log_path)
     summary_text = build_run_summary_text(report_obj)
     log.warning(summary_text)
 
-    failed_cases_text = format_failed_cases_block(report_obj)
+    failed_cases_text = format_failed_cases_block(
+        report_obj,
+        run_target=run_target,
+        env=env,
+        env_file=env_file,
+    )
     if failed_cases_text:
         log.error(failed_cases_text)
+
+    if artifacts_text:
+        log.warning(artifacts_text)
