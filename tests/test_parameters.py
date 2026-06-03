@@ -13,7 +13,7 @@ class ParameterExpansionTests(unittest.TestCase):
             tmpdir = Path(tmp)
             csv_file = tmpdir / "users.csv"
             csv_file.write_text("user_id,active\n1,true\n2,false\n", encoding="utf-8")
-            (tmpdir / "Dhook.py").write_text("", encoding="utf-8")
+            (tmpdir / "dhook.py").write_text("", encoding="utf-8")
             case_file = tmpdir / "case.yaml"
             case_file.write_text("", encoding="utf-8")
 

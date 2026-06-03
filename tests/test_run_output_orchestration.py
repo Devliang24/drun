@@ -38,7 +38,7 @@ class RunOutputOrchestrationTests(unittest.TestCase):
             (project / ".env").write_text(
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
-            (project / "Dhook.py").write_text("", encoding="utf-8")
+            (project / "dhook.py").write_text("", encoding="utf-8")
             target = testcase_dir / "tc_demo.yaml"
             target.write_text("config:\n  name: Demo\nsteps: []\n", encoding="utf-8")
 

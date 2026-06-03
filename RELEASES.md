@@ -1,5 +1,13 @@
 # Releases
 
+## Unreleased
+
+### ⚠️ Breaking
+
+- Default hook file discovery now uses `dhook.py` instead of `Dhook.py`. Rename existing hook files to `dhook.py`; explicitly setting `DRUN_HOOKS_FILE=Dhook.py` remains available for manual migration.
+
+---
+
 ## Release 8.2.0
 
 3 Jun 2026

@@ -21,6 +21,7 @@ from drun.commands.run_outputs import (
     RunPlanContext,
     build_artifacts_text,
     build_run_plan_text,
+    has_scaffold_markers,
     render_key_value_block,
 )
 from drun.models.report import (
@@ -396,6 +397,22 @@ class RunOutputPlanTests(unittest.TestCase):
             self.assertFalse(plan.generate_snippets)
             self.assertIsNone(plan.snippet_output)
 
+    def test_has_scaffold_markers_accepts_lowercase_dhook(self) -> None:
+        with TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            (project / "tcases").mkdir()
+            (project / "dhook.py").write_text("", encoding="utf-8")
+
+            self.assertTrue(has_scaffold_markers(project))
+
+    def test_has_scaffold_markers_ignores_legacy_Dhook(self) -> None:
+        with TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            (project / "tcases").mkdir()
+            (project / "Dhook.py").write_text("", encoding="utf-8")
+
+            self.assertFalse(has_scaffold_markers(project))
+
     def test_build_output_plan_for_scaffold_single_file_uses_project_root_outputs(
         self,
     ) -> None:
@@ -410,7 +427,7 @@ class RunOutputPlanTests(unittest.TestCase):
             (project / ".env").write_text(
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
-            (project / "Dhook.py").write_text("", encoding="utf-8")
+            (project / "dhook.py").write_text("", encoding="utf-8")
             target = testcase_dir / "tc_login.yaml"
             target.write_text("config:\n  name: Demo\nsteps: []\n", encoding="utf-8")
 
@@ -573,7 +590,7 @@ steps:
             (project / ".env").write_text(
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
-            (project / "Dhook.py").write_text("", encoding="utf-8")
+            (project / "dhook.py").write_text("", encoding="utf-8")
             target = testcase_dir / "tc_login.yaml"
             target.write_text(
                 """config:
@@ -649,7 +666,7 @@ steps:
             (project / ".env").write_text(
                 "BASE_URL=http://localhost:8000\n", encoding="utf-8"
             )
-            (project / "Dhook.py").write_text("", encoding="utf-8")
+            (project / "dhook.py").write_text("", encoding="utf-8")
 
             good = testcase_dir / "tc_case_good.yaml"
             good.write_text(

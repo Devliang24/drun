@@ -75,7 +75,7 @@ myproject/
 ├── reports/
 ├── snippets/
 ├── .env
-└── Dhook.py
+└── dhook.py
 ```
 
 ### 2. Configure Environment Variables

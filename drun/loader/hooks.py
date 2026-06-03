@@ -8,10 +8,12 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, Optional, Sequence
 
+from drun.utils.files import exact_child_path
+
 
 def _module_name_for(path: Path) -> str:
     h = hashlib.sha1(str(path).encode()).hexdigest()[:10]
-    return f"Dhook_{h}"
+    return f"dhook_{h}"
 
 
 def _candidate_filenames() -> Sequence[str]:
@@ -19,20 +21,30 @@ def _candidate_filenames() -> Sequence[str]:
     env_val = os.environ.get("DRUN_HOOKS_FILE")
     if env_val:
         return [x.strip() for x in env_val.split(",") if x.strip()]
-    return ["Dhook.py"]
+    return ["dhook.py"]
+
+
+def _is_env_configured() -> bool:
+    return bool((os.environ.get("DRUN_HOOKS_FILE") or "").strip())
 
 
 def find_hooks(start: Path) -> Optional[Path]:
     """Search upwards from start directory for a hooks file.
-    Default names: Dhook.py (configurable via DRUN_HOOKS_FILE)
+    Default name: dhook.py (configurable via DRUN_HOOKS_FILE)
     """
     d = start if start.is_dir() else start.parent
     root = Path(d.anchor)
     names = _candidate_filenames()
+    use_exact_default_lookup = not _is_env_configured()
     while True:
         for name in names:
-            candidate = d / name
-            if candidate.exists():
+            if use_exact_default_lookup:
+                candidate = exact_child_path(d, name)
+            else:
+                candidate = d / name
+                if not candidate.exists():
+                    candidate = None
+            if candidate is not None:
                 return candidate
         if d == root:
             return None

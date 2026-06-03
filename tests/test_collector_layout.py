@@ -5,7 +5,12 @@ import os
 import tempfile
 import unittest
 
-from drun.loader.collector import AmbiguousTestTargetError, InvalidTestPathError, discover
+from drun.loader.collector import (
+    AmbiguousTestTargetError,
+    InvalidTestPathError,
+    discover,
+    find_project_root,
+)
 
 
 class CollectorLayoutTests(unittest.TestCase):
@@ -24,6 +29,30 @@ class CollectorLayoutTests(unittest.TestCase):
             found = discover([tcases, tsuites])
 
             self.assertEqual([p.resolve() for p in found], [case_file.resolve(), suite_file.resolve()])
+
+    def test_find_project_root_accepts_lowercase_dhook_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "tcases").mkdir()
+            workbench = root / "workbench"
+            workbench.mkdir()
+            (root / "dhook.py").write_text("", encoding="utf-8")
+            source_file = workbench / "scratch.yaml"
+            source_file.write_text("config:\n  name: Scratch\nsteps: []\n", encoding="utf-8")
+
+            self.assertEqual(find_project_root(source_file), root)
+
+    def test_find_project_root_ignores_legacy_Dhook_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "tcases").mkdir()
+            workbench = root / "workbench"
+            workbench.mkdir()
+            (root / "Dhook.py").write_text("", encoding="utf-8")
+            source_file = workbench / "scratch.yaml"
+            source_file.write_text("config:\n  name: Scratch\nsteps: []\n", encoding="utf-8")
+
+            self.assertEqual(find_project_root(source_file), workbench)
 
     def test_rejects_legacy_testcases_directory(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

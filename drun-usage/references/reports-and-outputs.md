@@ -28,7 +28,7 @@
 
 脚手架项目模式：
 
-- 运行路径位于一个包含 `tcases/` 或 `tsuites/`，且同时带 `.env` 或 `Dhook.py` 的项目根下
+- 运行路径位于一个包含 `tcases/` 或 `tsuites/`，且同时带 `.env` 或 `dhook.py` 的项目根下
 - 默认输出：
   - `logs/<system>-<timestamp>.log`
   - `reports/<system>-<timestamp>.html`
@@ -124,7 +124,7 @@ steps:
 - `columns` 不传时使用第一行对象的全部字段
 - `mode` 支持 `overwrite` / `append`
 - `columns` 指定不存在的字段会报错
-- 相对输出路径优先按向上查找到的 `Dhook.py` 所在目录解析；找不到时按当前运行目录解析
+- 相对输出路径优先按向上查找到的 `dhook.py` 所在目录解析；找不到时按当前运行目录解析
 
 ## 报告服务
 

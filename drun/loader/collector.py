@@ -4,6 +4,8 @@ from pathlib import Path
 import re
 from typing import Iterable, List, Sequence
 
+from drun.utils.files import has_exact_child
+
 
 LEGACY_TEST_DIRS = {"testcases", "testsuites"}
 CASE_FILE_RE = re.compile(r"^tc_[a-z0-9_]+\.ya?ml$")
@@ -153,7 +155,9 @@ def find_project_root(source: str | Path | None) -> Path | None:
     current = path if path.is_dir() else path.parent
     for candidate in [current, *current.parents]:
         has_test_dirs = (candidate / "tcases").is_dir() or (candidate / "tsuites").is_dir()
-        has_marker = (candidate / ".env").exists() or (candidate / "Dhook.py").exists()
+        has_marker = (candidate / ".env").exists() or has_exact_child(
+            candidate, "dhook.py"
+        )
         if has_test_dirs and has_marker:
             return candidate
     if current.name in {"tcases", "tsuites"}:

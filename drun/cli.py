@@ -19,6 +19,7 @@ from drun.commands.run import run_cases
 from drun.commands.tags import run_tags
 from drun.commands.yaml_dump import build_cases_from_import, write_imported_cases
 from drun.extensions import require_importer
+from drun.utils.files import has_exact_child
 
 from drun.commands.quick import quick
 
@@ -749,9 +750,9 @@ def init_project(
         target_dir = Path.cwd()
 
     # 检查是否已存在关键文件
-    key_files = ["tcases", "tsuites", ".env", "Dhook.py", ".gitignore"]
+    key_files = ["tcases", "tsuites", ".env", "dhook.py", ".gitignore"]
     legacy_files = ["testcases", "testsuites"]
-    existing_files = [f for f in key_files if (target_dir / f).exists()]
+    existing_files = [f for f in key_files if has_exact_child(target_dir, f)]
     existing_legacy_files = [f for f in legacy_files if (target_dir / f).exists()]
 
     if existing_legacy_files:
@@ -836,7 +837,7 @@ def init_project(
 
     # Config files
     _write_template(".env", scaffolds.ENV_TEMPLATE)
-    _write_template("Dhook.py", scaffolds.HOOKS_TEMPLATE)
+    _write_template("dhook.py", scaffolds.HOOKS_TEMPLATE)
     _write_template(".gitignore", scaffolds.GITIGNORE_TEMPLATE)
 
     # CI workflow (optional)
@@ -875,7 +876,7 @@ def init_project(
     tree_entries.extend(
         [
             ("├── ", ".env", "Environment config"),
-            ("├── ", "Dhook.py", "Custom hooks"),
+            ("├── ", "dhook.py", "Custom hooks"),
             ("└── ", ".gitignore", "Git ignore"),
         ]
     )
