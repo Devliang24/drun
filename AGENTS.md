@@ -31,6 +31,17 @@ python -m drun.cli --version
 ## 发布约定
 版本发布严格只走 GitHub Action，不做本地打包校验。需要发版时，只修改版本号、提交、创建版本 tag 并推送到远端，由 `.github/workflows/publish-pypi.yml` 负责构建、校验和发布。默认不要在本地执行 `python -m build`、`twine check` 或其他发布前打包检查，除非用户明确要求。
 
+**每次发布必须创建并推送一个新的版本 tag**，tag 名与版本号保持一致，使用 `vX.Y.Z` 格式。例如版本号升级到 `8.2.0` 时，应执行：
+
+```bash
+git commit -m "chore: bump version to 8.2.0"
+git tag v8.2.0
+git push origin main
+git push origin v8.2.0
+```
+
+不要只推送版本号提交而不推送 tag；没有 tag 就不会触发约定的发布流程。
+
 ## 代码风格与命名约定
 遵循现有 Python 风格：4 空格缩进、PEP 8 布局、公共逻辑补充类型标注。新增模块优先使用 `from __future__ import annotations`。模块、函数、辅助方法使用 `snake_case`，类名使用 `PascalCase`，常量使用 `UPPER_SNAKE_CASE`。测试类通常以 `Tests` 结尾。仓库未强制配置格式化工具，因此请保持与周边文件一致的导入顺序、注释风格和代码排版。
 
